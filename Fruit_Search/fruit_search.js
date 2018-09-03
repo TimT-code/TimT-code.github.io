@@ -287,7 +287,7 @@ var cherry = new Fruit(
 );
 
 var raspberry = new Fruit(
-  img_folder + "raspberry.jpg", //whole_fruit_pic
+  img_folder + "raspberry.png", //whole_fruit_pic
   img_folder + "raspberry-slice.jpg", //slice_pic
   "Raspberry", //name
   "Rubus" //genus
