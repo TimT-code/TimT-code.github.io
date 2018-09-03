@@ -475,7 +475,7 @@ btm_brdr.className = 'btm_brdr';
 
 /* Audio */
 //Audio folder
-var audio_folder='/Fruit_Search/audio/';
+var audio_folder='/audio/';
 //a1
 var audio1 = document.createElement('audio');
 document.body.appendChild(audio1);
