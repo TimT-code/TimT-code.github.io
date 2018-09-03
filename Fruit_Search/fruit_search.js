@@ -474,6 +474,8 @@ document.body.appendChild(btm_brdr);
 btm_brdr.className = 'btm_brdr';
 
 /* Audio */
+//Audio folder
+var audio_folder='/Fruit_Search/audio/';
 //a1
 var audio1 = document.createElement('audio');
 document.body.appendChild(audio1);
@@ -482,7 +484,7 @@ audio1.controls = false;
 audio1.id = 'audio1_id';
 var source1 = document.createElement('source');
 source1.type = 'audio/mpeg';
-source1.src = 'http://tteacher.net/Flash/sound/sound11.mp3';
+source1.src = '/Fruit_Search/audio/sound11.mp3';
 audio1.appendChild(source1);
 
 function audio1_func() {
@@ -497,7 +499,7 @@ audio2.controls = false;
 audio2.id = 'audio2_id';
 var source2 = document.createElement('source');
 source2.type = 'audio/mpeg';
-source2.src = 'http://tteacher.net/Flash/sound/sound12.mp3';
+source2.src = '/Fruit_Search/audio/sound12.mp3';
 audio2.appendChild(source2);
 
 function audio2_func() {
@@ -512,7 +514,7 @@ audio3.controls = false;
 audio3.id = 'audio3_id';
 var source3 = document.createElement('source');
 source3.type = 'audio/mpeg';
-source3.src = 'http://tteacher.net/Flash/sound/sound6.mp3';
+source3.src = '/Fruit_Search/audio/sound6.mp3';
 audio3.appendChild(source3);
 
 function audio3_func() {
@@ -527,7 +529,7 @@ audio4.controls = false;
 audio4.id = 'audio4_id';
 var source4 = document.createElement('source');
 source4.type = 'audio/mpeg';
-source4.src = 'http://tteacher.net/Flash/sound/sound19.mp3';
+source4.src = '/Fruit_Search/audio/sound19.mp3';
 audio4.appendChild(source4);
 
 function audio4_func() {
@@ -542,7 +544,7 @@ audio5.controls = false;
 audio5.id = 'audio5_id';
 var source5 = document.createElement('source');
 source5.type = 'audio/mpeg';
-source5.src = 'http://tteacher.net/Flash/sound/sound40.mp3';
+source5.src = '/Fruit_Search/audio/sound40.mp3';
 audio5.appendChild(source5);
 
 function audio5_func() {
@@ -557,7 +559,7 @@ audio6.controls = false;
 audio6.id = 'audio6_id';
 var source6 = document.createElement('source');
 source6.type = 'audio/mpeg';
-source6.src = 'http://tteacher.net/Flash/sound/sound36.mp3';
+source6.src = '/Fruit_Search/audio/sound36.mp3';
 audio6.appendChild(source6);
 
 function audio6_func() {
