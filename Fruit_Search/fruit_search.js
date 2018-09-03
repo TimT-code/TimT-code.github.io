@@ -172,13 +172,15 @@ function Fruit(whole_fruit_pic, slice_pic, fruit_name, fruit_genus) {
 
 }
 
+var img_folder='/images/';
+
 //begin fruits listing
 
 var orange = new Fruit(
   /*whole_fruit_pic*/
-  "http://rs115.pbsrc.com/albums/n306/mmarch694/orange.jpg~c200",
+  img_folder + "orange.jpg",
   /*slice_pic*/
-  "http://www.mannatechblog.com/wp-content/uploads/2014/12/Orange_Slice.jpg",
+  img_folder + "orange_slice.jpg",
   /*name*/
   "Orange",
   /*genus*/
@@ -186,99 +188,99 @@ var orange = new Fruit(
 );
 
 var apple = new Fruit(
-  "http://www.kimmelorchard.org/img/icon_apple_gala.png", //whole_fruit_pic
-  "http://flipthatstock.com/wp-content/uploads/2014/05/apple-slice.jpg", //slice_pic
+  img_folder + "apple.png", //whole_fruit_pic
+  img_folder + "apple-slice.jpg", //slice_pic
   "Apple", //name
   "Citrus" //genus
 );
 
 var lime = new Fruit(
-  "http://www.foodsubs.com/Photos/clime.jpg", //whole_fruit_pic
-  "http://researcher.watson.ibm.com/researcher/files/us-rabbah/lime.gif", //slice_pic
+  img_folder + "lime.jpg", //whole_fruit_pic
+  img_folder + "lime-slice.gif", //slice_pic
   "Lime", //name
   "Citrus" //genus
 );
 
 var lemon = new Fruit(
-  "https://edc2.healthtap.com/ht-staging/user_answer/reference_image/9114/large/Lemon_allergy.jpeg?1386670847", //whole_fruit_pic
-  "http://www.thewholetortilla.com/images/lemon_slice.jpg", //slice_pic
+  img_folder + "lemon.jpg", //whole_fruit_pic
+  img_folder + "lemon_slice.jpg", //slice_pic
   "Lemon", //name
   "Citrus" //genus
 );
 
 var pear = new Fruit(
-  "http://www.finecooking.com/assets/uploads/posts/5587/051108064-04-forelle-pear_xlg.jpg", //whole_fruit_pic
-  "http://static.wixstatic.com/media/41d9d6_d6e6be57d47042d7b82eda4dcfb4c0e1.jpg/v1/fill/w_473,h_610,al_c,q_90/41d9d6_d6e6be57d47042d7b82eda4dcfb4c0e1.jpg", //slice_pic
+  img_folder + "pear.jpg", //whole_fruit_pic
+  img_folder + "pear-slice.jpg", //slice_pic
   "Pear", //name
   "Pome" //genus
 );
 
 var pineapple = new Fruit(
-  "http://www.natures-health-foods.com/images/Pineapple-clean-FD-xl.jpg", //whole_fruit_pic
-  "http://www.fruit-powered.com/wp-content/uploads/2013/11/Pineapple-slice-resembling-the-sun.jpg", //slice_pic
+  img_folder + "pineapple.jpg", //whole_fruit_pic
+  img_folder + "pineapple-slice.jpg", //slice_pic
   "Pineapple", //name
   "Ananas" //genus
 );
 
 var watermelon = new Fruit(
-  "http://www.universetoday.com/wp-content/uploads/2009/08/watermelon.jpg", //whole_fruit_pic
-  "http://cdn.skim.gs/image/upload/v1456343706/msi/isolated-slice-of-watermelon_w6khuv.jpg", //slice_pic
+  img_folder + "watermelon.jpg", //whole_fruit_pic
+  img_folder + "watermelon-slice.jpg", //slice_pic
   "Watermelon", //name
   "Citrullus" //genus
 );
 
 var coconut = new Fruit(
-  "http://assets.nydailynews.com/polopoly_fs/1.2129222.1424898461!/img/httpImage/image.jpg_gen/derivatives/article_750/154768913.jpg", //whole_fruit_pic
-  "https://i.dailymail.co.uk/i/pix/2014/01/31/article-0-1AAF4AD900000578-65_634x557.jpg", //slice_pic
+  img_folder + "coconut.jpg", //whole_fruit_pic
+  img_folder + "coconut-slice.jpg", //slice_pic
   "Coconut", //name
   "Cocos" //genus
 );
 
 var banana = new Fruit(
-  "https://media.licdn.com/mpr/mpr/p/2/005/061/3dc/115e118.jpg", //whole_fruit_pic
-  "http://previews.123rf.com/images/LepasR/LepasR1409/lepasr140900292/31189607-Banana-slice-closeup-isolated-on-white-background-Stock-Photo.jpg", //slice_pic
+  img_folder + "banana.jpg", //whole_fruit_pic
+  img_folder + "banana-slice.jpg", //slice_pic
   "Banana", //name
   "Musa" //genus
 );
 
 var canteloupe = new Fruit(
-  "https://cdn.shopify.com/s/files/1/1321/7103/products/cantaloupe-hero_large.jpeg?v=1465353350", //whole_fruit_pic
-  "http://www.freshfoodcentral.com/uploads/Melons/melons-20060723-cantaloupe-02.jpg", //slice_pic
+  img_folder + "canteloupe.jpg", //whole_fruit_pic
+  img_folder + "canteloupe-slice.jpg", //slice_pic
   "Canteloupe", //name
   "" //genus
 );
 
 var peach = new Fruit(
-  "http://www.changedlivesnewjourneys.com/wp-content/uploads/Peach-Pixabay219845_640.jpg", //whole_fruit_pic
-  "http://sr.photos2.fotosearch.com/bthumb/CSP/CSP990/k9995296.jpg", //slice_pic
+  img_folder + "peach.jpg", //whole_fruit_pic
+  img_folder + "peach-slice.jpg", //slice_pic
   "Peach", //name
   "Prunus" //genus
 );
 
 var strawberry = new Fruit(
-  "http://www.rodalesorganiclife.com/sites/rodalesorganiclife.com/files/images/chemicals-strawberries-320.jpg", //whole_fruit_pic
-  "https://atlas-content2-cdn.pixelsquid.com/assets_v2/11/1188492562868999748/jpeg-600/G03.jpg", //slice_pic
+  img_folder + "strawberry.jpg", //whole_fruit_pic
+  img_folder + "strawberry-slice.jpg", //slice_pic
   "Strawberry", //name
   "Fragaria" //genus
 );
 
 var grapefruit = new Fruit(
-  "https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcRQcGUP1hfK1Yeqz8FfILfCPpA4q2xI42IgOXp72prfA0w7y4gS2g", //whole_fruit_pic
-  "http://www.learnrawfood.com/images/uploads/Grapefruit_1.jpg", //slice_pic
+  img_folder + "grapefruit.jpg", //whole_fruit_pic
+  img_folder + "grapefruit-slice.jpg", //slice_pic
   "Grapefruit", //name
   "Citrus" //genus
 );
 
 var Blueberry = new Fruit(
-  "https://cdn.authoritynutrition.com/wp-content/uploads/2015/02/a-single-blueberry.jpg", //whole_fruit_pic
-  "http://farm5.static.flickr.com/4145/5010626717_980662dc88.jpg", //slice_pic
+  img_folder + "blueberry.jpg", //whole_fruit_pic
+  img_folder + "blueberry-slice.jpg", //slice_pic
   "Blueberry", //name
   "Vaccinium" //genus
 );
 
 var cherry = new Fruit(
-  "http://img.ifreepic.com/56/56056_icon.jpg", //whole_fruit_pic
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Cross-section_cherry.jpg/334px-Cross-section_cherry.jpg", //slice_pic
+  img_folder + "cherry.jpg", //whole_fruit_pic
+  img_folder + "cherry-slice.jpg", //slice_pic
   "Cherry", //name
   "Prunus" //genus
 );
