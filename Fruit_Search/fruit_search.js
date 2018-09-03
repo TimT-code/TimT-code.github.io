@@ -94,7 +94,7 @@ function Fruit(whole_fruit_pic, slice_pic, fruit_name, fruit_genus) {
   var wikiDiv = document.createElement("div");
   var wiki = document.createElement("a"); //wikianchor
   wiki.innerHTML = 'Wikipedia';
-  wiki.href = 'https://en.wikipedia.org/wiki/' + fruit_name + '_(fruit)';
+  wiki.href = 'https://en.wikipedia.org/wiki/' + fruit_name;
   wiki.onclick = audio3_func;
   wiki.target = '_blank';
   wiki.title = 'Wikipedia Search for ' + fruit_name + ' - ' + wiki.href;
