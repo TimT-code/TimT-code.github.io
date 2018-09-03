@@ -203,7 +203,7 @@ var lime = new Fruit(
 );
 
 var lemon = new Fruit(
-  img_folder + "lemon.jpg", //whole_fruit_pic
+  img_folder + "lemon.jpeg", //whole_fruit_pic
   img_folder + "lemon-slice.jpg", //slice_pic
   "Lemon", //name
   "Citrus" //genus
@@ -244,8 +244,8 @@ var banana = new Fruit(
   "Musa" //genus
 );
 
-var canteloupe = new Fruit(
-  img_folder + "cantaloupe.jpg", //whole_fruit_pic
+var cantaloupe = new Fruit(
+  img_folder + "cantaloupe.jpeg", //whole_fruit_pic
   img_folder + "cantaloupe-slice.jpg", //slice_pic
   "Canteloupe", //name
   "" //genus
