@@ -181,7 +181,7 @@ var orange = new Fruit(
   /*whole_fruit_pic*/
   img_folder + "orange.jpg",
   /*slice_pic*/
-  img_folder + "orange_slice.jpg",
+  img_folder + "orange-slice.jpg",
   /*name*/
   "Orange",
   /*genus*/
@@ -204,7 +204,7 @@ var lime = new Fruit(
 
 var lemon = new Fruit(
   img_folder + "lemon.jpg", //whole_fruit_pic
-  img_folder + "lemon_slice.jpg", //slice_pic
+  img_folder + "lemon-slice.jpg", //slice_pic
   "Lemon", //name
   "Citrus" //genus
 );
@@ -245,8 +245,8 @@ var banana = new Fruit(
 );
 
 var canteloupe = new Fruit(
-  img_folder + "canteloupe.jpg", //whole_fruit_pic
-  img_folder + "canteloupe-slice.jpg", //slice_pic
+  img_folder + "cantaloupe.jpg", //whole_fruit_pic
+  img_folder + "cantaloupe-slice.jpg", //slice_pic
   "Canteloupe", //name
   "" //genus
 );
