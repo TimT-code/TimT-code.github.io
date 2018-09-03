@@ -247,7 +247,7 @@ var banana = new Fruit(
 var cantaloupe = new Fruit(
   img_folder + "cantaloupe.jpeg", //whole_fruit_pic
   img_folder + "cantaloupe-slice.jpg", //slice_pic
-  "Canteloupe", //name
+  "Cantaloupe", //name
   "" //genus
 );
 
@@ -272,7 +272,7 @@ var grapefruit = new Fruit(
   "Citrus" //genus
 );
 
-var Blueberry = new Fruit(
+var blueberry = new Fruit(
   img_folder + "blueberry.jpg", //whole_fruit_pic
   img_folder + "blueberry-slice.jpg", //slice_pic
   "Blueberry", //name
@@ -284,6 +284,13 @@ var cherry = new Fruit(
   img_folder + "cherry-slice.jpg", //slice_pic
   "Cherry", //name
   "Prunus" //genus
+);
+
+var raspberry = new Fruit(
+  img_folder + "raspberry.jpg", //whole_fruit_pic
+  img_folder + "raspberry-slice.jpg", //slice_pic
+  "Raspberry", //name
+  "Rubus" //genus
 );
 
 /*
