@@ -172,6 +172,7 @@ function Fruit(whole_fruit_pic, slice_pic, fruit_name, fruit_genus) {
 
 }
 
+//fruit images folder - concatenated to pic name
 var img_folder='/images/';
 
 //begin fruits listing
