@@ -300,6 +300,13 @@ var grape = new Fruit(
   "Vitus" //genus
 );
 
+var mango = new Fruit(
+  img_folder + "mango.jpg", //whole_fruit_pic
+  img_folder + "mango-slice.jpg", //slice_pic
+  "Mango", //name
+  "Mangifera" //genus
+);
+
 /*
 var orange = new Fruit(
   "",//whole_fruit_pic
