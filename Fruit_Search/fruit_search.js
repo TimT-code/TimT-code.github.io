@@ -293,6 +293,20 @@ var raspberry = new Fruit(
   "Rubus" //genus
 );
 
+var raspberry = new Fruit(
+  img_folder + "raspberry.png", //whole_fruit_pic
+  img_folder + "raspberry-slice.jpg", //slice_pic
+  "Raspberry", //name
+  "Rubus" //genus
+);
+
+var grape = new Fruit(
+  img_folder + "grape.jpg", //whole_fruit_pic
+  img_folder + "grape-slice.jpg", //slice_pic
+  "Grape", //name
+  "Vitus" //genus
+);
+
 /*
 var orange = new Fruit(
   "",//whole_fruit_pic
