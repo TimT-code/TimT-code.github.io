@@ -8,11 +8,11 @@ html {
 body {
   white-space: nowrap;
   background-color: gray;
-  margin: 4px 0 4px 4px;
-  padding: 96px 6px 0 6px;
+  margin: 4px 0 0 4px;
+  padding: 93px 6px 0 6px;
   border: 2px solid black;
-  width: 1628px;
-  height:1616px;
+  width: 1630px;
+  height:auto;
 }
 
 a {
@@ -26,22 +26,11 @@ div {
   width: 300px;
   height: 76px;
   border: 2px solid black;
-  border-bottom:0;
-  margin: 0;
+  margin: 0 0 5px 0;
   padding: 24px 6px 0 6px;
   text-align: center;
-  font-size: 30pt
-}
-
-.btm_brdr{
-  margin:0;
-  padding:0;
-  display:inline-block;
-  width:1628px;
-  height:0;
-  border:0;
-  border-bottom:2px solid black;
-  vertical-align:top
+  font-size: 30pt;
+  text-transform: capitalize
 }
 
 .hover_name {
@@ -64,13 +53,13 @@ div {
 .pic_wrap {
   display: inline-block;
   background-color: white;
+  vertical-align: top;
   border: 2px solid black;
-  border-bottom:0;
-  border-left: 0;
+  border-left:0;
   margin: 0;
   padding: 0;
-  width: 150px;
-  height: 100px;
+  width: 151px;
+  height: 99px;
 }
 
 .hover_wrap {
@@ -104,7 +93,7 @@ div {
   padding: 27px 0 0 0;
   margin: 0;
   width: 240px;
-  height: 73px;
+  height: 72px;
 }
 
 .goog_div {
@@ -164,12 +153,12 @@ div {
 }
 
 .fruit_slice_wrap {
-  width: 138px;
+  width: 139px;
   left: 478px;
 }
 
 .fruit_search_wrap {
   width: 995px;
-  left: 630px;
+  left: 631px;
   border-right: 2px solid #34AC9B
 }
