@@ -173,7 +173,7 @@ function Fruit(whole_fruit_pic, slice_pic, fruit_name, fruit_genus) {
 }
 
 //fruit images folder - concatenated to pic name
-var img_folder='/Fruit_Search/images/fruit/';
+var img_folder='https://timt-code.github.io/Fruit_Search/images/fruit/';
 
 //begin fruits listing
 
@@ -250,18 +250,36 @@ var cantaloupe = new Fruit(
   "Cantaloupe", //name
   "" //genus
 );
-
+/*
 var peach = new Fruit(
   img_folder + "peach.jpg", //whole_fruit_pic
   img_folder + "peach-slice.jpg", //slice_pic
   "Peach", //name
   "Prunus" //genus
 );
-
+*/
+var fruitname = 'peach';
+var fn = window['fruitname'];
+fn = new Fruit( 
+  img_folder + fn + '.jpg', //whole_fruit_pic
+  img_folder + fn +'-slice.jpg', //slice_pic
+  fn, //name
+  "Prunus" //genus
+);
+/*
 var strawberry = new Fruit(
   img_folder + "strawberry.jpg", //whole_fruit_pic
   img_folder + "strawberry-slice.jpg", //slice_pic
   "Strawberry", //name
+  "Fragaria" //genus
+);
+*/
+var fruitname = 'strawberry';
+var fn = window['fruitname'];
+fn = new Fruit( 
+  img_folder + fn + '.jpg', //whole_fruit_pic
+  img_folder + fn +'-slice.jpg', //slice_pic
+  fn, //name
   "Fragaria" //genus
 );
 
@@ -307,6 +325,15 @@ var mango = new Fruit(
   "Mangifera" //genus
 );
 
+var fruitname = 'kiwi';
+var fn = window['fruitname'];
+fn = new Fruit( 
+  img_folder + fn + '.jpg', //whole_fruit_pic
+  img_folder + fn +'-slice.jpg', //slice_pic
+  fn, //name
+  "Prunus" //genus
+);
+
 /*
 var orange = new Fruit(
   "",//whole_fruit_pic
@@ -314,42 +341,36 @@ var orange = new Fruit(
   "",//name
   ""//genus
 );
-
 var orange = new Fruit(
   "",//whole_fruit_pic
   "",//slice_pic
   "",//name
   ""//genus
 );
-
 var orange = new Fruit(
   "",//whole_fruit_pic
   "",//slice_pic
   "",//name
   ""//genus
 );
-
 var orange = new Fruit(
   "",//whole_fruit_pic
   "",//slice_pic
   "",//name
   ""//genus
 );
-
 var orange = new Fruit(
   "",//whole_fruit_pic
   "",//slice_pic
   "",//name
   ""//genus
 );
-
 var orange = new Fruit(
   "",//whole_fruit_pic
   "",//slice_pic
   "",//name
   ""//genus
 );
-
 //copy template for more fruit
 /*
 var orange = new Fruit(
@@ -359,14 +380,12 @@ var orange = new Fruit(
   "Citrus"//genus
 );
 //change fruit name and fill in the blanks
-
 var orange = new Fruit(
   "",//whole_fruit_pic
   "",//slice_pic
   "",//name
   ""//genus
 );
-
 */
 /*Fruit Count at the end*/
 fruit_count = document.querySelectorAll('.name_wrap').length;
@@ -376,7 +395,7 @@ fruit_count_div.className = 'fruit_count_wrap';
 
 function hover_size() //pic1
 {
-  this.style.width = '150px';
+  this.style.width = '151px';
   this.style.height = '104px';
   this.style.border = '0';
   this.style.borderRight = '2px solid black';
@@ -390,7 +409,7 @@ function hover_size() //pic1
 
 function hover_size_2()//pic2
 {
-  this.style.width='150px';
+  this.style.width='151px';
   this.style.height='104px';
   this.style.border='0';
   this.style.borderRight='2px solid black';
@@ -404,20 +423,18 @@ function hover_size_2()//pic2
 /*
 function hover_size_2() {
   hover_size.call(this);
-
   //document.querySelector('.fruit_type_wrap').style.backgroundColor = 'black';
   //document.querySelector('.fruit_type_wrap').style.color = 'white';
   //document.querySelector('.fruit_slice_wrap').style.backgroundColor = '#100010';
   //document.querySelector('.fruit_slice_wrap').style.color = '#ff9';
-
 }
 */
 
 function size_resets() //pic1
 {
   state = 'downsized';
-  this.style.width = '150px';
-  this.style.height = '100px';
+  this.style.width = '151px';
+  this.style.height = '99px';
   this.style.border = '2px solid black';
   this.style.borderLeft = '0';
   this.style.cursor = 'zoom-in';
@@ -455,7 +472,7 @@ function resize_down() {
   window.state = 'downsized';
   this.style.border = '0';
   this.style.borderRight = '2px solid black';
-  this.style.width = '150px';
+  this.style.width = '151px';
   this.style.height = '104px';
   this.style.cursor = 'zoom-in';
   this.onclick = resize_up;
@@ -490,13 +507,9 @@ function pic2_ond() {
   this.onclick = pic_ond;
 }
 
-var btm_brdr = document.createElement("div"); //last in list black border
-document.body.appendChild(btm_brdr);
-btm_brdr.className = 'btm_brdr';
-
 /* Audio */
 //Audio folder
-var audio_folder='/audio/';
+var audio_folder='https://timt-code.github.io/Fruit_Search/audio/';
 //a1
 var audio1 = document.createElement('audio');
 document.body.appendChild(audio1);
@@ -505,7 +518,7 @@ audio1.controls = false;
 audio1.id = 'audio1_id';
 var source1 = document.createElement('source');
 source1.type = 'audio/mpeg';
-source1.src = '/Fruit_Search/audio/sound11.mp3';
+source1.src = audio_folder + 'sound11.mp3';
 audio1.appendChild(source1);
 
 function audio1_func() {
@@ -520,7 +533,7 @@ audio2.controls = false;
 audio2.id = 'audio2_id';
 var source2 = document.createElement('source');
 source2.type = 'audio/mpeg';
-source2.src = '/Fruit_Search/audio/sound12.mp3';
+source2.src = audio_folder + 'sound12.mp3';
 audio2.appendChild(source2);
 
 function audio2_func() {
@@ -535,7 +548,7 @@ audio3.controls = false;
 audio3.id = 'audio3_id';
 var source3 = document.createElement('source');
 source3.type = 'audio/mpeg';
-source3.src = '/Fruit_Search/audio/sound6.mp3';
+source3.src = audio_folder + 'sound6.mp3';
 audio3.appendChild(source3);
 
 function audio3_func() {
@@ -550,7 +563,7 @@ audio4.controls = false;
 audio4.id = 'audio4_id';
 var source4 = document.createElement('source');
 source4.type = 'audio/mpeg';
-source4.src = '/Fruit_Search/audio/sound19.mp3';
+source4.src = audio_folder + 'sound19.mp3';
 audio4.appendChild(source4);
 
 function audio4_func() {
@@ -565,7 +578,7 @@ audio5.controls = false;
 audio5.id = 'audio5_id';
 var source5 = document.createElement('source');
 source5.type = 'audio/mpeg';
-source5.src = '/Fruit_Search/audio/sound40.mp3';
+source5.src = audio_folder + 'sound40.mp3';
 audio5.appendChild(source5);
 
 function audio5_func() {
@@ -580,7 +593,7 @@ audio6.controls = false;
 audio6.id = 'audio6_id';
 var source6 = document.createElement('source');
 source6.type = 'audio/mpeg';
-source6.src = '/Fruit_Search/audio/sound36.mp3';
+source6.src = audio_folder + 'sound36.mp3';
 audio6.appendChild(source6);
 
 function audio6_func() {
