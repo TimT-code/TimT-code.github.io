@@ -214,18 +214,10 @@ audio3.id = 'audio3_id';
 var source3 = document.createElement('source');
 source3.type = 'audio/mpeg';
 var greeting_snd_array=[
-  /*
-  'http://www.mediacollege.com/downloads/sound-effects/star-trek/tng/tng-locutus-urlifeisover.mp3',
-  'http://www.thesoundarchive.com/austinpowers/evilaugh.mp3',
-  'http://www.thesoundarchive.com/starwars/return/jabba-the-hutt-laughing.mp3',
-  //'http://simant.ru/pub/multimedia/Samples/Snd/slsk/star%20trek%20-%20We%20are%20the%20borg.Lower%20your%20shield.......mp3',
-  'http://biomediaproject.com/bmp/files/sfx/v2.0.0%20Streaming/Sound%20Effects/MNOLG/Long%20Muahahaha.mp3',
-  'https://notendur.hi.is/~salvor/hljod/evil%20laugh.mp3',
-  'https://notendur.hi.is/~salvor/hljod/monster.mp3',
-  'http://biomediaproject.com/bmp/files/sfx/v2.0.0%20Streaming/Sound%20Effects/MNOLG/Makuta%27s%20Evil%20Laugh.mp3',
-  'http://75.86.91.167/ftp/aescula/music/TV%20Shows/Sci-Fi%20Themes%20-%20The%20Dark%20Side/01%20The%20Outer%20Limits.mp3'
-  */
   'tng-locutus-urlifeisover.mp3',
+  'wickedlaugh1.mp3',
+  'deeplaugh.mp3',
+  'wickedwitchlaugh.mp3',
   'evilaugh.mp3',
   'jabba-the-hutt-laughing.mp3',
   //'http://simant.ru/pub/multimedia/Samples/Snd/slsk/star%20trek%20-%20We%20are%20the%20borg.Lower%20your%20shield.......mp3',
@@ -430,7 +422,7 @@ function explosion_gif(){//Function launches upon click of target - Only transpa
     enemy_hits+=1;
     shots_counter+=1;
     console.log('enemy_hits: '+enemy_hits);
-    console.log('Shots Taken: '+shots_counter);
+    //console.log('Shots Taken1: '+shots_counter);
     enemy_hp-=enemy_dmg_rate;
     console.log('enemy_hp: '+enemy_hp);
     if(enemy_misses>0){
@@ -499,13 +491,14 @@ function explosion_gif(){//Function launches upon click of target - Only transpa
 function audio1_func() {/*shot - multi polyphony */
   if(audio1_id.paused || !audio1_id.currentTime){//check if paused or started playing yet
     document.getElementById('audio1_id').play();
-  }else{
-    if(audio1b_id.paused || !audio1b_id.currentTime){
-      document.getElementById('audio1b_id').play();
+    console.log('shot sound 1-audio1_func()');
+  }else if(audio1b_id.paused || !audio1b_id.currentTime){
+    document.getElementById('audio1b_id').play();
+    console.log('shot sound 2-audio1_func()');
     }else{
       document.getElementById('audio1c_id').play();
+      console.log('shot sound 3-audio1_func()');
     }
-       }
   
   //Start audio3 and audio4 functions only if paused or not playing yet - Needed because Android/phone audio autoplay is nerfed on chrome version to not play until a user action even if autoplay=true for those audio elements.For desktop the audio3 and audio4 will automatically play
   if (typeof run_once !== "undefined")run_once();//play audio3 and audio4 Once at first fire, when you click body, and then set "run_once" to undefined to not reuse audio3 and audio4 function included with shot sound everytime you shoot.  
@@ -517,14 +510,6 @@ var run_once = function(){
      play_on_start();//play audio3 and audio4 only once
     run_once=undefined;//throws error if you try to call it again, and just added code to check if run_once is now undefined before trying to launch function
   };
-
-function audio1b_func() {/*firing sounds-B*/
-  document.getElementById('audio1b_id').play();
-}
-
-function audio1c_func() {/*Firing sounds-C*/
-  document.getElementById('audio1c_id').play();
-}
 
 function audio2_func() {/*explosions sounds*/
   document.getElementById('audio2_id').play();
@@ -553,14 +538,17 @@ function audio7_func() {/*perfect/bonus*/
 function audio8_func() {/*firing hit sounds - triple polyphony*/
     if(audio8a_id.paused || !audio8a_id.currentTime){//check if paused or started playing yet
       document.getElementById('audio8a_id').play();
-    }else{
-      if(audio8b_id.paused || !audio8b_id.currentTime){//play #2 instead when busy
+      console.log('hitsound1');
+    }else if(audio8b_id.paused || !audio8b_id.currentTime){//play #2 instead when busy
         document.getElementById('audio8b_id').play();
+        //audio8b_func();
+        console.log('hitsound2');
       }else{//play #3 if both #1 and #2 audio sources are busy
         document.getElementById('audio8c_id').play();
+        //audio8c_func();
+        console.log('hitsound3');
       }
     }
-  }
 
 function play_on_start(){
   if(audio3_id.paused || !audio3_id.currentTime && audio4_id.paused || !audio4_id.currentTime){//check if audio has started or is paused on both audio3 and audio4 elements - disabled autoplay=true in html audio tag attribute so it is the same experience on phone/mobile as desktop - Android chrome currently doesn't allow audio autoplay on start - requires user click or interaction.
@@ -835,11 +823,10 @@ function zoom_out(e){
     console.log('Pre-Explosion Height: '+exp_gif.height+'px');
     
     if(typeof exp_gif != 'undefined'){//explosion on screen already
-      var 
-          exp_width=exp_gif.width,
-          exp_height=exp_gif.height,
-          exp_width_divide=exp_width*0.030,
-          exp_height_divide=exp_height*0.030;
+      exp_width=exp_gif.width;
+      exp_height=exp_gif.height;
+      exp_width_divide=exp_width*0.030;
+      exp_height_divide=exp_height*0.030;      
       exp_gif.style.width=exp_width-exp_width_divide+'px';
       exp_gif.style.height=exp_height-exp_height_divide+'px';
       console.log('Movement Explosion Width: '+exp_gif.style.width);
