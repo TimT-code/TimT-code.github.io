@@ -66,6 +66,7 @@ var bg_array=[
   'http://www.hedfiles.net/Copperhead_cockpit.png'
   */
   'cockpit.gif',
+ 'space-fighter-cockpit-interceptor-mk-3-3d-model-low-poly-obj-fbx-mtl.jpg',
   '140507_diamondback_cockpit.png',
   'bscockpit24.png',
   'Copperhead_cockpit.png',
