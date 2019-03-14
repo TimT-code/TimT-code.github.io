@@ -433,6 +433,8 @@ function explosion_gif(){//Function launches upon click of target - Only transpa
   if(enemy_hp<=0){
     shots_counter+=1;
     if(enemy_misses===0){
+      make_perfect_bonus_sound();
+      document.getElementById('audio7_id').src=make_perfect_bonus_sound();
       audio7_func();//play sound already made randomly
       /* make_perfect_bonus_sound();//make new perfect/bonus sound from the return of the function-for use next time
   document.getElementById('audio7_id').src=make_perfect_bonus_sound();//change to new sound src of returned variable */
