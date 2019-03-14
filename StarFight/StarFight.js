@@ -66,7 +66,6 @@ var bg_array=[
   'http://www.hedfiles.net/Copperhead_cockpit.png'
   */
   'cockpit.gif',
- 'space-fighter-cockpit-interceptor-mk-3-3d-model-low-poly-obj-fbx-mtl.jpg',
   '140507_diamondback_cockpit.png',
   'bscockpit24.png',
   'Copperhead_cockpit.png',
@@ -188,6 +187,20 @@ function make_exp_snd(){
     'http://trekcore.com/audio/explosions/smallexplosion2.mp3',
     'http://trekcore.com/audio/explosions/smallexplosion3.mp3'
     */
+    'BAZOOKA+1.mp3',
+    'bazooka+2.mp3',
+    'Torpedo+Explosion.mp3',
+    'Explosion+10.mp3',
+    'Explosion+9.mp3',
+    'Explosion+8.mp3',
+    'Explosion+7.mp3',
+    'Explosion+6.mp3',
+    'Explosion+5.mp3',
+    'Explosion+3.mp3',
+    'Bomb+2.mp3',
+    'Artillery+2.mp3',
+    'Gun+1.mp3',
+    'Grenade+3.mp3',
     '15%20-%20Explosion.mp3',
     'Long%20Zap.mp3',
     'HW3-sfx-explosion.mp3',
@@ -390,7 +403,7 @@ function make_exp_gif(){
    */
     //{exp_src:'.gif',time_till_gone:},
     {exp_src:'Ws1o.gif',time_till_gone:400},
-     {exp_src:'Zvxa.gif',time_till_gone:100},
+     {exp_src:'ZVxa.gif',time_till_gone:100},
     {exp_src:'d7ac4f38b77abe73165d85edf2cbdb9e_w200.gif',time_till_gone:800},
      {exp_src:'explode.gif',time_till_gone:400},
     {exp_src:'explosion-1.gif',time_till_gone:500},
