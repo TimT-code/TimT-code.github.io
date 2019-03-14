@@ -400,7 +400,7 @@ function make_exp_gif(){
      {exp_src:'explosion-gif-transparent-13.gif',time_till_gone:1000},
     {exp_src:'explosion-gif-transparent-background-10.gif',time_till_gone:500},
      {exp_src:'medium-spark.gif',time_till_gone:300},
-    {exp_src:'small-spark(1).gif',time_till_gone:200},
+    {exp_src:'small-spark.gif',time_till_gone:200},
     {exp_src:'1092fa7d42c7db063aaf5f1d517b1692.gif',time_till_gone:900},   //{exp_src:'http://i39.photobucket.com/albums/e200/grokyou/shooting/gradiusiiiexplosiona.gif',time_till_gone:600},
    {exp_src:'tumblr_msta67lgeE1rmdrjqo1_400.gif',time_till_gone:1800},
    {exp_src:'Animated-clip-art-picture-of-black-inferno-fire-flames.gif',time_till_gone:800},
