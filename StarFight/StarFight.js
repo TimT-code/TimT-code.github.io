@@ -65,6 +65,7 @@ var bg_array=[
   'http://woofeng.cn/preview/d4fb938ce5a9797f716cae77500b8cc7/assets/images/cockpit.png',
   'http://www.hedfiles.net/Copperhead_cockpit.png'
   */
+  'cockpit.gif',
   '140507_diamondback_cockpit.png',
   'bscockpit24.png',
   'Copperhead_cockpit.png',
