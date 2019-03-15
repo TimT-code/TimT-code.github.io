@@ -1,4 +1,5 @@
 //Code - Tim Tesner - Early 2017, and 2018
+//2019 - Additions to media files
 
 if (window.DeviceOrientationEvent) {
  console.clear();
@@ -462,8 +463,6 @@ function explosion_gif(){//Function launches upon click of target - Only transpa
       make_perfect_bonus_sound();
       document.getElementById('audio7_id').src=make_perfect_bonus_sound();
       audio7_func();//play sound already made randomly
-      /* make_perfect_bonus_sound();//make new perfect/bonus sound from the return of the function-for use next time
-  document.getElementById('audio7_id').src=make_perfect_bonus_sound();//change to new sound src of returned variable */
       console.log('perfect: Shots Counter: '+shots_counter+' - Shot Misses: '+enemy_misses);
     }
     //enemy_hp=0;//reset - maybe not needed
