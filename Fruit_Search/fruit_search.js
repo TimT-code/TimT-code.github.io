@@ -1,3 +1,4 @@
+window.stopper();//clear any leftover speech upon refresh of this page
 var fruit_count_div = document.createElement("div");
 document.body.appendChild(fruit_count_div);
 /*Listed Fruit Count Div first, and the Fruit Count after*/
@@ -31,10 +32,13 @@ function Fruit(whole_fruit_pic, slice_pic, fruit_name, fruit_genus) {
   this.fruit_name = fruit_name;
   this.fruit_genus = fruit_genus;
 
-  var nm = document.createElement("div"); //name
+  var nm = document.createElement("div"); //fruit name div
+  var name_anchor = document.createElement("a"); //name_anchor
+  nm.appendChild(name_anchor);
   document.body.appendChild(nm);
-  nm.innerHTML = fruit_name;
-  nm.href = '#';
+  name_anchor.href = '#' + fruit_name;
+  name_anchor.innerHTML = fruit_name + ' ';
+  nm.title = fruit_name;
   nm.addEventListener('click', function() {
     if ('speechSynthesis' in window) { //check if browser is capable
       utterThis = new SpeechSynthesisUtterance(fruit_name);
@@ -52,6 +56,19 @@ function Fruit(whole_fruit_pic, slice_pic, fruit_name, fruit_genus) {
     }
     return value;
   }
+  
+  var fruitname_expand = document.createElement("a"); //fruitname_expand anchor
+  fruitname_expand.innerHTML = '+';
+  //fruitname_expand.href = '#';
+  //fruitname_expand.onclick = audio3_func;
+  //fruitname_expand.target = '_self';
+  fruitname_expand.title = 'Expand - ' + fruit_name + ' list ';
+  fruitname_expand.className = 'fruitname_expand_wrap fruitname_expand-hover_wrap';
+  nm.appendChild(fruitname_expand);
+  
+  var fruitname_expand_arrow = document.createElement('span');
+  fruitname_expand_arrow.className = 'fruitname_expand_arrow_wrap fruitname_expand_arrow-hover_wrap';
+  nm.appendChild(fruitname_expand_arrow);
 
   var pic = document.createElement("img"); //whole_fruit_pic
   document.body.appendChild(pic);
@@ -109,6 +126,52 @@ function Fruit(whole_fruit_pic, slice_pic, fruit_name, fruit_genus) {
       wiki.blur();
     }
   });
+  var wiki_audio_text = document.createElement("a"); //wiki audio/text anchor
+  wiki_audio_text.innerHTML = 'Wiki-Audio/Text';
+  wiki_audio_text.href = '#' + fruit_name;
+  wiki_audio_text.onclick = audio3_func;
+  wiki_audio_text.target = '_self';
+  wiki_audio_text.title = 'Wikipedia Audio/Text for ' + fruit_name + ' - ' + wiki.href;
+  wiki_audio_text.className = 'wiki_audio_text_wrap wiki_audio_text_hover_wrap';
+  wikiDiv.appendChild(wiki_audio_text);
+  
+  function show_audio_text_div(){
+    stopper();//clear speech before opening
+    if ('speechSynthesis' in window) { //check if browser is capable
+      utterThis = new SpeechSynthesisUtterance('You clicked on the Audio and Text description for ' + fruit_name + ', on Wikipedia.org');
+      window.speechSynthesis.speak(utterThis);
+      wiki_audio_text.blur();
+    };
+    begin(fruit_name);//begin speech and expand bottom text area div
+    newline_top.style.display='block';//make invisible line break element reappear
+    Wiki_Text_Audio_Div.style.display='block';//make div appear for placement of wiki text
+    Wiki_Text_Audio_Div.style.backgroundColor='black';
+    Wiki_Text_Audio_Div.style.color='white';
+    wiki_audio_text.style.backgroundColor='silver';//change colors on expansion/click
+    wiki_audio_text.style.color='black';
+    wiki.style.backgroundColor='black';
+    wiki.style.color='white';
+  };
+  
+  function hide_audio_text_div(){
+    stopper();//stop text/speech and collapse/hide bottom text area div
+    newline_top.style.display='none';//make invisible - line break element
+    Wiki_Text_Audio_Div.style.display='none';//make div disappear for placement of wiki text
+    Wiki_Text_Audio_Div.style.backgroundColor='white';
+    Wiki_Text_Audio_Div.style.color='red';
+    wiki_audio_text.style.backgroundColor='black';//change colors on expansion/click
+    wiki_audio_text.style.color='white';
+    wiki.style.backgroundColor='white';
+    wiki.style.color='blue';
+  };
+  
+  wiki_audio_text.addEventListener('click', function(){
+    if (window.getComputedStyle(Wiki_Text_Audio_Div).display=='none'){
+      show_audio_text_div();
+    }else{
+      hide_audio_text_div();
+    };
+  });    
 
   var googDiv = document.createElement("div");
   var goog = document.createElement("a"); //goog-anchor
@@ -166,227 +229,261 @@ function Fruit(whole_fruit_pic, slice_pic, fruit_name, fruit_genus) {
       google.blur();
     }
   });
+  
+  var newline_top = document.createElement("br"); //line break
+  newline_top.id='newline_top_break';
+  document.body.appendChild(newline_top);  
+  
+  var Wiki_Text_Audio_Div = document.createElement("div");
+  //Wiki_Text_Audio_Div.className = window['wiki_text_audio_div' + '_' + fruit_name];
+  Wiki_Text_Audio_Div.className = 'wiki_text_audio_div';
+  document.body.appendChild(Wiki_Text_Audio_Div);
+  
 
   var newline = document.createElement("br"); //line break
   document.body.appendChild(newline);
 
 }
 
+
+//Thanks to - https://github.com/9bitStudios/wikiblurb - This got to the point of what I wanted to do
+function stopper(){window.speechSynthesis.cancel()};
+stopper();
+function begin(fruit_name){//Added a begin speech function because speechSynthesis.speak() was deprecated December 2018 unless user interaction
+console.clear();
+  stopper();
+
+        var thePage=fruit_name
+        $('.wiki_text_audio_div').wikiblurb({
+        wikiURL: "https://en.wikipedia.org/",
+        apiPath: 'w',
+        section: 0,
+        page: thePage,
+        removeLinks: true,	    
+        type: 'text',
+        customSelector: '',
+        callback: function(){
+          //var abbrev = window['.wiki_text_audio_div_' + fruit_name];
+          //var audio_output=$(abbrev).text();
+          var audio_output=$('.wiki_text_audio_div').text();
+          console.log('"' + thePage + '"' + ' - Wikipedia Text/Speech - Summary...');
+          console.log(audio_output);
+              if ('speechSynthesis' in window) {//check if browser is capable
+                var utterThis = new SpeechSynthesisUtterance(audio_output);
+                //utterThis.rate=0.87;
+                //utterThis.pitch=0.75;
+                window.speechSynthesis.speak(utterThis);
+                
+  }
+        }
+              
+    });
+}
+
+
 //fruit images folder - concatenated to pic name
 var img_folder='https://timt-code.github.io/Fruit_Search/images/fruit/';
+var img_main = function(){return img_folder + fn + '.jpg'};
+var img_slice = () => img_folder + fn +'-slice.jpg';//shorter ES6 arrow function just to show both ways
+//var img_slice = () =>{ return img_folder + fn +'-slice.jpg' };
 
 //begin fruits listing
-
+/*
 var orange = new Fruit(
-  /*whole_fruit_pic*/
-  img_folder + "orange.jpg",
-  /*slice_pic*/
-  img_folder + "orange-slice.jpg",
-  /*name*/
-  "Orange",
-  /*genus*/
+  img_folder + "orange.jpg", //main pic
+  img_folder + "orange-slice.jpg", //slice_pic
+  "Orange", //fruit name
+  "Citrus" //genus
+);
+
+var apple = Fruit(//You can omit the word "new" from in front of "Fruit"
+  img_folder + "apple.png",
+  img_folder + "apple-slice.jpg",
+  "Apple",
   "Citrus"
 );
+*/
 
-var apple = new Fruit(
-  img_folder + "apple.png", //whole_fruit_pic
-  img_folder + "apple-slice.jpg", //slice_pic
-  "Apple", //name
+var fruitname = 'orange';
+var fn = fruitname;
+fn = new Fruit( 
+  img_main(),
+  img_slice(),
+  fn,
+  "citrus"
+);
+
+var fruitname = 'apple';
+var fn = fruitname;
+fn = Fruit( 
+  img_main(),
+  img_slice(),
+  fn,
+  "malus"
+);
+
+var fruitname = 'lime';
+var fn = fruitname;
+fn = Fruit( 
+  img_main(),
+  img_slice(),
+  fn,
   "Citrus" //genus
 );
 
-var lime = new Fruit(
-  img_folder + "lime.jpg", //whole_fruit_pic
-  img_folder + "lime-slice.gif", //slice_pic
-  "Lime", //name
+var fruitname = 'lemon';
+var fn = fruitname;
+fn = Fruit( 
+  img_main(),
+  img_slice(),
+  fn,
   "Citrus" //genus
 );
 
-var lemon = new Fruit(
-  img_folder + "lemon.jpeg", //whole_fruit_pic
-  img_folder + "lemon-slice.jpg", //slice_pic
-  "Lemon", //name
-  "Citrus" //genus
-);
-
-var pear = new Fruit(
-  img_folder + "pear.jpg", //whole_fruit_pic
-  img_folder + "pear-slice.jpg", //slice_pic
-  "Pear", //name
+var fruitname = 'pear';
+var fn = fruitname;
+fn = Fruit( 
+  img_main(),
+  img_slice(),
+  fn,
   "Pome" //genus
 );
 
-var pineapple = new Fruit(
-  img_folder + "pineapple.jpg", //whole_fruit_pic
-  img_folder + "pineapple-slice.jpg", //slice_pic
-  "Pineapple", //name
+var fruitname = 'pineapple';
+var fn = fruitname;
+fn = Fruit( 
+  img_main(),
+  img_slice(),
+  fn,
   "Ananas" //genus
 );
 
-var watermelon = new Fruit(
-  img_folder + "watermelon.jpg", //whole_fruit_pic
-  img_folder + "watermelon-slice.jpg", //slice_pic
-  "Watermelon", //name
+var fruitname = 'watermelon';
+var fn = fruitname;
+fn = Fruit( 
+  img_main(),
+  img_slice(),
+  fn,
   "Citrullus" //genus
 );
 
-var coconut = new Fruit(
-  img_folder + "coconut.jpg", //whole_fruit_pic
-  img_folder + "coconut-slice.jpg", //slice_pic
-  "Coconut", //name
+var fruitname = 'coconut';
+var fn = fruitname;
+fn = Fruit( 
+  img_main(),
+  img_slice(),
+  fn,
   "Cocos" //genus
 );
 
-var banana = new Fruit(
-  img_folder + "banana.jpg", //whole_fruit_pic
-  img_folder + "banana-slice.jpg", //slice_pic
-  "Banana", //name
+var fruitname = 'banana';
+var fn = fruitname;
+fn = Fruit( 
+  img_main(),
+  img_slice(),
+  fn,
   "Musa" //genus
 );
 
-var cantaloupe = new Fruit(
-  img_folder + "cantaloupe.jpeg", //whole_fruit_pic
-  img_folder + "cantaloupe-slice.jpg", //slice_pic
-  "Cantaloupe", //name
+var fruitname = 'cantaloupe';
+var fn = fruitname;
+fn = Fruit( 
+  img_main(),
+  img_slice(),
+  fn,
   "" //genus
 );
-/*
-var peach = new Fruit(
-  img_folder + "peach.jpg", //whole_fruit_pic
-  img_folder + "peach-slice.jpg", //slice_pic
-  "Peach", //name
-  "Prunus" //genus
-);
-*/
+
 var fruitname = 'peach';
-var fn = window['fruitname'];
-fn = new Fruit( 
-  img_folder + fn + '.jpg', //whole_fruit_pic
-  img_folder + fn +'-slice.jpg', //slice_pic
-  fn, //name
+var fn = fruitname;
+fn = Fruit( 
+  img_main(),
+  img_slice(),
+  fn,
   "Prunus" //genus
 );
-/*
-var strawberry = new Fruit(
-  img_folder + "strawberry.jpg", //whole_fruit_pic
-  img_folder + "strawberry-slice.jpg", //slice_pic
-  "Strawberry", //name
-  "Fragaria" //genus
-);
-*/
+
 var fruitname = 'strawberry';
-var fn = window['fruitname'];
-fn = new Fruit( 
-  img_folder + fn + '.jpg', //whole_fruit_pic
-  img_folder + fn +'-slice.jpg', //slice_pic
-  fn, //name
+var fn = fruitname;
+fn = Fruit( 
+  img_main(),
+  img_slice(),
+  fn,
   "Fragaria" //genus
 );
 
-var grapefruit = new Fruit(
-  img_folder + "grapefruit.jpg", //whole_fruit_pic
-  img_folder + "grapefruit-slice.jpg", //slice_pic
-  "Grapefruit", //name
+var fruitname = 'grapefruit';
+var fn = fruitname;
+fn = Fruit( 
+  img_main(),
+  img_slice(),
+  fn,
   "Citrus" //genus
 );
 
-var blueberry = new Fruit(
-  img_folder + "blueberry.jpg", //whole_fruit_pic
-  img_folder + "blueberry-slice.jpg", //slice_pic
-  "Blueberry", //name
+var fruitname = 'blueberry';
+var fn = fruitname;
+fn = Fruit( 
+  img_main(),
+  img_slice(),
+  fn,
   "Vaccinium" //genus
 );
 
-var cherry = new Fruit(
-  img_folder + "cherry.jpg", //whole_fruit_pic
-  img_folder + "cherry-slice.jpg", //slice_pic
-  "Cherry", //name
+var fruitname = 'cherry';
+var fn = fruitname;
+fn = Fruit( 
+  img_main(),
+  img_slice(),
+  fn,
   "Prunus" //genus
 );
 
-var raspberry = new Fruit(
-  img_folder + "raspberry.png", //whole_fruit_pic
-  img_folder + "raspberry-slice.jpg", //slice_pic
-  "Raspberry", //name
+var fruitname = 'raspberry';
+var fn = fruitname;
+fn = Fruit( 
+  img_main(),
+  img_slice(),
+  fn,
   "Rubus" //genus
 );
 
-var grape = new Fruit(
-  img_folder + "grape.jpg", //whole_fruit_pic
-  img_folder + "grape-slice.jpg", //slice_pic
-  "Grape", //name
+var fruitname = 'grape';
+var fn = fruitname;
+fn = Fruit( 
+  img_main(),
+  img_slice(),
+  fn,
   "Vitus" //genus
 );
 
-var mango = new Fruit(
-  img_folder + "mango.jpg", //whole_fruit_pic
-  img_folder + "mango-slice.jpg", //slice_pic
-  "Mango", //name
+var fruitname = 'mango';
+var fn = fruitname;
+fn = Fruit( 
+  img_main(),
+  img_slice(),
+  fn, //name
   "Mangifera" //genus
 );
 
 var fruitname = 'kiwi';
-var fn = window['fruitname'];
-fn = new Fruit( 
-  img_folder + fn + '.jpg', //whole_fruit_pic
-  img_folder + fn +'-slice.jpg', //slice_pic
-  fn, //name
+var fn = fruitname;
+fn = Fruit( 
+  img_main(),
+  img_slice(),
+  fn,
+  "Prunus"
+);
+
+var fruitname = 'plum';
+var fn = fruitname;
+fn = Fruit( 
+  img_main(),
+  img_slice(),
+  fn,
   "Prunus" //genus
 );
 
-/*
-var orange = new Fruit(
-  "",//whole_fruit_pic
-  "",//slice_pic
-  "",//name
-  ""//genus
-);
-var orange = new Fruit(
-  "",//whole_fruit_pic
-  "",//slice_pic
-  "",//name
-  ""//genus
-);
-var orange = new Fruit(
-  "",//whole_fruit_pic
-  "",//slice_pic
-  "",//name
-  ""//genus
-);
-var orange = new Fruit(
-  "",//whole_fruit_pic
-  "",//slice_pic
-  "",//name
-  ""//genus
-);
-var orange = new Fruit(
-  "",//whole_fruit_pic
-  "",//slice_pic
-  "",//name
-  ""//genus
-);
-var orange = new Fruit(
-  "",//whole_fruit_pic
-  "",//slice_pic
-  "",//name
-  ""//genus
-);
-//copy template for more fruit
-/*
-var orange = new Fruit(
-  "http://rs115.pbsrc.com/albums/n306/mmarch694/orange.jpg~c200",//whole_fruit_pic
-  "http://www.mannatechblog.com/wp-content/uploads/2014/12/Orange_Slice.jpg",//slice_pic
-  "Orange",//name
-  "Citrus"//genus
-);
-//change fruit name and fill in the blanks
-var orange = new Fruit(
-  "",//whole_fruit_pic
-  "",//slice_pic
-  "",//name
-  ""//genus
-);
-*/
 /*Fruit Count at the end*/
 fruit_count = document.querySelectorAll('.name_wrap').length;
 fruit_count_div.innerHTML = fruit_count + ' Fruits listed';
@@ -405,7 +502,6 @@ function hover_size() //pic1
   //document.querySelector('.fruit_type_wrap').style.backgroundColor = '#100010';
   //document.querySelector('.fruit_type_wrap').style.color = '#ff9';
 }
-
 
 function hover_size_2()//pic2
 {
@@ -485,8 +581,8 @@ function pic_ond() {
   for (i = 0; i < x.length; i++) {
     x[i].style.float = 'right';
   }
-  document.querySelector('.fruit_type_wrap').style.left = '478px';
-  document.querySelector('.fruit_slice_wrap').style.left = '326px';
+  document.querySelector('.fruit_type_wrap').style.left = '490px';
+  document.querySelector('.fruit_slice_wrap').style.left = '337px';
   document.querySelector('.pic_wrap').style.float = 'right';
   this.style.color = 'green';
   document.querySelector('.fruit_slice_wrap').style.color = 'red';
@@ -499,8 +595,9 @@ function pic2_ond() {
   for (i = 0; i < x.length; i++) {
     x[i].style.float = 'left';
   }
-  document.querySelector('.fruit_type_wrap').style.left = '326px';
-  document.querySelector('.fruit_slice_wrap').style.left = '478px';
+  document.querySelector('.fruit_type_wrap').style.left = '337px';
+  document.querySelector('.fruit_slice_wrap').style.left = '490px';
+  document.querySelector('.fruit_search_wrap').style.left = '643px';
   document.querySelector('.pic_wrap').style.float = 'left';
   this.style.color = 'red';
   document.querySelector('.fruit_type_wrap').style.color = 'green';
