@@ -484,6 +484,24 @@ fn = Fruit(
   "Prunus" //genus
 );
 
+var fruitname = 'persimmon';
+var fn = fruitname;
+fn = Fruit( 
+  img_main(),
+  img_slice(),
+  fn,
+  "Diospyros" //genus
+);
+
+var fruitname = 'date';
+var fn = fruitname;
+fn = Fruit( 
+  img_main(),
+  img_slice(),
+  fn,
+  "Phoenix" //genus
+);
+
 /*Fruit Count at the end*/
 fruit_count = document.querySelectorAll('.name_wrap').length;
 fruit_count_div.innerHTML = fruit_count + ' Fruits listed';
