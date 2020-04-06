@@ -1,8 +1,11 @@
 html {
   background-color: white;
-  margin: 0 0 4px 0;
-  width:auto;
-  height:1000px;
+  margin: 6px 0 4px 6px;
+  padding: 0 0 4px 0;
+  width: 1654px;
+  height: auto;
+  border: solid blue 6px;
+  outline: solid turquoise 6px;
 }
 
 body {
@@ -12,11 +15,12 @@ body {
   padding: 93px 6px 0 6px;
   border: 2px solid black;
   width: 1630px;
-  height:auto;
+  height: auto;
 }
 
 a {
-  text-decoration: none
+  text-decoration: none;
+  color: blue;
 }
 
 div {
@@ -30,7 +34,7 @@ div {
   padding: 24px 6px 0 6px;
   text-align: center;
   font-size: 30pt;
-  text-transform: capitalize
+  text-transform: capitalize;
 }
 
 .hover_name {
@@ -42,12 +46,34 @@ div {
   color: white;
   cursor: help;
   border-left: 6px solid #ff9;
-  padding-left:2px
+  padding-left:2px;
 }
 
 .hover_name:active {
   color: yellow;
-  cursor:crosshair
+  cursor:crosshair;
+}
+
+.fruitname_expand-hover_wrap{
+  float: left;
+  color: black;
+  background-color: white;
+  border: solid black 2px;
+  cursor: default;
+}
+
+.fruitname_expand-hover_wrap:hover {
+  color: white;
+  background-color: black;
+  border: solid white 2px;
+  cursor: help;
+}
+
+.fruitname_expand-hover_wrap:active {
+  color: red;
+  background-color: gray;
+  border: solid red 2px;
+  cursor:crosshair;
 }
 
 .pic_wrap {
@@ -81,7 +107,8 @@ div {
 .wiki_wrap,
 .goog_wrap,
 .google_wrap,
-.yt_wrap {
+.yt_wrap,
+.fruitname_expand_wrap{
   padding: 0 5px;
   background-color: white;
 }
@@ -90,10 +117,40 @@ div {
   display: inline-block;
   border-left: 0;
   background-color: red;
-  padding: 27px 0 0 0;
+  padding: 8px 0 20px 0;
   margin: 0;
   width: 240px;
   height: 72px;
+}
+
+.wiki_audio_text_wrap{
+  display: block;
+  font-size: 14px;
+  border: solid black 2px;
+  border-left: 0;
+  border-right: 0;
+  background-color: black;
+  color: white;
+  padding: 6px 0 2px 0;
+  margin: 8px 20px 10px 20px;
+  width: auto;
+  height: 20px;
+}
+
+#newline_top_break{
+  display:none;
+}
+
+.wiki_text_audio_div{
+  display: none;
+  font-size: 18px;
+  border: solid 4px gold;
+  background-color: silver;
+  color: maroon;
+  margin:0 0 0 3%;
+  width: 96%;
+  height: 80px;
+  overflow: auto;
 }
 
 .goog_div {
@@ -132,8 +189,8 @@ div {
 .fruit_search_wrap {
   display: inline-block;
   position: fixed;
-  top: 11px;
-  left: 11px;
+  top: 23px;
+  left: 23px;
   background-color: black;
   color: white;
   vertical-align: top;
@@ -144,21 +201,21 @@ div {
   margin: 0;
   padding: 24px 6px 0 6px;
   text-align: center;
-  font-size: 30pt
+  font-size: 30pt;
 }
 
 .fruit_type_wrap {
-  width: 138px;
-  left: 326px;
+  width: 139px;
+  left: 337px;
 }
 
 .fruit_slice_wrap {
-  width: 139px;
-  left: 478px;
+  width: 140px;
+  left: 490px;
 }
 
 .fruit_search_wrap {
-  width: 995px;
-  left: 631px;
+  width: 997px;
+  left: 643px;
   border-right: 2px solid #34AC9B
 }
