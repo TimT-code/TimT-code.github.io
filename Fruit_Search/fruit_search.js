@@ -502,6 +502,24 @@ fn = Fruit(
   "Phoenix" //genus
 );
 
+var fruitname = 'tangelo';
+var fn = fruitname;
+fn = Fruit( 
+  img_main(),
+  img_slice(),
+  fn,
+  "Citrus" //genus
+);
+
+var fruitname = 'dragonfruit';
+var fn = fruitname;
+fn = Fruit( 
+  img_main(),
+  img_slice(),
+  fn,
+  "Hylocereus" //genus
+);
+
 /*Fruit Count at the end*/
 fruit_count = document.querySelectorAll('.name_wrap').length;
 fruit_count_div.innerHTML = fruit_count + ' Fruits listed';
