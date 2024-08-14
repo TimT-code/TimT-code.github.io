@@ -521,6 +521,15 @@ fn = Fruit(
   "Hylocereus" //genus
 );
 
+var fruitname = 'cranberry';
+var fn = fruitname;
+fn = Fruit( 
+  img_main(),
+  img_slice(),
+  fn,
+  "Vaccinium" //genus
+);
+
 /*Fruit Count at the end*/
 fruit_count = document.querySelectorAll('.name_wrap').length;
 fruit_count_div.innerHTML = fruit_count + ' Fruits listed';
