@@ -39,6 +39,7 @@ function Fruit(whole_fruit_pic, slice_pic, fruit_name, fruit_genus) {
   name_anchor.href = '#' + fruit_name;
   name_anchor.innerHTML = fruit_name + ' ';
   nm.title = fruit_name;
+  nm.style.backgroundImage="url('https://timt-code.github.io/Fruit_Search/images/background/" + fn +".jpg')";
   nm.addEventListener('click', function() {
     if ('speechSynthesis' in window) { //check if browser is capable
       utterThis = new SpeechSynthesisUtterance(fruit_name);
