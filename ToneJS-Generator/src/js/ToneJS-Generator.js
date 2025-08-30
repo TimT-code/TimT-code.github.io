@@ -24,19 +24,17 @@ document.getElementById('startButton').addEventListener('click', () => {
   player.volume.value='0';//Set initial value
   player.loop=false;
   
-  if(player.state === 'stopped'){  document.getElementById('stopButton').style.color='red';
-  
-    document.getElementById('startButton').style.color='green';
-                                 }
+  if(player.state === 'stopped'){
+      document.getElementById('stopButton').style.color='red';
+      document.getElementById('startButton').style.color='green';
+  }
   
   // Create a function to run when the player stops
   function onPlayerStopped() {
-
-  if(player.state !== 'stopped'){
-    console.log('Player has stopped!');
-    }
+      if(player.state !== 'stopped'){
+          console.log('Player has stopped!');
+      }
   document.getElementById('startButton').style.color='black';
-  
   document.getElementById('stopButton').style.color='black';
   document.getElementById('loopButton').style.color='black';
 
@@ -316,11 +314,11 @@ analyser.connect(Tone.Destination); // Or connect analyser to a different node i
   });
   
   document.getElementById('loopButton').addEventListener('click', () => {
-
-  player.loop=true;
-
-  document.getElementById('loopButton').style.color='green';
-
+      player.loop=true;
+      document.getElementById('loopButton').style.color='green';
+      document.getElementById('loopButton').style.backgroundImage='url("images/g0es.gif")';
+      document.getElementById('loopButton').style.backgroundSize='cover';
+      document.getElementById('loopButton').style.backgroundRepeat='no-repeat';
   });
   
   });
