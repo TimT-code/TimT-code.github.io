@@ -1,1 +1,91 @@
+<html>
+  <head>
+    <title>
+      ToneJS-Generator
+    </title>
+    <link rel="stylesheet" href="/css/ToneJS-Generator.css">
+  </head>
+  <body>
+    <script src='/js/ToneJS-Generator.js'></script>
+    
+    <button id="startButton" data-buttonNumber="1" data-buttonType="playAny">Play</button>
 
+<button id="stopButton" data-buttonNumber="2" data-buttonType="stopAll">Stop</button>
+
+<button id="loopButton" data-buttonNumber="3" data-buttonType="playLoop">Loop</button>
+<br>
+<br>
+
+<canvas id="analyzerCanvas"></canvas>
+
+<div id="container">
+  
+   <span id="editableSoundName_title" class="audioInfoTitles">Editable Sound Name:</span><span id="editableSoundName_stats" class="audioInfoStats" contenteditable="true">
+  <!--stats text from innerText-->
+  </span>
+  <br>
+  
+  <span id="originalSoundName_title" class="audioInfoTitles">Original Sound Name:</span><span id="originalSoundName_stats" class="audioInfoStats">
+  <!--stats text from innerText-->
+  </span>
+  <br>
+  
+  <span id="fullUrl_title" class="audioInfoTitles">Full URL:</span><span id="fullUrl_stats" class="audioInfoStats">
+    <!--stats text from innerText-->
+  </span>
+  <br>
+  
+  <span id="baseUrl_title" class="audioInfoTitles">Base URL:</span><span id="baseUrl_stats" class="audioInfoStats">
+    <!--stats text from innerText--></span>
+  <br>
+
+  <span id="originUrl_title" class="audioInfoTitles">Origin URL:</span><span id="originUrl_stats" class="audioInfoStats">
+    <!--stats text from innerText-->
+  </span>
+  <br>
+  
+  <span id="foldersUrl_title" class="audioInfoTitles">Folders URL:</span><span id="foldersUrl_stats" class="audioInfoStats">
+    <!--stats text from innerText-->
+  </span>
+  <br>
+
+  <span id="fileName_title" class="audioInfoTitles">File Name:</span><span id="fileName_stats" class="audioInfoStats">
+    <!--stats text from innerText-->
+  </span>
+  <br>
+
+  <span id="fileType_title" class="audioInfoTitles">File Type:</span><span id="fileType_stats" class="audioInfoStats">
+    <!--stats text from innerText-->
+  </span>
+  <br>
+  
+   <span id="mimeType_title" class="audioInfoTitles">Audio Mime Type:</span><span id="mimeType_stats" class="audioInfoStats">
+  <!--stats text from innerText-->
+  </span>
+  <br>
+  
+  <span id="sampleRate_title" class="audioInfoTitles">Audio Sample Rate:</span><span id="sampleRate_stats" class="audioInfoStats">
+
+  <!--stats text from innerText-->
+
+  </span>
+
+  <br>
+
+  <span id="audioDuration_title" class="audioInfoTitles">Audio Duration:</span><span id="audioDuration_stats" class="audioInfoStats">
+    <!--stats text from innerText-->
+  </span>
+  <br>
+
+  <span id="audioDuration_trunc_title" class="audioInfoTitles">Audio Duration - Short:</span><span id="audioDuration_trunc_stats" class="audioInfoStats">
+    <!--stats text from innerText-->
+  </span>
+  <br>
+  
+  <span id="audioVolume_title" class="audioInfoTitles">Audio Volume:</span><span id="audioVolume_stats" class="audioInfoStats">
+  <!--stats text from innerText-->
+  </span>
+
+</div>
+  </body>
+</html>
