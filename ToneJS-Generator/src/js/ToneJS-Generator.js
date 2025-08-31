@@ -312,7 +312,7 @@ analyser.connect(Tone.Destination); // Or connect analyser to a different node i
       document.getElementById('loopButton').style.backgroundImage='';
       document.getElementById('loopButton').style.backgroundSize='';
       document.getElementById('loopButton').style.backgroundRepeat='';
-      document.getElementById('loopButton').style.backgroundPpsition='';
+      document.getElementById('loopButton').style.backgroundPosition='';
   });
       
 
@@ -324,7 +324,7 @@ analyser.connect(Tone.Destination); // Or connect analyser to a different node i
       document.getElementById('loopButton').style.backgroundImage='url("images/g0es.gif")';
       document.getElementById('loopButton').style.backgroundSize='cover';
       document.getElementById('loopButton').style.backgroundRepeat='no-repeat';
-      document.getElementById('loopButton').style.backgroundPpsition='center';
+      document.getElementById('loopButton').style.backgroundPosition='center';
   });
   
   });
