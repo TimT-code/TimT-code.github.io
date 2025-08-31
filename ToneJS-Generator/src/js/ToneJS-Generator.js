@@ -1,7 +1,7 @@
 // Ensure Tone.js is initialized and the AudioContext is running
 
 // (often done with Tone.start() on a user interaction)
-let editedSoundName='';//Save for later to capture the eduted name
+let editedSoundName='';//Save for later to capture the edited name
 
 document.getElementById('startButton').addEventListener('click', () => {
 
