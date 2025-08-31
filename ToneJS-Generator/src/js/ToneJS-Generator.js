@@ -307,9 +307,14 @@ analyser.connect(Tone.Destination); // Or connect analyser to a different node i
 });
   
   document.getElementById('stopButton').addEventListener('click', () => {
-
-  player.stop();
-    player.lopp=false;
+      player.stop();
+      player.lopp=false;
+      document.getElementById('loopButton').style.backgroundImage='';
+      document.getElementById('loopButton').style.backgroundSize='';
+      document.getElementById('loopButton').style.backgroundRepeat='';
+      document.getElementById('loopButton').style.backgroundPpsition='';
+  });
+      
 
   });
   
@@ -319,6 +324,7 @@ analyser.connect(Tone.Destination); // Or connect analyser to a different node i
       document.getElementById('loopButton').style.backgroundImage='url("images/g0es.gif")';
       document.getElementById('loopButton').style.backgroundSize='cover';
       document.getElementById('loopButton').style.backgroundRepeat='no-repeat';
+      document.getElementById('loopButton').style.backgroundPpsition='center';
   });
   
   });
