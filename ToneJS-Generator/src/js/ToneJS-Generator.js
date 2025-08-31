@@ -308,7 +308,7 @@ analyser.connect(Tone.Destination); // Or connect analyser to a different node i
   
   document.getElementById('stopButton').addEventListener('click', () => {
       player.stop();
-      player.lopp=false;
+      player.loop=false;
       document.getElementById('loopButton').style.backgroundImage='';
       document.getElementById('loopButton').style.backgroundSize='';
       document.getElementById('loopButton').style.backgroundRepeat='';
