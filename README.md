@@ -7,10 +7,12 @@ Menu
 
 1- StarFight
 
-2- MMA_Fighters_Demo
+2- Fruit Search Engine Demo
 
-3- LinkLore
+3- MMA_Fighters_Demo
 
-4- YuckFoo - media library
+4- LinkLore - Fun listing links
 
-5- ToneJS-Generator
+5- YuckFoo - Media Player library of YouTube clips and pics/gifs
+
+6- ToneJS-Generator
