@@ -3,9 +3,9 @@
 // (often done with Tone.start() on a user interaction)
 let editedSoundName='';//Save for later to capture the edited name
 
-document.getElementById('startButton').addEventListener('click', async () => {
+document.getElementById('startButton').addEventListener('click', /*async*/ () => {
 
-    await Tone.start();
+    /*await*/ Tone.start();
 
     alert('AudioContext is running');
 
@@ -18,9 +18,8 @@ document.getElementById('startButton').addEventListener('click', async () => {
     // Tim Tesner - 1998 - "Universe 98.mp3"
     //const soundUrl = 'https://timt-code.github.io/ToneJS-Generator/src/audio/music/Tim%20Tesner/01-Tim%20Tesner%20-%20Earvisions2%20-%20Universe%2098.mp3';
     const audioSourceUrl = '/audio/music/Tim%20Tesner/01-Tim%20Tesner%20-%20Earvisions2%20-%20Universe%2098.mp3';
-    document.addEventListener('DOMContentLoaded', () => {
-        const audioEl=document.getElementById('audio1');
-    };
+    
+    const audioEl=document.getElementById('audio1');
     audioEl.src = audioSourceUrl;
     audioEl.load();
     audioEl.play();
