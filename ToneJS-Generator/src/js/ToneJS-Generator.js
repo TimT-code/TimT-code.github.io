@@ -25,7 +25,7 @@ document.getElementById('startButton').addEventListener('click', async () => {
     audioEl.play();
 
     //const player = new Tone.Player(soundUrl)/*.toDestination()*/;
-    const player = new Tone.context.createMediaElementSource(audioEl);
+    const player = new Tone.Context.createMediaElementSource(audioEl);
 
     // Play the sound once the buffer is loaded
 
