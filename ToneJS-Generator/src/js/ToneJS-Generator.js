@@ -25,9 +25,11 @@ document.getElementById('startButton').addEventListener('click', () => {
     // You can also use player.autostart = true;
 
     // if you want it to play as soon as the file is loaded.
-  player.autostart=true;
-  player.volume.value='0';//Set initial value
-  player.loop=false;
+  Tone.loaded().then(()=>{
+      player.autostart=true;
+      player.volume.value='0';//Set initial value
+      player.loop=false;
+  });
   
   if(player.state === 'stopped'){
       document.getElementById('stopButton').style.color='red';
