@@ -26,7 +26,7 @@ document.getElementById('startButton').addEventListener('click', () => {
 
     // if you want it to play as soon as the file is loaded.
   Tone.loaded().then(()=>{
-      player.autostart=true;
+      player.start();
       player.volume.value='0';//Set initial value
       player.loop=false;
   });
