@@ -16,7 +16,7 @@ document.getElementById('startButton').addEventListener('click', async () => {
 
     // My own music
     // Tim Tesner - 1998 - "Universe 98.mp3"
-    const soundUrl = '/audio/music/Tim%20Tesner/01-Tim%20Tesner%20-%20Earvisions2%20-%20Universe%2098.mp3';
+    const soundUrl = 'https://timt-code.github.io/ToneJS-Generator/src/audio/music/Tim%20Tesner/01-Tim%20Tesner%20-%20Earvisions2%20-%20Universe%2098.mp3';
 
     const player = new Tone.Player(soundUrl)/*.toDestination()*/;
 
