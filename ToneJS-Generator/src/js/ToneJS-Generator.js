@@ -24,11 +24,7 @@ document.getElementById('startButton').addEventListener('click', async () => {
     const player = audioCtx.createMediaElementSource(audioEl);
     
     const gainNode = audioCtx.createGain();
-    player.connect(gainNode);
     Tone.setContext(audioCtx);
-    
-    audioEl.load();
-    audioEl.play();
 
     //const player = new Tone.Player(soundUrl)/*.toDestination()*/;
     //const player = new Tone.context.createMediaElementSource(audioEl);
@@ -42,8 +38,9 @@ document.getElementById('startButton').addEventListener('click', async () => {
       //player.autostart=true;
       //player.volume.value='0';//Set initial value
       //player.loop=false;
-      player.start();
-    
+      //player.start();
+      audioEl.load();
+      audioEl.play();
   });
   
   if(player.state === 'stopped'){
@@ -97,8 +94,8 @@ document.getElementById('startButton').addEventListener('click', async () => {
 const analyser = new Tone.Analyser("waveform", 2048); 
 
 // Connect the player to the analyser, and then connect the analyser to the destination
-
-player.connect(analyser);
+player.connect(gainNode);
+gainNode.connect(analyser);
 
 analyser.connect(Tone.Destination); // Or connect analyser to a different node if needed
   
