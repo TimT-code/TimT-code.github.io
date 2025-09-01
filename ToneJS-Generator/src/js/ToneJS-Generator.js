@@ -1,4 +1,5 @@
-// Ensure Tone.js is initialized and the AudioContext is running
+window.onload=()=>{
+    // Ensure Tone.js is initialized and the AudioContext is running
 
 // (often done with Tone.start() on a user interaction)
 let editedSoundName='';//Save for later to capture the edited name
@@ -321,19 +322,17 @@ analyser.connect(Tone.Destination); // Or connect analyser to a different node i
       document.getElementById('loopButton').style.backgroundRepeat='';
       document.getElementById('loopButton').style.backgroundPosition='';
   });
-      
+    
+    document.getElementById('loopButton').addEventListener('click', () => {
+        player.loop=true;
+        document.getElementById('loopButton').style.color='green';
+        document.getElementById('loopButton').style.backgroundImage='url("images/g0es.gif")';
+        document.getElementById('loopButton').style.backgroundSize='cover';document.getElementById('loopButton').style.backgroundRepeat='no-repeat';
+        document.getElementById('loopButton').style.backgroundPosition='center';
+  });
 
-  //});
-  
-  document.getElementById('loopButton').addEventListener('click', () => {
-      player.loop=true;
-      document.getElementById('loopButton').style.color='green';
-      document.getElementById('loopButton').style.backgroundImage='url("images/g0es.gif")';
-      document.getElementById('loopButton').style.backgroundSize='cover';
-      document.getElementById('loopButton').style.backgroundRepeat='no-repeat';
-      document.getElementById('loopButton').style.backgroundPosition='center';
-  });
-  
-  });
+});
+
+};
 
 
