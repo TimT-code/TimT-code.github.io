@@ -33,11 +33,13 @@ document.getElementById('startButton').addEventListener('click', async () => {
     // You can also use player.autostart = true;
 
     // if you want it to play as soon as the file is loaded.
-  //Tone.loaded().then(()=>{
+  Tone.loaded().then(()=>{
       //player.autostart=true;
       //player.volume.value='0';//Set initial value
       //player.loop=false;
-  //});
+      player.start();
+    
+  });
   
   if(player.state === 'stopped'){
       document.getElementById('stopButton').style.color='red';
@@ -322,7 +324,11 @@ analyser.connect(Tone.Destination); // Or connect analyser to a different node i
 });
   
   document.getElementById('stopButton').addEventListener('click', () => {
-      player.stop();
+      //player.stop();
+      player.start()://test
+      document.getElementById(audioEl.src = audioSourceUrl;
+    audioEl.load();
+    audioEl.play();
       player.loop=false;
       document.getElementById('loopButton').style.backgroundImage='';
       document.getElementById('loopButton').style.backgroundSize='';
