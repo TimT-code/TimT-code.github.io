@@ -4,11 +4,11 @@ window.onload=()=>{
 // (often done with Tone.start() on a user interaction)
 let editedSoundName='';//Save for later to capture the edited name
 
-document.getElementById('startButton').addEventListener('click', async() => {
+document.getElementById('startButton').addEventListener('click', async () => {
 
     await Tone.start();
 
-    console.log('AudioContext is running');
+    alert('AudioContext is running');
 
     // Create a Tone.Player instance
 
