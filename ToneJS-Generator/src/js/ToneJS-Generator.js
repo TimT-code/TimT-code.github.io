@@ -3,9 +3,9 @@
 // (often done with Tone.start() on a user interaction)
 let editedSoundName='';//Save for later to capture the edited name
 
-document.getElementById('startButton').addEventListener('click', /*async*/ () => {
+document.getElementById('startButton').addEventListener('click', async () => {
 
-    /*await*/ Tone.start();
+    await Tone.start();
 
     alert('AudioContext is running');
 
