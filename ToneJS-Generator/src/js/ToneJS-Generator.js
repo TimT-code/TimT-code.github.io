@@ -1,5 +1,4 @@
-window.onload=()=>{
-    // Ensure Tone.js is initialized and the AudioContext is running
+// Ensure Tone.js is initialized and the AudioContext is running
 
 // (often done with Tone.start() on a user interaction)
 let editedSoundName='';//Save for later to capture the edited name
@@ -8,7 +7,7 @@ document.getElementById('startButton').addEventListener('click', async () => {
 
     await Tone.start();
 
-    alert('AudioContext is running');
+    console.log('AudioContext is running');
 
     // Create a Tone.Player instance
 
@@ -26,11 +25,11 @@ document.getElementById('startButton').addEventListener('click', async () => {
     // You can also use player.autostart = true;
 
     // if you want it to play as soon as the file is loaded.
-  Tone.loaded().then(()=>{
+  //Tone.loaded().then(()=>{
       player.autostart=true;
       player.volume.value='0';//Set initial value
       player.loop=false;
-  });
+  //});
   
   if(player.state === 'stopped'){
       document.getElementById('stopButton').style.color='red';
@@ -82,7 +81,7 @@ document.getElementById('startButton').addEventListener('click', async () => {
 
 const analyser = new Tone.Analyser("waveform", 2048); 
 
-// Connect the synth to the analyser, and then connect the analyser to the destination
+// Connect the player to the analyser, and then connect the analyser to the destination
 
 player.connect(analyser);
 
