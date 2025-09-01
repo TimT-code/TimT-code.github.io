@@ -316,7 +316,7 @@ analyser.connect(Tone.Destination); // Or connect analyser to a different node i
   });
       
 
-  });
+  //});
   
   document.getElementById('loopButton').addEventListener('click', () => {
       player.loop=true;
