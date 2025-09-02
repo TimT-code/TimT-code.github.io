@@ -1,7 +1,7 @@
 import { AudioContext } from 'standardized-audio-context';
 window.AudioContext = AudioContext;
-const norm = new AudioContext();
-const context = new Tone.Context(norm);
+const audioCtx = new AudioContext();
+const context = new Tone.Context(audioCtx);
 Tone.setContext(context, true);
 // Ensure Tone.js is initialized and the AudioContext is running
 
@@ -28,9 +28,9 @@ document.getElementById('startButton').addEventListener('click', async () => {
     //const audioCtx = new (window.AudioContext || window.webkitAudioContext);
     //const audioCtx = new AudioContext();
     //const player = audioCtx.createMediaElementSource(audioEl);
-    const player = norm.createMediaElenentSource(audioEl);
+    const player = audioCtx.createMediaElenentSource(audioEl);
     //const gainNode = audioCtx.createGain();
-    const gainNode = norm.createGain();
+    const gainNode = audioCtx.createGain();
     Tone.setContext(audioCtx);
 
     //const player = new Tone.Player(soundUrl)/*.toDestination()*/;
