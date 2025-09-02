@@ -95,14 +95,18 @@ document.getElementById('startButton').addEventListener('click', async () => {
 const analyser = new Tone.Analyser("waveform", 2048); 
 
 // Connect the player to the analyser, and then connect the analyser to the destination
-player.connect(gainNode);
-gainNode.connect(analyser);
-analyser.connect(Tone.Destination);// Or connect analyser to a different node if needed
-  // Audio file duration, length in seconds
-  Tone.loaded().then(() => {
-    const audioDuration = player.buffer.duration;
-    document.getElementById('audioDuration_stats').innerText=audioDuration + ' Seconds';
-    console.log('Audio duration:', audioDuration, 'Seconds');
+    player.connect(gainNode);
+    gainNode.connect(analyser);
+    analyser.connect(Tone.Destination);// Or connect analyser to a different node if needed
+
+    document.getElementById('version').innerText=Tone
+    VERSION;//Tone version number
+  
+    // Audio file duration, length in seconds
+    Tone.loaded().then(() => {
+        const audioDuration = player.buffer.duration;
+        document.getElementById('audioDuration_stats').innerText=audioDuration + ' Seconds';
+        console.log('Audio duration:', audioDuration, 'Seconds');
     
     // Truncate to 2 decimal places
     const twoDec = Math.trunc(audioDuration * 100) / 100;
