@@ -20,7 +20,8 @@ document.getElementById('startButton').addEventListener('click', async () => {
     const audioSourceUrl = '/audio/music/Tim%20Tesner/01-Tim%20Tesner%20-%20Earvisions2%20-%20Universe%2098.mp3';
     const audioEl = document.getElementById('audio1');
     audioEl.src = audioSourceUrl;
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext);
+    //const audioCtx = new (window.AudioContext || window.webkitAudioContext);
+    const audioCtx = new AudioContext();
     const player = audioCtx.createMediaElementSource(audioEl);
     
     const gainNode = audioCtx.createGain();
@@ -96,9 +97,7 @@ const analyser = new Tone.Analyser("waveform", 2048);
 // Connect the player to the analyser, and then connect the analyser to the destination
 player.connect(gainNode);
 gainNode.connect(analyser);
-
-analyser.connect(Tone.Destination); // Or connect analyser to a different node if needed
-  
+analyser.connect(Tone.Destination);// Or connect analyser to a different node if needed
   // Audio file duration, length in seconds
   Tone.loaded().then(() => {
     const audioDuration = player.buffer.duration;
