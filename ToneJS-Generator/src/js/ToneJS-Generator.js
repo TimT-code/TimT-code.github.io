@@ -1,6 +1,3 @@
-const audioCtx = new AudioContext();
-const context = new Tone.Context(audioCtx);
-Tone.setContext(context, true);
 // Ensure Tone.js is initialized and the AudioContext is running
 
 // (often done with Tone.start() on a user interaction)
@@ -13,6 +10,14 @@ document.getElementById('startButton').addEventListener('click', async () => {
     alert('AudioContext is running');
 
     // Create a Tone.Player instance
+    const audioCtx = new AudioContext();
+    const context = new Tone.Context(audioCtx);
+    Tone.setContext(context, true);
+    const audioSourceUrl = '/audio/music/Tim%20Tesner/01-Tim%20Tesner%20-%20Earvisions2%20-%20Universe%2098.mp3';
+    const audioEl = document.getElementById('audio1');
+    audioEl.src = audioSourceUrl;
+    const player = audioCtx.createMediaElementSource(audioEl);
+    const gainNode = audioCtx.createGain();
 
     //Test url
     //const soundUrl = 'https://tonejs.github.io/audio/berklee/gong_1.mp3';
@@ -20,15 +25,11 @@ document.getElementById('startButton').addEventListener('click', async () => {
     // My own music
     // Tim Tesner - 1998 - "Universe 98.mp3"
     //const soundUrl = 'https://timt-code.github.io/ToneJS-Generator/src/audio/music/Tim%20Tesner/01-Tim%20Tesner%20-%20Earvisions2%20-%20Universe%2098.mp3';
-    const audioSourceUrl = '/audio/music/Tim%20Tesner/01-Tim%20Tesner%20-%20Earvisions2%20-%20Universe%2098.mp3';
-    const audioEl = document.getElementById('audio1');
-    audioEl.src = audioSourceUrl;
+    
     //const audioCtx = new (window.AudioContext || window.webkitAudioContext);
     //const audioCtx = new AudioContext();
     //const player = audioCtx.createMediaElementSource(audioEl);
-    const player = audioCtx.createMediaElementSource(audioEl);
     //const gainNode = audioCtx.createGain();
-    const gainNode = audioCtx.createGain();
     //Tone.setContext(audioCtx);
 
     //const player = new Tone.Player(soundUrl)/*.toDestination()*/;
