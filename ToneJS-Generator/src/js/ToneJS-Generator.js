@@ -11,12 +11,11 @@ document.getElementById('startButton').addEventListener('click', async () => {
     const audioEl = document.getElementById('audio1');
     audioEl.src = audioSourceUrl;
     const mediaElementSource = Tone.context.createMediaElementSource(audioEl);
-    /*
+    
     Tone.loaded().then(()=>{
       audioEl.load();
       audioEl.play();
   });
-  */
     
     if(player.state === 'stopped'){
       document.getElementById('stopButton').style.color='red';
@@ -53,11 +52,11 @@ document.getElementById('startButton').addEventListener('click', async () => {
     // 'waveform' for time-domain analysis, 'fft' for frequency-domain analysis
     // 2048 is the FFT size, must be a power of two
     const analyser = new Tone.Analyser("waveform", 2048);
-    analyser.connect(Tone.Destination);
+    analyser.connect(Tone.toDestination());
     
     // Connect the player to the analyser, and then connect the analyser to the destination
     
-    Tone.connect(player, analyser);
+    Tone.connect(mediaElementSource, analyser);
 
     //analyser.connect(Tone.Destination);// Or connect analyser to a different node if needed
 
