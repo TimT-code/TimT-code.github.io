@@ -6,7 +6,7 @@ let editedSoundName='';//Save for later to capture the edited name
 document.getElementById('startButton').addEventListener('click', async () => {
 
     await Tone.start();
-    Tone.resume();
+    Tone.context.resume();
 
     alert('AudioContext is running');
 
@@ -39,7 +39,7 @@ document.getElementById('startButton').addEventListener('click', async () => {
     // Play the sound once the buffer is loaded
 
     // You can also use player.autostart = true;
-
+    
     // if you want it to play as soon as the file is loaded.
   Tone.loaded().then(()=>{
       //player.autostart=true;
@@ -101,8 +101,9 @@ document.getElementById('startButton').addEventListener('click', async () => {
 const analyser = new Tone.Analyser("waveform", 2048); 
 
 // Connect the player to the analyser, and then connect the analyser to the destination
-    player.connect(gainNode);
-    gainNode.connect(analyser);
+    //player.connect(gainNode);
+    //gainNode.connect(analyser);
+    Tone.connect(mediaElementSource, analyser);
     analyser.connect(Tone.Destination);// Or connect analyser to a different node if needed
 
     document.getElementById('version').innerText=Tone
