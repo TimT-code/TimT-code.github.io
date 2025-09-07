@@ -9,44 +9,14 @@ document.getElementById('startButton').addEventListener('click', async () => {
     Tone.context.resume();
 
     alert('AudioContext is running');
-
-    // Create a Tone.Player instance
-    //const audioCtx = new AudioContext();
-    //const context = new Tone.Context(audioCtx);
-    //Tone.setContext(context, true);
+    
     const audioSourceUrl = 'https://tonejs.github.io/audio/berklee/gong_1.mp3';
     //const audioSourceUrl = '/audio/music/Tim%20Tesner/01-Tim%20Tesner%20-%20Earvisions2%20-%20Universe%2098.mp3';
     const audioEl = document.getElementById('audio1');
     audioEl.src = audioSourceUrl;
     const player = Tone.context.createMediaElementSource(audioEl);
-    //const gainNode = audioCtx.createGain();
-
-    //Test url
-    //const soundUrl = 'https://tonejs.github.io/audio/berklee/gong_1.mp3';
-
-    // My own music
-    // Tim Tesner - 1998 - "Universe 98.mp3"
-    //const soundUrl = 'https://timt-code.github.io/ToneJS-Generator/src/audio/music/Tim%20Tesner/01-Tim%20Tesner%20-%20Earvisions2%20-%20Universe%2098.mp3';
     
-    //const audioCtx = new (window.AudioContext || window.webkitAudioContext);
-    //const audioCtx = new AudioContext();
-    //const player = audioCtx.createMediaElementSource(audioEl);
-    //const gainNode = audioCtx.createGain();
-    //Tone.setContext(audioCtx);
-
-    //const player = new Tone.Player(soundUrl)/*.toDestination()*/;
-    //const player = new Tone.context.createMediaElementSource(audioEl);
-
-    // Play the sound once the buffer is loaded
-
-    // You can also use player.autostart = true;
-    
-    // if you want it to play as soon as the file is loaded.
-  Tone.loaded().then(()=>{
-      //player.autostart=true;
-      //player.volume.value='0';//Set initial value
-      //player.loop=false;
-      //player.start();
+    Tone.loaded().then(()=>{
       audioEl.load();
       audioEl.play();
   });
@@ -66,46 +36,32 @@ document.getElementById('startButton').addEventListener('click', async () => {
   document.getElementById('loopButton').style.color='black';
 
   // Add other logic here, such as updating UI or triggering new audio
-
-}
+  }
   
   // Schedule a repeated event to check the player's state
-
-  const checkInterval = '0.1'; // Check every 10th of a second
-
-  const checkStateEvent = Tone.Transport.scheduleRepeat((time) => {
-
-    // Check if the player's state is 'stopped'
-
-    if (player.state === 'stopped') {
-
-      onPlayerStopped();
-
-      // Unschedule the event so it doesn't keep running
-
-      Tone.Transport.clear(checkStateEvent);
-
-    }
-
-  }, checkInterval);
-
-  // Start the transport to begin playback and the state checks
-
-  Tone.Transport.start();
-  
-  // Create an Analyser instance
-
-// 'waveform' for time-domain analysis, 'fft' for frequency-domain analysis
-
-// 2048 is the FFT size, must be a power of two
-
-//const analyser = new Tone.Analyser("waveform", 2048);
-    const analyser = new Tone.Analyser("waveform", 2048).toDestination();
-
-// Connect the player to the analyser, and then connect the analyser to the destination
-    //player.connect(gainNode);
-    //gainNode.connect(analyser);
+    const checkInterval = '0.1'; // Check every 10th of a second
+    const checkStateEvent = Tone.Transport.scheduleRepeat((time) => {
+        // Check if the player's state is 'stopped'
+        if (player.state === 'stopped') {
+            onPlayerStopped();
+            // Unschedule the event so it doesn't keep running
+            Tone.Transport.clear(checkStateEvent);
+        }
+    }, checkInterval);
+    
+    // Start the transport to begin playback and the state checks
+    Tone.Transport.start();
+    
+    // Create an Analyser instance
+    // 'waveform' for time-domain analysis, 'fft' for frequency-domain analysis
+    // 2048 is the FFT size, must be a power of two
+    const analyser = new Tone.Analyser("waveform", 2048);
+    analyser.connect(Tone.Destination);
+    
+    // Connect the player to the analyser, and then connect the analyser to the destination
+    
     Tone.connect(player, analyser);
+
     //analyser.connect(Tone.Destination);// Or connect analyser to a different node if needed
 
     document.getElementById('version').innerText=Tone
@@ -152,50 +108,37 @@ document.getElementById('startButton').addEventListener('click', async () => {
    console.log('*Edited Sound Name', editedSoundName);
  }
     }, true);
-    
-    
-
-    // Original Sound Name
-    const originalSoundName=soundUrl.replace(/\.[^/.]+$/, "").split('/').pop();
-
-    document.getElementById('originalSoundName_stats').innerText=originalSoundName;
-
-    console.log('Original Sound Name:', originalSoundName);
-    
-    // Full URL
-    document.getElementById('fullUrl_stats').innerText=soundUrl;
-    console.log('Full Url:', soundUrl);
+        
+        // Original Sound Name
+        const originalSoundName=soundUrl.replace(/\.[^/.]+$/, "").split('/').pop();
+        document.getElementById('originalSoundName_stats').innerText=originalSoundName;
+        console.log('Original Sound Name:', originalSoundName);
+        
+        // Full URL
+        document.getElementById('fullUrl_stats').innerText=soundUrl;
+        console.log('Full Url:', soundUrl);
     
     // Origin URL - using URL api
-    const url = new URL(soundUrl);
-    const originUrl = url.origin + '/';
-    document.getElementById('originUrl_stats').innerText=originUrl;
-    console.log('Origin Url:', originUrl);
-    
+        const url = new URL(soundUrl);
+        const originUrl = url.origin + '/';
+        document.getElementById('originUrl_stats').innerText=originUrl;
+        console.log('Origin Url:', originUrl);
+        
     // Folder URL
-    function getFolderNameFromUrl(soundUrl){
-     const folderUrl = soundUrl;
-  //Coded directly into variable inside function, or pass in the url string with an argument and an outside variable 
-  //const url='https://tonejs.github.io/audio/berklee/gong_1.mp3';
-  
-  //const url = 'https://github.com/davidysoards/svg_drum_machine/blob/master/docs/drums/808BDLong2.wav';
-  
-  //const url = 'https://google.com/file.mp3';  
-  //const url = 'https://github.com/file.mp3';
-  
-  let protocolPiece='';//stays empty and not used if there are folders in URL
-  let processedUrl = folderUrl;//stays original url if there is no 'https://' protocol in the url string..
-  
-  if(folderUrl.includes('https://')){
-    protocolPiece='https://';
-    // Replace https:// with empty text
-    processedUrl = folderUrl.replace(/^(https?:\/\/)/, '');
-    }else{
-      processedUrl = folderUrl;
-      }
-  
-  
-  // Split the string by '/', which will be an array of the parts
+        function getFolderNameFromUrl(soundUrl){
+            const folderUrl = soundUrl;
+            let protocolPiece='';//stays empty and not used if there are folders in URL
+            let processedUrl = folderUrl;//stays original url if there is no 'https://' protocol in the url string..
+            
+            if(folderUrl.includes('https://')){
+                protocolPiece='https://';
+                // Replace https:// with empty text
+                processedUrl = folderUrl.replace(/^(https?:\/\/)/, '');
+            }else{
+                processedUrl = folderUrl;
+            }
+            
+            // Split the string by '/', which will be an array of the parts
   if(!processedUrl.includes('/')){
     //console.log('No file name in url');
     return protocolPiece + folderUrl;
@@ -241,9 +184,6 @@ document.getElementById('startButton').addEventListener('click', async () => {
     
     // Extract the filename from the pathname
     const filename = pathname.substring(pathname.lastIndexOf('/') + 1);
-    // Get the file extension
-//const fileExtension = filename.split('.').pop();
-
     
    // const soundName = fileName.pop();
     document.getElementById('fileName_stats').innerText=filename;
