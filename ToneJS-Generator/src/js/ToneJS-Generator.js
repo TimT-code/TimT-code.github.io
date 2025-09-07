@@ -14,7 +14,8 @@ document.getElementById('startButton').addEventListener('click', async () => {
     //const audioCtx = new AudioContext();
     //const context = new Tone.Context(audioCtx);
     //Tone.setContext(context, true);
-    const audioSourceUrl = '/audio/music/Tim%20Tesner/01-Tim%20Tesner%20-%20Earvisions2%20-%20Universe%2098.mp3';
+    const audioSourceUrl = 'https://tonejs.github.io/audio/berklee/gong_1.mp3';
+    //const audioSourceUrl = '/audio/music/Tim%20Tesner/01-Tim%20Tesner%20-%20Earvisions2%20-%20Universe%2098.mp3';
     const audioEl = document.getElementById('audio1');
     audioEl.src = audioSourceUrl;
     const player = Tone.context.createMediaElementSource(audioEl);
@@ -98,13 +99,14 @@ document.getElementById('startButton').addEventListener('click', async () => {
 
 // 2048 is the FFT size, must be a power of two
 
-const analyser = new Tone.Analyser("waveform", 2048); 
+//const analyser = new Tone.Analyser("waveform", 2048);
+    const analyser = new Tone.Analyser("waveform", 2048).toDestination();
 
 // Connect the player to the analyser, and then connect the analyser to the destination
     //player.connect(gainNode);
     //gainNode.connect(analyser);
     Tone.connect(player, analyser);
-    analyser.connect(Tone.Destination);// Or connect analyser to a different node if needed
+    //analyser.connect(Tone.Destination);// Or connect analyser to a different node if needed
 
     document.getElementById('version').innerText=Tone
     VERSION;//Tone version number
