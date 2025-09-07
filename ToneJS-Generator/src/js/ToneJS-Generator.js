@@ -6,18 +6,19 @@ let editedSoundName='';//Save for later to capture the edited name
 document.getElementById('startButton').addEventListener('click', async () => {
 
     await Tone.start();
+    Tone.resume();
 
     alert('AudioContext is running');
 
     // Create a Tone.Player instance
-    const audioCtx = new AudioContext();
-    const context = new Tone.Context(audioCtx);
-    Tone.setContext(context, true);
+    //const audioCtx = new AudioContext();
+    //const context = new Tone.Context(audioCtx);
+    //Tone.setContext(context, true);
     const audioSourceUrl = '/audio/music/Tim%20Tesner/01-Tim%20Tesner%20-%20Earvisions2%20-%20Universe%2098.mp3';
     const audioEl = document.getElementById('audio1');
     audioEl.src = audioSourceUrl;
-    const player = audioCtx.createMediaElementSource(audioEl);
-    const gainNode = audioCtx.createGain();
+    const player = Tone.context.createMediaElementSource(audioEl);
+    //const gainNode = audioCtx.createGain();
 
     //Test url
     //const soundUrl = 'https://tonejs.github.io/audio/berklee/gong_1.mp3';
