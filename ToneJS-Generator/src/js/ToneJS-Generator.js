@@ -51,8 +51,7 @@ document.getElementById('startButton').addEventListener('click', async () => {
     // Create an Analyser instance
     // 'waveform' for time-domain analysis, 'fft' for frequency-domain analysis
     // 2048 is the FFT size, must be a power of two
-    const analyser = new Tone.Analyser("waveform", 2048);
-    analyser.connect(Tone.toDestination());
+    const analyser = new Tone.Analyser("waveform", 2048).toDestination();
     
     // Connect the player to the analyser, and then connect the analyser to the destination
     
