@@ -103,7 +103,7 @@ const analyser = new Tone.Analyser("waveform", 2048);
 // Connect the player to the analyser, and then connect the analyser to the destination
     //player.connect(gainNode);
     //gainNode.connect(analyser);
-    Tone.connect(mediaElementSource, analyser);
+    Tone.connect(player, analyser);
     analyser.connect(Tone.Destination);// Or connect analyser to a different node if needed
 
     document.getElementById('version').innerText=Tone
