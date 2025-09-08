@@ -229,7 +229,7 @@ document.getElementById('startButton').addEventListener('click', async () => {
         // Start drawing when audio is ready or playback begins
         // For example, after player loads:
         draw();
-    });
+    //});
     
     Tone.connect(mediaElementSource, pitchShift);
     Tone.connect(mediaElementSource, filter);
