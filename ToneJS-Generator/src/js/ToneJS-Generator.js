@@ -48,17 +48,13 @@ document.getElementById('startButton').addEventListener('click', async () => {
     // Start the transport to begin playback and the state checks
     Tone.Transport.start();
     
-    // Create an Analyser instance
-    // 'waveform' for time-domain analysis, 'fft' for frequency-domain analysis
-    // 2048 is the FFT size, must be a power of two
-    const analyser = new Tone.Analyser("waveform", 2048).toDestination();
+    const mediaElementSource = Tone.context.createMediaElementSource(audioElement);
+    const pitchShift = new Tone.PitchShift().toDestination();
+    pitchShift.pitch = +14;
+    const filter = new Tone.Filter(8000, "highpass").toDestination();
+    const analyser = new Tone.Analyser("waveform", 2048);
     
-    // Connect the player to the analyser, and then connect the analyser to the destination
-    
-    Tone.connect(mediaElementSource, analyser);
-
-    //analyser.connect(Tone.Destination);// Or connect analyser to a different node if needed
-
+    //Tone Version #
     document.getElementById('version').innerText=Tone
     VERSION;//Tone version number
   
@@ -234,6 +230,10 @@ document.getElementById('startButton').addEventListener('click', async () => {
         // For example, after player loads:
         draw();
     });
+    
+    Tone.connect(mediaElementSource, pitchShift);
+    Tone.connect(mediaElementSource, filter);
+    Tone.connect(mediaElementSource, analyser);
     
     document.getElementById('stopButton').addEventListener('click', () => {
         //player.stop();
