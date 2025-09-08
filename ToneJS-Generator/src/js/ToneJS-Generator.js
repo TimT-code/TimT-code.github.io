@@ -55,8 +55,7 @@ document.getElementById('startButton').addEventListener('click', async () => {
     const analyser = new Tone.Analyser("waveform", 2048);
     
     //Tone Version #
-    document.getElementById('version').innerText=Tone
-    VERSION;//Tone version number
+    document.getElementById('version').innerText=Tone.VERSION;//Tone version number
   
     // Audio file duration, length in seconds
     Tone.loaded().then(() => {
