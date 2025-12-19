@@ -135,6 +135,8 @@
             createWorld();
             animate();
             isPlaying = true;
+            // Vibration
+            navigator.vibrate(50);
         }
 
         // --- THREE.JS SETUP ---
@@ -274,7 +276,7 @@
         function detectHit() {
             // Simple swing detection: drastic change in Z acceleration
             const swingForce = Math.abs(deviceAccel.z); // Simplified
-            const swingThreshold = 8.0; // Sensitivity
+            const swingThreshold = /*8.0*/12.0; // Sensitivity
 
             if (isWaiting && swingForce > swingThreshold) {
                 hitBall(swingForce);
