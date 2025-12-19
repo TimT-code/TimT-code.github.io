@@ -323,6 +323,9 @@
             // Move Ball
             ball.position.add(ballVelocity);
             
+            // Vibration
+            navigator.vibrate(50);
+            
             // Gravity
             ballVelocity.y -= GRAVITY * 0.1; // Reduced gravity for gameplay feel
 
@@ -371,7 +374,7 @@
             // If ball passes the player (Z > camera Z) or slows down too much near player
             if (ball.position.z > (ROOM_DEPTH/2 - 5) && ballVelocity.z > 0) {
                 // Ball is returning to player
-                ballVelocity.multiplyScalar(0.9); // Slow down rapidly
+                ballVelocity.multiplyScalar(/*0.9*/-0.9); // Slow down rapidly
                 
                 if (ballVelocity.length() < 0.2) {
                     resetBallToHand();
