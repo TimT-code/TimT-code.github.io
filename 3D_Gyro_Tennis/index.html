@@ -255,7 +255,7 @@
         function detectHit() {
             // Simple swing detection: drastic change in Z acceleration
             const swingForce = Math.abs(deviceAccel.z); // Simplified
-            const swingThreshold = 8.0; // Sensitivity
+            const swingThreshold = /*8.0*/10.0; // Sensitivity
 
             if (isWaiting && swingForce > swingThreshold) {
                 hitBall(swingForce);
@@ -312,7 +312,7 @@
             // Floor
             if (ball.position.y < -ROOM_HEIGHT/2 + 0.8) {
                 ball.position.y = -ROOM_HEIGHT/2 + 0.8;
-                ballVelocity.y *= /*-0.8*/-0.4; // Bounce damping
+                ballVelocity.y *= /*-0.8*/-0.1; // Bounce damping
                 squish(0, 1, 0);
                 playSound('bounce', ball.position, ballVelocity.length());
             }
@@ -341,7 +341,7 @@
             // Back Wall (The Target Wall)
             if (ball.position.z < -ROOM_DEPTH/2 + 0.8) {
                 ball.position.z = -ROOM_DEPTH/2 + 0.8;
-                ballVelocity.z *= /*-0.6*/-0.2; // Lose momentum coming back
+                ballVelocity.z *= -0.6; // Lose momentum coming back
                 squish(0, 0, 1);
                 playSound('wall', ball.position, ballVelocity.length());
                 
