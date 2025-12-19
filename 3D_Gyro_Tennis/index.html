@@ -63,11 +63,11 @@
         let isPlaying = false;
         
         // Physics & Game State
-        const GRAVITY = /*0.15*/0.28;
+        const GRAVITY = /*0.15*/0.18;
         const FRICTION = 0.98;
         const ROOM_DEPTH = 60;
-        const ROOM_WIDTH = 30;
-        const ROOM_HEIGHT = 30;
+        const ROOM_WIDTH = 20;
+        const ROOM_HEIGHT = 15;
         
         // Ball State
         let ballVelocity = new THREE.Vector3(0, 0, 0);
@@ -274,7 +274,7 @@
         function detectHit() {
             // Simple swing detection: drastic change in Z acceleration
             const swingForce = Math.abs(deviceAccel.z); // Simplified
-            const swingThreshold = /*8.0*/10.0; // Sensitivity
+            const swingThreshold = 8.0; // Sensitivity
 
             if (isWaiting && swingForce > swingThreshold) {
                 hitBall(swingForce);
@@ -296,6 +296,9 @@
             
             // 3. Audio
             playSound('hit', ball.position, speed);
+
+            // Vibration
+            navigator.vibrate(50);
             
             // 4. Visuals (Change color on hit)
             ball.children[0].color.setHSL(Math.random(), 1, 0.5);
@@ -322,9 +325,6 @@
 
             // Move Ball
             ball.position.add(ballVelocity);
-            
-            // Vibration
-            navigator.vibrate(50);
             
             // Gravity
             ballVelocity.y -= GRAVITY * 0.1; // Reduced gravity for gameplay feel
