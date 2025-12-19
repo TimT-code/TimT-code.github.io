@@ -298,7 +298,7 @@
             playSound('hit', ball.position, speed);
 
             // Vibration
-            navigator.vibrate(50);
+            navigator.vibrate(100);
             
             // 4. Visuals (Change color on hit)
             ball.children[0].color.setHSL(Math.random(), 1, 0.5);
@@ -374,7 +374,7 @@
             // If ball passes the player (Z > camera Z) or slows down too much near player
             if (ball.position.z > (ROOM_DEPTH/2 - 5) && ballVelocity.z > 0) {
                 // Ball is returning to player
-                ballVelocity.multiplyScalar(/*0.9*/-0.9); // Slow down rapidly
+                ballVelocity.multiplyScalar(0.9); // Slow down rapidly
                 
                 if (ballVelocity.length() < 0.2) {
                     resetBallToHand();
@@ -500,6 +500,9 @@
                 Tone.Listener.forwardY.value=1;
                 Tone.Listener.forwardZ.value=0;
             }
+
+            // Vibration
+            navigator.vibrate(50);
 
             renderer.render(scene, camera);
         }
