@@ -46,6 +46,7 @@
         <button id="start-btn">TAP TO START & ENABLE SENSORS</button>
         <div id="instructions">Hold phone like a racket.<br>Swing to hit. Tilt to aim.</div>
     </div>
+    <canvas id='myCanvas'></canvas>
 
     <script type="module">
         import * as THREE from 'three';
@@ -138,8 +139,9 @@
             scene.fog = new THREE.FogExp2(0x000000, 0.015);
 
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+
+            canvas = document.getElementById('myCanvas');
+            renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.toneMapping = THREE.ReinhardToneMapping;
