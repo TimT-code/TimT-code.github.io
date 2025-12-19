@@ -152,7 +152,6 @@
         }
 
         function createWorld() {
-            /*
             // 1. The Ball (Iridescent, Transparent, Light Source)
             const ballGeo = new THREE.SphereGeometry(0.8, 32, 32);
             const ballMat = new THREE.MeshPhysicalMaterial({
@@ -165,14 +164,15 @@
                 iridescenceIOR: 1.33,
                 clearcoat: 1.0
             });
+            /*
+            const ballGeo = new THREE.SphereGeometry(1, 0.4, 70, 16);
+            const ballMat = new THREE.MeshLambertMaterial({ color: 0xff0000 });
             */
-            const ballGeo = new THREE.TorusKnotGeometry(1, 0.4, /*100*/70, 16);
-            const ballMat = new THREE.MeshLambertMaterial({ color: 0xff0000 })
             ball = new THREE.Mesh(ballGeo, ballMat);
             
             // The light inside the ball
             //const ballLight = new THREE.PointLight(0x00ffff, 20, 40);
-            const ballLight = new THREE.DirectionalLight(0x00ffff, 10, 35);
+            const ballLight = new THREE.PointLight(0x00ffff, 10, 35);
             ballLight.position.z = 3
             ballLight.castShadow = true;
             ball.add(ballLight);
@@ -353,7 +353,7 @@
             // If ball passes the player (Z > camera Z) or slows down too much near player
             if (ball.position.z > (ROOM_DEPTH/2 - 5) && ballVelocity.z > 0) {
                 // Ball is returning to player
-                ballVelocity.multiplyScalar(0.9); // Slow down rapidly
+                ballVelocity.multiplyScalar(/*0.9*/3.0); // Slow down rapidly
                 
                 if (ballVelocity.length() < 0.2) {
                     resetBallToHand();
@@ -466,11 +466,12 @@
 
             // Update Audio Listener Position (Player is always at 0,0, RoomDepth/2)
             if(Tone.Listener) {
+                // deprecated Tone.Listener.setPosition
+                //Tone.Listener.setPosition(camera.position.x, camera.position.y, camera.position.z);
                 Tone.Listener.positionX.value=camera.position.x;
                 Tone.Listener.positionY.value=camera.position.y;
                 Tone.Listener.positionZ.value=camera.position.z;
-                // deprecated Tone.Listener.setPosition
-                //Tone.Listener.setPosition(camera.position.x, camera.position.y, camera.position.z);
+                
                 const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
                 // deprecated setOrientation...
                 //Tone.Listener.setOrientation(forward.x, forward.y, forward.z, 0, 1, 0);
