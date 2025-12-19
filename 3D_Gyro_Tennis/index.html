@@ -63,7 +63,7 @@
         let isPlaying = false;
         
         // Physics & Game State
-        const GRAVITY = /*0.15*/0.04;
+        const GRAVITY = /*0.15*/0.10;
         const FRICTION = 0.98;
         const ROOM_DEPTH = 60;
         const ROOM_WIDTH = 20;
@@ -202,7 +202,6 @@
             grid.position.y = -ROOM_HEIGHT / 2;
             scene.add(grid);
 
-            /*
             // Right Wall Grid (YZ Plane)
             const rightWallGrid = new THREE.GridHelper(ROOM_DEPTH, 20, 0x00ffff, 0x717171);
             rightWallGrid.rotation.z = Math.PI / 2;
@@ -210,6 +209,7 @@
             rightWallGrid.position.y = ROOM_HEIGHT / 2;
             scene.add(rightWallGrid);
 
+            /*
             // Back Wall Grid (XY Plane)
             const backWallGrid = new THREE.GridHelper(ROOM_DEPTH, divisions, color1, color2);
             backWallGrid.rotation.x = Math.PI / 2;
