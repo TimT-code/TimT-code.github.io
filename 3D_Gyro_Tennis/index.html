@@ -171,8 +171,7 @@
             ball = new THREE.Mesh(ballGeo, ballMat);
             
             // The light inside the ball
-            //const ballLight = new THREE.PointLight(0x00ffff, 20, 40);
-            const ballLight = new THREE.PointLight(0x00ffff, 10, 35);
+            const ballLight = new THREE.PointLight(0x00ffff, 20, 40);
             ballLight.position.z = 3
             ballLight.castShadow = true;
             ball.add(ballLight);
@@ -186,9 +185,9 @@
             const roomMat = new THREE.MeshPhongMaterial({
                 color: 0x222222,
                 side: THREE.BackSide, // Render inside
-                transparent: /*true*/false,
-                opacity: 0.8,
-                wireframe: /*false*/true
+                transparent: true,
+                opacity: 0.2,
+                wireframe: false
             });
             room = new THREE.Mesh(roomGeo, roomMat);
             scene.add(room);
