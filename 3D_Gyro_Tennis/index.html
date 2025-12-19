@@ -193,7 +193,7 @@
             scene.add(room);
             
             // Grid helper for floor effect
-            const grid = new THREE.GridHelper(ROOM_DEPTH, 20, 0x00ffff, 0x222222);
+            const grid = new THREE.GridHelper(ROOM_DEPTH, 20, 0x00ffff, /*0x222222*/0x717171);
             grid.position.y = -ROOM_HEIGHT / 2;
             scene.add(grid);
 
@@ -312,28 +312,28 @@
             // Floor
             if (ball.position.y < -ROOM_HEIGHT/2 + 0.8) {
                 ball.position.y = -ROOM_HEIGHT/2 + 0.8;
-                ballVelocity.y *= -0.8; // Bounce damping
+                ballVelocity.y *= /*-0.8*/-0.4; // Bounce damping
                 squish(0, 1, 0);
                 playSound('bounce', ball.position, ballVelocity.length());
             }
             // Ceiling
             if (ball.position.y > ROOM_HEIGHT/2 - 0.8) {
                 ball.position.y = ROOM_HEIGHT/2 - 0.8;
-                ballVelocity.y *= -0.8;
+                ballVelocity.y *= /*-0.8*/-0.4;
                 squish(0, 1, 0);
                 playSound('bounce', ball.position, ballVelocity.length());
             }
             // Left Wall
             if (ball.position.x < -ROOM_WIDTH/2 + 0.8) {
                 ball.position.x = -ROOM_WIDTH/2 + 0.8;
-                ballVelocity.x *= -0.8;
+                ballVelocity.x *= /*-0.8*/-0.4;
                 squish(1, 0, 0);
                 playSound('bounce', ball.position, ballVelocity.length());
             }
             // Right Wall
             if (ball.position.x > ROOM_WIDTH/2 - 0.8) {
                 ball.position.x = ROOM_WIDTH/2 - 0.8;
-                ballVelocity.x *= -0.8;
+                ballVelocity.x *= /*-0.8*/-0.4;
                 squish(1, 0, 0);
                 playSound('bounce', ball.position, ballVelocity.length());
             }
@@ -341,7 +341,7 @@
             // Back Wall (The Target Wall)
             if (ball.position.z < -ROOM_DEPTH/2 + 0.8) {
                 ball.position.z = -ROOM_DEPTH/2 + 0.8;
-                ballVelocity.z *= -0.6; // Lose momentum coming back
+                ballVelocity.z *= /*-0.6*/-0.2; // Lose momentum coming back
                 squish(0, 0, 1);
                 playSound('wall', ball.position, ballVelocity.length());
                 
