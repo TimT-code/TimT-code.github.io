@@ -460,7 +460,11 @@
 
             // Update Audio Listener Position (Player is always at 0,0, RoomDepth/2)
             if(Tone.Listener) {
-                Tone.Listener.setPosition(camera.position.x, camera.position.y, camera.position.z);
+                Tone.Listener.positionX.value=camera.position.x;
+                Tone.Listener.positionY.value=camera.position.y;
+                Tone.Listener.positionZ.value=camera.position.z;
+                // deprecated Tone.Listener.setPosition
+                //Tone.Listener.setPosition(camera.position.x, camera.position.y, camera.position.z);
                 const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
                 Tone.Listener.setOrientation(forward.x, forward.y, forward.z, 0, 1, 0);
             }
