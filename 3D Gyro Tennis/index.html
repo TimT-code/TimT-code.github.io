@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>3D Gyro Tennis</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', Courier, monospace; }
+        canvas { display: block; }
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; color: white;
+            text-align: center;
+        }
+        #start-btn {
+            pointer-events: auto; padding: 15px 30px; font-size: 1.2rem;
+            background: rgba(0, 255, 255, 0.2); border: 1px solid cyan; color: cyan;
+            border-radius: 8px; cursor: pointer; backdrop-filter: blur(5px);
+            text-transform: uppercase; letter-spacing: 2px;
+        }
+        #score-board {
+            position: absolute; top: 20px; left: 20px; font-size: 1.5rem;
+            text-shadow: 0 0 10px cyan;
+        }
+        #instructions {
+            position: absolute; bottom: 20px; width: 80%; font-size: 0.8rem;
+            color: rgba(255,255,255,0.6);
+        }
+    </style>
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <div id="score-board">SCORE: 0</div>
+        <button id="start-btn">TAP TO START & ENABLE SENSORS</button>
+        <div id="instructions">Hold phone like a racket.<br>Swing to hit. Tilt to aim.</div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        // --- GLOBAL VARIABLES ---
+        let scene, camera, renderer;
+        let ball, paddle, room;
+        let score = 0;
+        let isPlaying = false;
+        
+        // Physics & Game State
+        const GRAVITY = 0.15;
+        const FRICTION = 0.98;
+        const ROOM_DEPTH = 60;
+        const ROOM_WIDTH = 20;
+        const ROOM_HEIGHT = 15;
+        
+        // Ball State
+        let ballVelocity = new THREE.Vector3(0, 0, 0);
+        let ballSpin = new THREE.Vector3(0, 0, 0);
+        let isWaiting = true; // Waiting in front of player
+        let squishFactor = 1.0;
+        let targetScale = new THREE.Vector3(1, 1, 1);
+        
+        // Sensor Data
+        let deviceAccel = { x: 0, y: 0, z: 0 };
+        let deviceRotation = { alpha: 0, beta: 0, gamma: 0 };
+        let lastAccelZ = 0; // To detect swing
+        
+        // Audio
+        let synth, reverb, panner;
+
+        // Targets (Tiles)
+        let targets = [];
+
+        // --- INITIALIZATION ---
+        
+        document.getElementById('start-btn').addEventListener('click', async () => {
+            // 1. Initialize Audio Context
+            await Tone.start();
+            initAudio();
+
+            // 2. Request Sensor Permissions (iOS 13+ requirement)
+            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                try {
+                    const permission = await DeviceOrientationEvent.requestPermission();
+                    if (permission === 'granted') {
+                        window.addEventListener('deviceorientation', handleOrientation);
+                        window.addEventListener('devicemotion', handleMotion);
+                        startGame();
+                    } else {
+                        alert("Permission denied. Cannot play.");
+                    }
+                } catch (e) {
+                    alert("Error requesting sensor permission: " + e);
+                }
+            } else {
+                // Non-iOS 13+ devices
+                window.addEventListener('deviceorientation', handleOrientation);
+                window.addEventListener('devicemotion', handleMotion);
+                startGame();
+            }
+        });
+
+        function initAudio() {
+            reverb = new Tone.Reverb({ decay: 2.5, preDelay: 0.1 }).toDestination();
+            panner = new Tone.Panner3D(0, 0, 0).connect(reverb);
+            
+            // Dynamic synth that sounds a bit like a sci-fi racket hit
+            synth = new Tone.MembraneSynth({
+                pitchDecay: 0.05,
+                octaves: 4,
+                oscillator: { type: "sine" },
+                envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 1.4 }
+            }).connect(panner);
+        }
+
+        function startGame() {
+            document.getElementById('start-btn').style.display = 'none';
+            initThreeJS();
+            createWorld();
+            animate();
+            isPlaying = true;
+        }
+
+        // --- THREE.JS SETUP ---
+
+        function initThreeJS() {
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x000000, 0.015);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.toneMapping = THREE.ReinhardToneMapping;
+            document.body.appendChild(renderer.domElement);
+
+            // Initial position (Player's POV)
+            camera.position.set(0, 0, ROOM_DEPTH / 2 - 2); 
+        }
+
+        function createWorld() {
+            // 1. The Ball (Iridescent, Transparent, Light Source)
+            const ballGeo = new THREE.SphereGeometry(0.8, 32, 32);
+            const ballMat = new THREE.MeshPhysicalMaterial({
+                color: 0xffffff,
+                metalness: 0.1,
+                roughness: 0,
+                transmission: 0.9,  // Glass-like
+                thickness: 2.0,
+                iridescence: 1.0,
+                iridescenceIOR: 1.33,
+                clearcoat: 1.0
+            });
+            ball = new THREE.Mesh(ballGeo, ballMat);
+            
+            // The light inside the ball
+            const ballLight = new THREE.PointLight(0x00ffff, 20, 40);
+            ballLight.castShadow = true;
+            ball.add(ballLight);
+            scene.add(ball);
+
+            // Set Ball to Waiting Position (Floating in front of "face")
+            resetBallToHand();
+
+            // 2. The Room (Transparent Box)
+            const roomGeo = new THREE.BoxGeometry(ROOM_WIDTH, ROOM_HEIGHT, ROOM_DEPTH);
+            const roomMat = new THREE.MeshPhongMaterial({
+                color: 0x222222,
+                side: THREE.BackSide, // Render inside
+                transparent: true,
+                opacity: 0.2,
+                wireframe: false
+            });
+            room = new THREE.Mesh(roomGeo, roomMat);
+            scene.add(room);
+            
+            // Grid helper for floor effect
+            const grid = new THREE.GridHelper(ROOM_DEPTH, 20, 0x00ffff, 0x222222);
+            grid.position.y = -ROOM_HEIGHT / 2;
+            scene.add(grid);
+
+            // 3. The Paddle (Visual representation of phone)
+            const paddleGeo = new THREE.BoxGeometry(3, 0.2, 5); // Phone shape
+            const paddleMat = new THREE.MeshNormalMaterial({ wireframe: true }); 
+            paddle = new THREE.Mesh(paddleGeo, paddleMat);
+            scene.add(paddle);
+
+            // 4. Target Tiles on Back Wall
+            createTargets();
+        }
+
+        function createTargets() {
+            const geometry = new THREE.PlaneGeometry(3, 3);
+            for(let i=0; i<6; i++) {
+                const color = new THREE.Color().setHSL(Math.random(), 1.0, 0.5);
+                const material = new THREE.MeshBasicMaterial({ color: color, side: THREE.DoubleSide });
+                const tile = new THREE.Mesh(geometry, material);
+                
+                // Position on back wall (negative Z)
+                tile.position.z = -ROOM_DEPTH / 2 + 0.5;
+                tile.position.x = (Math.random() * ROOM_WIDTH) - (ROOM_WIDTH/2);
+                tile.position.y = (Math.random() * ROOM_HEIGHT) - (ROOM_HEIGHT/2);
+                
+                tile.userData = { scoreVal: 10 + Math.floor(Math.random() * 50), active: true, baseColor: color };
+                scene.add(tile);
+                targets.push(tile);
+            }
+        }
+
+        // --- INPUT HANDLING ---
+
+        function handleOrientation(event) {
+            // Standardize orientation data
+            deviceRotation.alpha = THREE.MathUtils.degToRad(event.alpha || 0);
+            deviceRotation.beta = THREE.MathUtils.degToRad(event.beta || 0);
+            deviceRotation.gamma = THREE.MathUtils.degToRad(event.gamma || 0);
+        }
+
+        function handleMotion(event) {
+            // Capture acceleration (including gravity)
+            if (event.accelerationIncludingGravity) {
+                deviceAccel.x = event.accelerationIncludingGravity.x;
+                deviceAccel.y = event.accelerationIncludingGravity.y;
+                deviceAccel.z = event.accelerationIncludingGravity.z;
+            }
+        }
+
+        function updatePaddle() {
+            // Sync paddle mesh with phone rotation
+            // Note: Euler orders vary by device, ZXY is often stable for phones
+            paddle.rotation.set(deviceRotation.beta, deviceRotation.gamma, deviceRotation.alpha);
+            
+            // Lock paddle position relative to camera (player's hand)
+            paddle.position.copy(camera.position).add(new THREE.Vector3(0, -2, -3));
+        }
+
+        function detectHit() {
+            // Simple swing detection: drastic change in Z acceleration
+            const swingForce = Math.abs(deviceAccel.z); // Simplified
+            const swingThreshold = 8.0; // Sensitivity
+
+            if (isWaiting && swingForce > swingThreshold) {
+                hitBall(swingForce);
+            }
+        }
+
+        function hitBall(force) {
+            isWaiting = false;
+            
+            // 1. Calculate Direction based on Phone Orientation
+            // We project a forward vector from the paddle's rotation
+            const direction = new THREE.Vector3(0, 0, -1);
+            direction.applyEuler(paddle.rotation);
+            direction.normalize();
+
+            // 2. Add Velocity
+            const speed = THREE.MathUtils.clamp(force * 0.8, 0.5, 3.0); // Speed factor
+            ballVelocity.copy(direction).multiplyScalar(speed);
+            
+            // 3. Audio
+            playSound('hit', ball.position, speed);
+            
+            // 4. Visuals (Change color on hit)
+            ball.children[0].color.setHSL(Math.random(), 1, 0.5);
+        }
+
+        // --- PHYSICS LOOP ---
+
+        function updatePhysics() {
+            if (isWaiting) {
+                // Ball hovers in front of paddle
+                const hoverPos = new THREE.Vector3(0, 0, -4).applyEuler(new THREE.Euler(0,0,0)); // relative offset
+                hoverPos.add(camera.position);
+                
+                // Gentle float
+                hoverPos.y += Math.sin(Date.now() * 0.002) * 0.2;
+                
+                ball.position.lerp(hoverPos, 0.1);
+                ballVelocity.set(0,0,0);
+                
+                // Reset squish
+                ball.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
+                return;
+            }
+
+            // Move Ball
+            ball.position.add(ballVelocity);
+            
+            // Gravity
+            ballVelocity.y -= GRAVITY * 0.1; // Reduced gravity for gameplay feel
+
+            // --- COLLISION DETECTION ---
+
+            // Floor
+            if (ball.position.y < -ROOM_HEIGHT/2 + 0.8) {
+                ball.position.y = -ROOM_HEIGHT/2 + 0.8;
+                ballVelocity.y *= -0.8; // Bounce damping
+                squish(0, 1, 0);
+                playSound('bounce', ball.position, ballVelocity.length());
+            }
+            // Ceiling
+            if (ball.position.y > ROOM_HEIGHT/2 - 0.8) {
+                ball.position.y = ROOM_HEIGHT/2 - 0.8;
+                ballVelocity.y *= -0.8;
+                squish(0, 1, 0);
+                playSound('bounce', ball.position, ballVelocity.length());
+            }
+            // Left Wall
+            if (ball.position.x < -ROOM_WIDTH/2 + 0.8) {
+                ball.position.x = -ROOM_WIDTH/2 + 0.8;
+                ballVelocity.x *= -0.8;
+                squish(1, 0, 0);
+                playSound('bounce', ball.position, ballVelocity.length());
+            }
+            // Right Wall
+            if (ball.position.x > ROOM_WIDTH/2 - 0.8) {
+                ball.position.x = ROOM_WIDTH/2 - 0.8;
+                ballVelocity.x *= -0.8;
+                squish(1, 0, 0);
+                playSound('bounce', ball.position, ballVelocity.length());
+            }
+
+            // Back Wall (The Target Wall)
+            if (ball.position.z < -ROOM_DEPTH/2 + 0.8) {
+                ball.position.z = -ROOM_DEPTH/2 + 0.8;
+                ballVelocity.z *= -0.6; // Lose momentum coming back
+                squish(0, 0, 1);
+                playSound('wall', ball.position, ballVelocity.length());
+                
+                checkTargetHits();
+            }
+
+            // Return to Player Logic (The Fetch Mechanic)
+            // If ball passes the player (Z > camera Z) or slows down too much near player
+            if (ball.position.z > (ROOM_DEPTH/2 - 5) && ballVelocity.z > 0) {
+                // Ball is returning to player
+                ballVelocity.multiplyScalar(0.9); // Slow down rapidly
+                
+                if (ballVelocity.length() < 0.2) {
+                    resetBallToHand();
+                }
+            }
+            
+            // Apply squish recovery
+            ball.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
+        }
+
+        function squish(x, y, z) {
+            // Flatten slightly on the axis of impact
+            if(x) ball.scale.x = 0.6;
+            if(y) ball.scale.y = 0.6;
+            if(z) ball.scale.z = 0.6;
+        }
+
+        function checkTargetHits() {
+            // Check distance to tiles
+            targets.forEach(target => {
+                if (!target.userData.active) return;
+                
+                const dx = Math.abs(ball.position.x - target.position.x);
+                const dy = Math.abs(ball.position.y - target.position.y);
+                
+                if (dx < 2 && dy < 2) {
+                    // HIT!
+                    score += target.userData.scoreVal;
+                    document.getElementById('score-board').innerText = "SCORE: " + score;
+                    
+                    // Flash target
+                    target.material.color.setHex(0xffffff);
+                    setTimeout(() => {
+                        target.material.color.set(target.userData.baseColor);
+                    }, 200);
+                    
+                    // Play special sound
+                    playSound('score', ball.position, 10);
+                }
+            });
+        }
+
+        function resetBallToHand() {
+            isWaiting = true;
+            ballVelocity.set(0,0,0);
+            // Color resets to white indicating ready
+            ball.children[0].color.setHex(0xffffff); 
+        }
+
+        // --- AUDIO ---
+        function playSound(type, pos, intensity) {
+            if(!panner) return;
+
+            // Set 3D Audio Position
+            panner.positionX.value = pos.x;
+            panner.positionY.value = pos.y;
+            panner.positionZ.value = pos.z;
+
+            let freq;
+            if (type === 'hit') freq = "C4";
+            else if (type === 'bounce') freq = "A2";
+            else if (type === 'wall') freq = "G2";
+            else if (type === 'score') freq = "E5";
+
+            // Velocity controls volume
+            const vol = Math.min(intensity * 5, 20) - 10; // dB
+            synth.volume.value = vol;
+            synth.triggerAttackRelease(freq, "8n");
+        }
+
+        // --- CAMERA LOGIC (The "Ball View") ---
+
+        function updateCamera() {
+            if (isWaiting) {
+                // Standard Player View
+                const targetPos = new THREE.Vector3(0, 0, ROOM_DEPTH/2 - 1);
+                camera.position.lerp(targetPos, 0.1);
+                camera.lookAt(0, 0, -50);
+            } else {
+                if (ballVelocity.z < 0) {
+                    // Ball is moving AWAY (Ride the ball)
+                    // Camera positions slightly behind and above ball
+                    const offset = new THREE.Vector3(0, 1.5, 3); 
+                    const targetPos = ball.position.clone().add(offset);
+                    
+                    // Smooth follow
+                    camera.position.lerp(targetPos, 0.2);
+                    camera.lookAt(ball.position.x, ball.position.y, ball.position.z - 10);
+                } else {
+                    // Ball is coming BACK (Return to Player View to catch it)
+                    // Lerp back to player stance to see ball coming at us
+                    const playerPos = new THREE.Vector3(0, 0, ROOM_DEPTH/2 - 1);
+                    camera.position.lerp(playerPos, 0.05); // Slower transition back
+                    camera.lookAt(ball.position);
+                }
+            }
+        }
+
+        // --- ANIMATION LOOP ---
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (!isPlaying) return;
+
+            updatePaddle(); // Move phone mesh
+            detectHit();    // Check for swing
+            updatePhysics(); // Move ball
+            updateCamera();  // Dynamic Camera
+
+            // Update Audio Listener Position (Player is always at 0,0, RoomDepth/2)
+            if(Tone.Listener) {
+                Tone.Listener.setPosition(camera.position.x, camera.position.y, camera.position.z);
+                const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+                Tone.Listener.setOrientation(forward.x, forward.y, forward.z, 0, 1, 0);
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Resize handler
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+    </script>
+</body>
+</html>
