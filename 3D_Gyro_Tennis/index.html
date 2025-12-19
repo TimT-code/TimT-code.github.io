@@ -152,6 +152,7 @@
         }
 
         function createWorld() {
+            /*
             // 1. The Ball (Iridescent, Transparent, Light Source)
             const ballGeo = new THREE.SphereGeometry(0.8, 32, 32);
             const ballMat = new THREE.MeshPhysicalMaterial({
@@ -164,6 +165,9 @@
                 iridescenceIOR: 1.33,
                 clearcoat: 1.0
             });
+            */
+            const ballGeo = new THREE.TorusKnotGeometry(1, 0.4, 100, 16);
+            const ballMat = new THREE.MeshLambertMaterial({ color: 0xff0000 })
             ball = new THREE.Mesh(ballGeo, ballMat);
             
             // The light inside the ball
