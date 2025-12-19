@@ -28,8 +28,8 @@
             color: rgba(255,255,255,0.6);
         }
     </style>
-    <script defer async src="cdn.jsdelivr.net@[version]/dist/es-module-shims.min.js"></script>
-    <script defer type="importmap">
+    <script async src="cdn.jsdelivr.net@[version]/dist/es-module-shims.min.js"></script>
+    <script type="importmap">
   {
     "imports": {
       "three": "cdn.jsdelivr.net@<version>/build/three.module.js",
@@ -46,7 +46,7 @@
         <button id="start-btn">TAP TO START & ENABLE SENSORS</button>
         <div id="instructions">Hold phone like a racket.<br>Swing to hit. Tilt to aim.</div>
     </div>
-    <canvas id="myCanvas"></canvas>
+    <!--<canvas id="myCanvas"></canvas>-->
 
     <script type="module">
         import * as THREE from 'three';
@@ -133,15 +133,15 @@
         }
 
         // --- THREE.JS SETUP ---
-
-        window.onload = function initThreeJS() {
+        
+        function initThreeJS() {
             scene = new THREE.Scene();
             scene.fog = new THREE.FogExp2(0x000000, 0.015);
 
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
-            canvas = document.getElementById('myCanvas');
-            renderer = new THREE.WebGLRenderer({ canvas: myCanvas, antialias: true, alpha: true });
+            //canvas = document.getElementById('myCanvas');
+            renderer = new THREE.WebGLRenderer({ /*canvas: myCanvas, */antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.toneMapping = THREE.ReinhardToneMapping;
