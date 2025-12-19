@@ -28,8 +28,8 @@
             color: rgba(255,255,255,0.6);
         }
     </style>
-    <script async src="cdn.jsdelivr.net@[version]/dist/es-module-shims.min.js"></script>
-    <script type="importmap">
+    <script defer async src="cdn.jsdelivr.net@[version]/dist/es-module-shims.min.js"></script>
+    <script defer type="importmap">
   {
     "imports": {
       "three": "cdn.jsdelivr.net@<version>/build/three.module.js",
@@ -134,7 +134,7 @@
 
         // --- THREE.JS SETUP ---
 
-        function initThreeJS() {
+        window.onload = function initThreeJS() {
             scene = new THREE.Scene();
             scene.fog = new THREE.FogExp2(0x000000, 0.015);
 
