@@ -466,7 +466,11 @@
                 // deprecated Tone.Listener.setPosition
                 //Tone.Listener.setPosition(camera.position.x, camera.position.y, camera.position.z);
                 const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-                Tone.Listener.setOrientation(forward.x, forward.y, forward.z, 0, 1, 0);
+                // deprecated setOrientation...
+                //Tone.Listener.setOrientation(forward.x, forward.y, forward.z, 0, 1, 0);
+                Tone.Listener.forwardX.value=0;
+                Tone.Listener.forwardY.value=1;
+                Tone.Listener.forwardZ.value=0;
             }
 
             renderer.render(scene, camera);
