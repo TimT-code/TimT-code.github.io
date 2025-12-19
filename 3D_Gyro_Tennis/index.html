@@ -63,7 +63,7 @@
         let isPlaying = false;
         
         // Physics & Game State
-        const GRAVITY = /*0.15*/0.38;
+        const GRAVITY = /*0.15*/0.28;
         const FRICTION = 0.98;
         const ROOM_DEPTH = 60;
         const ROOM_WIDTH = 20;
@@ -136,7 +136,7 @@
             animate();
             isPlaying = true;
             // Vibration
-            navigator.vibrate(500);
+            navigator.vibrate(1000);
         }
 
         // --- THREE.JS SETUP ---
@@ -300,7 +300,7 @@
             playSound('hit', ball.position, speed);
 
             // Vibration
-            navigator.vibrate(100);
+            navigator.vibrate(1000);
             
             // 4. Visuals (Change color on hit)
             ball.children[0].color.setHSL(Math.random(), 1, 0.5);
@@ -376,7 +376,7 @@
             // If ball passes the player (Z > camera Z) or slows down too much near player
             if (ball.position.z > (ROOM_DEPTH/2 - 5) && ballVelocity.z > 0) {
                 // Ball is returning to player
-                ballVelocity.multiplyScalar(0.9); // Slow down rapidly
+                ballVelocity.multiplyScalar(/*0.9*/-0.2); // Slow down rapidly
                 
                 if (ballVelocity.length() < 0.2) {
                     resetBallToHand();
@@ -469,7 +469,7 @@
                     // Ball is coming BACK (Return to Player View to catch it)
                     // Lerp back to player stance to see ball coming at us
                     const playerPos = new THREE.Vector3(0, 0, ROOM_DEPTH/2 - 1);
-                    camera.position.lerp(playerPos, 0.05); // Slower transition back
+                    camera.position.lerp(playerPos, /*0.05*/0.15); // Slower transition back
                     camera.lookAt(ball.position);
                 }
             }
@@ -504,7 +504,7 @@
             }
 
             // Vibration
-            navigator.vibrate(50);
+            navigator.vibrate(500);
 
             renderer.render(scene, camera);
         }
