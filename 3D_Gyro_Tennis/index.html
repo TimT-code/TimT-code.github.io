@@ -173,7 +173,7 @@
             // The light inside the ball
             //const ballLight = new THREE.PointLight(0x00ffff, 20, 40);
             const ballLight = new THREE.DirectionalLight(0xffffff, 1);
-            directionalLight.position.z = 3
+            ballLight.position.z = 3
             ballLight.castShadow = true;
             ball.add(ballLight);
             scene.add(ball);
