@@ -198,10 +198,11 @@
             scene.add(room);
             
             // Grid helper for floor effect
-            const floorGrid = new THREE.GridHelper(ROOM_DEPTH, 20, 0x00ffff, /*0x222222*/0x717171);
-            floorGrid.position.y = -ROOM_HEIGHT / 2;
-            scene.add(floorGrid);
+            const grid = new THREE.GridHelper(ROOM_DEPTH, 20, 0x00ffff, /*0x222222*/0x717171);
+            grid.position.y = -ROOM_HEIGHT / 2;
+            scene.add(grid);
 
+            /*
             // Right Wall Grid (YZ Plane)
             const rightWallGrid = new THREE.GridHelper(ROOM_DEPTH, 20, 0x00ffff, 0x717171);
             rightWallGrid.rotation.z = Math.PI / 2;
@@ -215,6 +216,7 @@
             backWallGrid.position.z = -ROOM_DEPTH / 2;
             backWallGrid.position.y = ROOM_DEPTH / 2;
             scene.add(backWallGrid);
+            */
 
             // 3. The Paddle (Visual representation of phone)
             const paddleGeo = new THREE.BoxGeometry(3, 0.2, 5); // Phone shape
