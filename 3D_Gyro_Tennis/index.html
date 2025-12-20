@@ -63,7 +63,7 @@
         let isPlaying = false;
         
         // Physics & Game State
-        const GRAVITY = 0.15;
+        const GRAVITY = /*0.15*/0.24;
         const FRICTION = 0.98;
         const ROOM_DEPTH = 60;
         const ROOM_WIDTH = 20;
@@ -276,7 +276,7 @@
         function detectHit() {
             // Simple swing detection: drastic change in Z acceleration
             const swingForce = Math.abs(deviceAccel.z); // Simplified
-            const swingThreshold = /*8.0*/14.0; // Sensitivity
+            const swingThreshold = 8.0; // Sensitivity
 
             if (isWaiting && swingForce > swingThreshold) {
                 hitBall(swingForce);
@@ -376,7 +376,7 @@
             // If ball passes the player (Z > camera Z) or slows down too much near player
             if (ball.position.z > (ROOM_DEPTH/2 - 5) && ballVelocity.z > 0) {
                 // Ball is returning to player
-                ballVelocity.multiplyScalar(/*0.9*/2.0); // Slow down rapidly
+                ballVelocity.multiplyScalar(/*0.9*/0.5); // Slow down rapidly
                 
                 if (ballVelocity.length() < 0.2) {
                     resetBallToHand();
@@ -469,7 +469,7 @@
                     // Ball is coming BACK (Return to Player View to catch it)
                     // Lerp back to player stance to see ball coming at us
                     const playerPos = new THREE.Vector3(0, 0, ROOM_DEPTH/2 - 1);
-                    camera.position.lerp(playerPos, /*0.05*/0.15); // Slower transition back
+                    camera.position.lerp(playerPos, 0.05); // Slower transition back
                     camera.lookAt(ball.position);
                 }
             }
