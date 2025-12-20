@@ -50,7 +50,7 @@
             <br>
             Code: Tim Tesner & Gemin 3 Pro
             <br>
-            Version/Edit: 0.02
+            Version/Edit: 0.03
         </div>
     </div>
     <!--<canvas id="myCanvas"></canvas>-->
@@ -302,8 +302,8 @@
             playSound('hit', ball.position, speed);
 
             // Vibration
-            navigator.vibrate(1000);
-            alert(swingForce);
+            navigator.vibrate(100);
+            alert(window.swingForce);
             
             // 4. Visuals (Change color on hit)
             ball.children[0].color.setHSL(Math.random(), 1, 0.5);
