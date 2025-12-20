@@ -73,8 +73,9 @@ var bg_array=[
   'Cockpit_infiltrator.png',
   'CockpitFullHD.png',
   'cockpit-transpLG6.png',
-  'Copperhead_cockpit-2.png'
-  ];
+ 'Copperhead_cockpit-2.png',
+ 'alien_craft_cockpit.jpg'
+];
 var bg_rnd = bg_array[Math.floor(Math.random()*bg_array.length)];
 bg.src=base_url + '/Images/Cockpits/' + bg_rnd;
 bg.className='bg_class';
