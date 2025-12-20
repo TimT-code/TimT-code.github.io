@@ -63,7 +63,7 @@
         let isPlaying = false;
         
         // Physics & Game State
-        const GRAVITY = /*0.15*/0.24;
+        const GRAVITY = 0.15;
         const FRICTION = 0.98;
         const ROOM_DEPTH = 60;
         const ROOM_WIDTH = 20;
@@ -276,7 +276,7 @@
         function detectHit() {
             // Simple swing detection: drastic change in Z acceleration
             const swingForce = Math.abs(deviceAccel.z); // Simplified
-            const swingThreshold = 8.0; // Sensitivity
+            const swingThreshold = /*8.0*/; // Sensitivity
 
             if (isWaiting && swingForce > swingThreshold) {
                 hitBall(swingForce);
@@ -376,7 +376,7 @@
             // If ball passes the player (Z > camera Z) or slows down too much near player
             if (ball.position.z > (ROOM_DEPTH/2 - 5) && ballVelocity.z > 0) {
                 // Ball is returning to player
-                ballVelocity.multiplyScalar(/*0.9*/0.5); // Slow down rapidly
+                ballVelocity.multiplyScalar(0.9); // Slow down rapidly
                 
                 if (ballVelocity.length() < 0.2) {
                     resetBallToHand();
@@ -502,9 +502,6 @@
                 Tone.Listener.forwardY.value=1;
                 Tone.Listener.forwardZ.value=0;
             }
-
-            // Vibration
-            navigator.vibrate(500);
 
             renderer.render(scene, camera);
         }
