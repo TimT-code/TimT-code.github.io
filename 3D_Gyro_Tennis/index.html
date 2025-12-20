@@ -282,6 +282,7 @@
 
             if (isWaiting && swingForce > swingThreshold) {
                 hitBall(swingForce);
+                navigator.vibrate(swingForce * 10 / 2);
             }
         }
 
@@ -302,7 +303,7 @@
             playSound('hit', ball.position, speed);
 
             // Vibration
-            navigator.vibrate(100);
+            //navigator.vibrate(100);
             
             // 4. Visuals (Change color on hit)
             ball.children[0].color.setHSL(Math.random(), 1, 0.5);
