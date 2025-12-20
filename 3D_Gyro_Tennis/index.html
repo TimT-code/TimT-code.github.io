@@ -50,7 +50,7 @@
             <br>
             Code: Tim Tesner & Gemin 3 Pro
             <br>
-            Version/Edit: 0.08
+            Version/Edit: 0.10
         </div>
     </div>
     <!--<canvas id="myCanvas"></canvas>-->
@@ -282,8 +282,13 @@
 
             if (isWaiting && swingForce > swingThreshold) {
                 hitBall(swingForce);
+                //swingForce value higher than the threshold value * 10 / 2
+                //truncate to whole number used for vibrate
+                //Example number is swingForce which is say 15.. 
+                //15 * 10 = 150 / 2 = 75, which is a good minimum value to feel a minimal vibration
+                //The number can be in a good range for variations in vibrations
                 navigator.vibrate(Math.trunc(swingForce * 10 / 2));
-                alert(Math.trunc(swingForce * 10 / 2));
+                //alert(Math.trunc(swingForce * 10 / 2));
             }
         }
 
