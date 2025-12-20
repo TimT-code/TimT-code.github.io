@@ -50,7 +50,7 @@
             <br>
             Code: Tim Tesner & Gemin 3 Pro
             <br>
-            Version/Edit: 0.05
+            Version/Edit: 0.06
         </div>
     </div>
     <!--<canvas id="myCanvas"></canvas>-->
@@ -283,6 +283,7 @@
             if (isWaiting && swingForce > swingThreshold) {
                 hitBall(swingForce);
                 navigator.vibrate(swingForce * 10 / 2);
+                alert(swingForce * 10 / 2);
             }
         }
 
