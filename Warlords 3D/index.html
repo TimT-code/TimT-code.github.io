@@ -1,1 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Warlords 3D: Gyro Fortress</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', Courier, monospace; color: #0f0; }
+        #game-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        
+        /* UI Overlays */
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; }
+        .hud-panel { background: rgba(0, 20, 0, 0.5); padding: 10px; border: 1px solid #0f0; margin: 10px; border-radius: 5px; pointer-events: auto; }
+        
+        /* Compass Control Visualizer */
+        #compass-container { 
+            position: absolute; bottom: 20px; right: 20px; width: 150px; height: 150px; 
+            border: 2px solid #0f0; border-radius: 50%; 
+            background: rgba(0,0,0,0.5); 
+            display: flex; align-items: center; justify-content: center;
+        }
+        #compass-needle { width: 4px; height: 70px; background: red; position: absolute; transform-origin: bottom center; bottom: 50%; }
+        .compass-label { position: absolute; font-size: 10px; font-weight: bold; color: #fff; }
+        .c-n { top: 5px; } .c-s { bottom: 5px; } .c-w { left: 5px; } .c-e { right: 5px; }
+        .c-nw { top: 20px; left: 20px; } .c-ne { top: 20px; right: 20px; }
+        .c-sw { bottom: 20px; left: 20px; } .c-se { bottom: 20px; right: 20px; }
+        #selected-action { position: absolute; bottom: 180px; right: 20px; font-size: 20px; color: yellow; text-align: right; text-shadow: 0 0 5px red; }
 
+        /* Bars */
+        #stats-bar { position: absolute; top: 10px; left: 10px; }
+        .bar-container { width: 200px; height: 10px; background: #333; margin-bottom: 5px; border: 1px solid #fff; }
+        .bar-fill { height: 100%; width: 100%; transition: width 0.2s; }
+        #hp-fill { background: #0f0; }
+        #brick-fill { background: #00f; }
+
+        /* Start Screen */
+        #start-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); display: flex; flex-direction: column;
+            align-items: center; justify-content: center; pointer-events: auto; z-index: 100;
+        }
+        button {
+            padding: 20px 40px; font-size: 20px; background: #0f0; color: #000; border: none;
+            cursor: pointer; margin-top: 20px; font-weight: bold; text-transform: uppercase;
+        }
+        .instruction { max-width: 600px; text-align: center; color: #ccc; margin-bottom: 20px; }
+
+        /* Messages */
+        #message-area { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 30px; text-align: center; color: white; text-shadow: 0 0 10px blue; display: none; }
+    </style>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+</head>
+  <!-- Prompt/Code: Tim Tesner and Gemini 3 Pro -->
+<body>
+
+<div id="game-container"></div>
+
+<div id="ui-layer">
+    <div id="stats-bar">
+        <div>HEALTH</div>
+        <div class="bar-container"><div id="hp-fill" class="bar-fill"></div></div>
+        <div>FORTRESS INTEGRITY</div>
+        <div class="bar-container"><div id="brick-fill" class="bar-fill"></div></div>
+        <div id="ammo-display">AMMO: BALLS(50) BULL(20) CAN(5)</div>
+    </div>
+
+    <div id="selected-action">ACTION: NONE</div>
+
+    <div id="compass-container">
+        <div class="compass-label c-n">MOVE</div>
+        <div class="compass-label c-ne">GHOST/DR</div>
+        <div class="compass-label c-e">LOAD</div>
+        <div class="compass-label c-se">DWN</div>
+        <div class="compass-label c-s">FIRE</div>
+        <div class="compass-label c-sw">??</div>
+        <div class="compass-label c-w">DEFEND</div>
+        <div class="compass-label c-nw">UP</div>
+        <div id="compass-needle"></div>
+    </div>
+</div>
+
+<div id="message-area">GAME OVER</div>
+
+<div id="start-screen">
+    <h1>WARLORDS 3D: GYRO</h1>
+    <p class="instruction">
+        Tilt phone like a compass to select actions.<br>
+        SHAKE phone quickly to execute action.<br>
+        North: Move | South: Fire | West: Hand Defend | East: Reload<br>
+        NW/SE: Ladders | NE: Ghost/Door
+    </p>
+    <button id="start-btn">INITIALIZE SYSTEMS</button>
+</div>
+
+<script>
+/**
+ * WARLORDS 3D - GYRO COMMANDER
+ * Complex Logic Implementation
+ */
+
+// --- GLOBAL CONFIGURATION ---
+const COLORS = {
+    P1: 0x00ff00,
+    P2: 0xff0000,
+    BRICK: 0x4444ff,
+    BRICK_CRACKED: 0x8888ff,
+    BALL: 0xffffff,
+    CANNON: 0xffaa00,
+    BULLET: 0xffff00
+};
+
+const STATS = {
+    hp: 100,
+    bricks: 40,
+    ammo: { balls: 50, bullets: 20, cannon: 5 },
+    isDead: false,
+    resurrected: false
+};
+
+// --- AUDIO ENGINE (Tone.js) ---
+class AudioEngine {
+    constructor() {
+        this.synth = new Tone.PolySynth(Tone.Synth).toDestination();
+        this.metal = new Tone.MetalSynth().toDestination();
+        this.reverb = new Tone.Reverb(2).toDestination();
+        this.synth.connect(this.reverb);
+        this.metal.connect(this.reverb);
+        this.isReady = false;
+    }
+
+    async init() {
+        await Tone.start();
+        this.isReady = true;
+    }
+
+    playHit() { if(this.isReady) this.metal.triggerAttackRelease("C4", "32n", Tone.now(), 0.5); }
+    playShoot() { if(this.isReady) this.synth.triggerAttackRelease("C2", "8n"); }
+    playBounce() { if(this.isReady) this.synth.triggerAttackRelease("G4", "64n"); }
+    playExplosion() { if(this.isReady) this.metal.triggerAttackRelease("A1", "8n", Tone.now(), 1.5); }
+    playEmpty() { if(this.isReady) this.synth.triggerAttackRelease("C1", "32n"); }
+}
+const audio = new AudioEngine();
+
+// --- PHYSICS & THREEJS SETUP ---
+const scene = new THREE.Scene();
+// Fog to hide distant void
+scene.fog = new THREE.FogExp2(0x000000, 0.005);
+
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.getElementById('game-container').appendChild(renderer.domElement);
+
+// Lighting
+const ambientLight = new THREE.AmbientLight(0x404040);
+scene.add(ambientLight);
+const pointLight = new THREE.PointLight(0xffffff, 1, 100);
+pointLight.position.set(0, 20, 0);
+scene.add(pointLight);
+
+// --- GAME OBJECTS ---
+
+// 1. The Room & Floor
+const floorGeo = new THREE.PlaneGeometry(200, 200);
+const floorMat = new THREE.MeshBasicMaterial({ color: 0x111111, side: THREE.DoubleSide, wireframe: true });
+const floor = new THREE.Mesh(floorGeo, floorMat);
+floor.rotation.x = Math.PI / 2;
+scene.add(floor);
+
+// 2. Fortresses
+class Fortress {
+    constructor(x, z, color, isPlayer) {
+        this.group = new THREE.Group();
+        this.group.position.set(x, 0, z);
+        this.color = color;
+        this.bricks = [];
+        this.isPlayer = isPlayer;
+        this.buildStructure();
+        scene.add(this.group);
+    }
+
+    buildStructure() {
+        // Transparent glass material
+        const mat = new THREE.MeshPhongMaterial({ 
+            color: this.color, 
+            transparent: true, 
+            opacity: 0.4,
+            shininess: 100 
+        });
+
+        // 3 Stories
+        for(let y=0; y<3; y++) {
+            // Walls (Arc shape logic simplified to corner blocks)
+            for(let i=0; i<4; i++) {
+                for(let j=0; j<4; j++) {
+                    // Leave holes for windows
+                    if (y === 0 && i===2 && j===2) continue; // Door/Window
+                    if (y === 1 && (i===1 || j===3)) continue;
+                    
+                    const geo = new THREE.BoxGeometry(4, 4, 4);
+                    const mesh = new THREE.Mesh(geo, mat.clone());
+                    // Position in a rough L-shape corner
+                    mesh.position.set(i*4 - 8, y*4 + 2, j*4 - 8);
+                    
+                    // Add Logic Data
+                    mesh.userData = { type: 'brick', hp: 2, parent: this };
+                    this.group.add(mesh);
+                    this.bricks.push(mesh);
+                }
+            }
+        }
+        
+        // Tombstone (Hidden initially)
+        const tombGeo = new THREE.BoxGeometry(2, 4, 1);
+        const tombMat = new THREE.MeshLambertMaterial({ color: 0x888888 });
+        this.tombstone = new THREE.Mesh(tombGeo, tombMat);
+        this.tombstone.position.set(10, 2, 10);
+        this.tombstone.visible = false;
+        this.group.add(this.tombstone);
+    }
+
+    crackBrick(mesh) {
+        mesh.userData.hp--;
+        if(mesh.userData.hp <= 0) {
+            mesh.visible = false; // Destroyed
+            // Simple particle puff
+            createParticles(mesh.getWorldPosition(new THREE.Vector3()), 5, 0xaaaaaa);
+            audio.playExplosion();
+            
+            if(this.isPlayer) {
+                STATS.bricks--;
+                updateHUD();
+                navigator.vibrate(200);
+            }
+        } else {
+            // Crack visual
+            mesh.material.opacity = 0.8;
+            mesh.material.wireframe = true;
+            audio.playHit();
+        }
+    }
+}
+
+// 3. Player (Gumdrop)
+class Player {
+    constructor(fortress) {
+        this.mesh = new THREE.Group();
+        
+        // Body (Cylinder)
+        const bodyGeo = new THREE.CylinderGeometry(1.5, 2, 3, 16);
+        const bodyMat = new THREE.MeshPhongMaterial({ color: 0xffff00 });
+        const body = new THREE.Mesh(bodyGeo, bodyMat);
+        body.position.y = 1.5;
+        
+        // Head (Hemisphere)
+        const headGeo = new THREE.SphereGeometry(1.5, 16, 16, 0, Math.PI * 2, 0, Math.PI/2);
+        const head = new THREE.Mesh(headGeo, bodyMat);
+        head.position.y = 3;
+        
+        // Face
+        const eyeGeo = new THREE.SphereGeometry(0.3);
+        const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+        const eye1 = new THREE.Mesh(eyeGeo, eyeMat);
+        eye1.position.set(0.6, 3.5, 1.2);
+        const eye2 = new THREE.Mesh(eyeGeo, eyeMat);
+        eye2.position.set(-0.6, 3.5, 1.2);
+        
+        this.mesh.add(body, head, eye1, eye2);
+        this.mesh.position.copy(fortress.group.position);
+        scene.add(this.mesh);
+        
+        // State
+        this.currentLevel = 0; // 0, 1, 2
+        this.isLocked = false;
+    }
+    
+    update(dt) {
+        // Wobble effect
+        this.mesh.scale.y = 1 + Math.sin(Date.now() * 0.01) * 0.05;
+        this.mesh.scale.x = 1 - Math.sin(Date.now() * 0.01) * 0.05;
+    }
+}
+
+// 4. Projectiles
+const projectiles = [];
+class Projectile {
+    constructor(type, position, velocity, owner) {
+        this.type = type; // 'ball', 'bullet', 'cannon'
+        this.velocity = velocity;
+        this.owner = owner;
+        this.active = true;
+        
+        let geo, mat;
+        if(type === 'ball') {
+            geo = new THREE.SphereGeometry(1, 8, 8);
+            mat = new THREE.MeshBasicMaterial({ color: COLORS.BALL });
+        } else if (type === 'cannon') {
+            geo = new THREE.SphereGeometry(1.5, 8, 8);
+            mat = new THREE.MeshBasicMaterial({ color: COLORS.CANNON });
+        } else {
+            geo = new THREE.BoxGeometry(0.5, 0.5, 1);
+            mat = new THREE.MeshBasicMaterial({ color: COLORS.BULLET });
+        }
+        
+        this.mesh = new THREE.Mesh(geo, mat);
+        this.mesh.position.copy(position);
+        scene.add(this.mesh);
+        audio.playShoot();
+    }
+    
+    update(dt) {
+        if(!this.active) return;
+        
+        // Gravity for cannon balls
+        if(this.type === 'cannon') {
+            this.velocity.y -= 9.8 * dt * 0.5;
+        }
+        
+        // Move
+        this.mesh.position.add(this.velocity.clone().multiplyScalar(dt));
+        
+        // Floor collision
+        if(this.mesh.position.y < 0) {
+            this.active = false;
+            scene.remove(this.mesh);
+            audio.playBounce();
+        }
+        
+        // Simple bounds cleanup
+        if(this.mesh.position.length() > 150) {
+            this.active = false;
+            scene.remove(this.mesh);
+        }
+    }
+}
+
+// Particle System
+const particles = [];
+function createParticles(pos, count, color) {
+    const geo = new THREE.BufferGeometry();
+    const positions = [];
+    for(let i=0; i<count; i++) {
+        positions.push(pos.x, pos.y, pos.z);
+    }
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    const mat = new THREE.PointsMaterial({ color: color, size: 0.5 });
+    const sys = new THREE.Points(geo, mat);
+    scene.add(sys);
+    particles.push({ sys, life: 1.0, vels: Array(count).fill().map(()=>(Math.random()-0.5)) });
+}
+
+// --- GAME LOGIC INIT ---
+
+const playerFort = new Fortress(40, 40, COLORS.P1, true);
+const enemyFort = new Fortress(-40, -40, COLORS.P2, false); // Opposite corner
+const player = new Player(playerFort);
+
+// Camera Position (Inside player head essentially)
+camera.position.set(30, 15, 30);
+camera.lookAt(-40, 10, -40);
+
+// --- INPUT & CONTROL SYSTEM ---
+
+const compassNeedle = document.getElementById('compass-needle');
+const actionText = document.getElementById('selected-action');
+
+let currentCompassDir = 'N'; // N, S, E, W, NE, NW, SE, SW
+let lastShakeTime = 0;
+
+function handleOrientation(event) {
+    // Basic compass mapping from alpha/beta/gamma
+    // We use alpha (0-360) mostly, but handle tilt for better UX
+    let heading = event.alpha; 
+    
+    // Normalize to 8 directions
+    // 0 is North usually
+    const slice = 360 / 8;
+    const sector = Math.floor((heading + slice/2) % 360 / slice);
+    
+    const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+    currentCompassDir = dirs[sector];
+    
+    // UI Update
+    compassNeedle.style.transform = `rotate(${heading}deg)`;
+    
+    // Map text
+    let action = "NONE";
+    if(currentCompassDir === 'N') action = "MOVE / UNLOCK";
+    if(currentCompassDir === 'S') action = "FIRE TURRET";
+    if(currentCompassDir === 'W') action = "HAND DEFEND";
+    if(currentCompassDir === 'E') action = "RELOAD";
+    if(currentCompassDir === 'NW') action = "CLIMB UP";
+    if(currentCompassDir === 'SE') action = "CLIMB DOWN";
+    if(currentCompassDir === 'NE') action = "DOOR / GHOST";
+    
+    actionText.innerText = `ACTION: ${action}`;
+}
+
+function handleMotion(event) {
+    // Detect shake (accelerometer spike)
+    const acc = event.accelerationIncludingGravity;
+    if(!acc) return;
+    
+    const strength = Math.sqrt(acc.x*acc.x + acc.y*acc.y + acc.z*acc.z);
+    
+    // Threshold for shake (usually around 15-20 depending on device)
+    if(strength > 25 && (Date.now() - lastShakeTime > 1000)) {
+        lastShakeTime = Date.now();
+        executeAction(currentCompassDir);
+        navigator.vibrate(100); // Feedback
+    }
+}
+
+function executeAction(dir) {
+    if(STATS.isDead && !STATS.resurrected) {
+        if(dir === 'NE') {
+            // Shake tombstone logic
+            console.log("Shaking Tombstone...");
+            STATS.resurrected = true; // Simplified resurrection
+            STATS.hp = 25;
+            STATS.isDead = false;
+            updateHUD();
+            audio.playExplosion(); // Dramatic sound
+        }
+        return;
+    }
+    
+    if(STATS.isDead) return;
+
+    switch(dir) {
+        case 'S': // Fire
+            fireWeapon();
+            break;
+        case 'N': // Move
+            // Simplified movement: Jump forward
+            player.mesh.position.x -= 2; 
+            player.mesh.position.z -= 2;
+            break;
+        case 'W': // Defend
+            // Trigger hand animation (visual only for prototype)
+            audio.playShoot();
+            break;
+        case 'NW': // Up
+             player.mesh.position.y += 4;
+             break;
+        case 'SE': // Down
+             player.mesh.position.y -= 4;
+             if(player.mesh.position.y < 0) player.mesh.position.y = 0;
+             break;
+        case 'E': // Reload
+             STATS.ammo.balls = 50;
+             updateHUD();
+             audio.playBounce();
+             break;
+    }
+}
+
+function fireWeapon() {
+    if(STATS.ammo.cannon > 0) {
+        STATS.ammo.cannon--;
+        // Aim toward center
+        const start = player.mesh.position.clone();
+        start.y += 2;
+        const dir = new THREE.Vector3(-1, 0.5, -1).normalize().multiplyScalar(30); // Shoot at enemy
+        projectiles.push(new Projectile('cannon', start, dir, 'P1'));
+    } else {
+        audio.playEmpty();
+    }
+    updateHUD();
+}
+
+function updateHUD() {
+    document.getElementById('hp-fill').style.width = STATS.hp + '%';
+    document.getElementById('brick-fill').style.width = (STATS.bricks / 40 * 100) + '%';
+    document.getElementById('ammo-display').innerText = `AMMO: BAL(${STATS.ammo.balls}) BUL(${STATS.ammo.bullets}) CAN(${STATS.ammo.cannon})`;
+    
+    if(STATS.hp <= 0 && !STATS.isDead) {
+        STATS.isDead = true;
+        document.getElementById('message-area').innerText = "YOU DIED. SHAKE GRAVE (NE) TO RESURRECT";
+        document.getElementById('message-area').style.display = 'block';
+        player.mesh.visible = false;
+        playerFort.tombstone.visible = true;
+    }
+}
+
+// --- AI OPPONENT ---
+setInterval(() => {
+    if(Math.random() > 0.95 && !STATS.isDead) {
+        // AI Fires back
+        const start = enemyFort.group.position.clone();
+        start.y = 10;
+        const dir = new THREE.Vector3(1, 0.2, 1).normalize().multiplyScalar(20);
+        projectiles.push(new Projectile('ball', start, dir, 'AI'));
+    }
+}, 100);
+
+// --- MAIN LOOP ---
+const clock = new THREE.Clock();
+
+function animate() {
+    requestAnimationFrame(animate);
+    
+    const dt = clock.getDelta();
+    
+    // Update Entities
+    player.update(dt);
+    
+    // Projectiles & Collision
+    for(let i = projectiles.length - 1; i >= 0; i--) {
+        const p = projectiles[i];
+        p.update(dt);
+        
+        if(!p.active) {
+            projectiles.splice(i, 1);
+            continue;
+        }
+        
+        // Simple Hit Check against Player Fortress Bricks
+        playerFort.bricks.forEach(brick => {
+            if(brick.visible) {
+                const dist = p.mesh.position.distanceTo(brick.getWorldPosition(new THREE.Vector3()));
+                if(dist < 3) {
+                    playerFort.crackBrick(brick);
+                    p.active = false;
+                    scene.remove(p.mesh);
+                }
+            }
+        });
+        
+        // Check Hit Player
+        if(p.owner !== 'P1' && !STATS.isDead) {
+             const distP = p.mesh.position.distanceTo(player.mesh.position);
+             if(distP < 3) {
+                 STATS.hp -= 10;
+                 navigator.vibrate([50, 50, 50]); // Pulse vibrate
+                 updateHUD();
+                 p.active = false;
+                 scene.remove(p.mesh);
+                 audio.playHit();
+             }
+        }
+    }
+    
+    // Particle cleanup
+    for(let i = particles.length - 1; i >= 0; i--) {
+        const part = particles[i];
+        part.life -= dt;
+        part.sys.material.opacity = part.life;
+        if(part.life <= 0) {
+            scene.remove(part.sys);
+            particles.splice(i, 1);
+        }
+    }
+
+    renderer.render(scene, camera);
+}
+
+// --- INITIALIZATION ---
+document.getElementById('start-btn').addEventListener('click', async () => {
+    // 1. Audio
+    await audio.init();
+    
+    // 2. Sensors (iOS Request)
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        DeviceOrientationEvent.requestPermission()
+            .then(response => {
+                if (response === 'granted') {
+                    window.addEventListener('deviceorientation', handleOrientation);
+                    window.addEventListener('devicemotion', handleMotion);
+                }
+            })
+            .catch(console.error);
+    } else {
+        // Android / Desktop fallback (Desktop won't work for gameplay controls effectively)
+        window.addEventListener('deviceorientation', handleOrientation);
+        window.addEventListener('devicemotion', handleMotion);
+    }
+    
+    // 3. Start Game
+    document.getElementById('start-screen').style.display = 'none';
+    animate();
+});
+
+// Window Resize
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+</script>
+</body>
+</html>
