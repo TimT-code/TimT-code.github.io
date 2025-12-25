@@ -52,11 +52,13 @@
     <script async src="https://cdn.jsdelivr.net/npm/es-module-shims@2.7.0/dist/es-module-shims.min.js"></script>
     */
     <script type="importmap">
-        {
-        "imports":{
-        "three":"https://cdn.jsdelivr.net/npm/three@0.182.0/build/three.module.min.js"
-        }
-    </script>
+  {
+    "imports": {
+      "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.180.0/three.module.js",
+      "three/addons/": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.180.0/examples/jsm/"
+    }
+  }
+</script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/15.3.5/Tone.min.js"></script>
 </head>
 <body>
@@ -101,7 +103,7 @@
 </div>
 
 <script type="module">
-    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.182.0/build/three.module.min.js';
+    import * as THREE from 'three';
 /**
  * WARLORDS 3D - GYRO COMMANDER
  * Complex Logic Implementation
