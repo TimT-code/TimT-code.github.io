@@ -5,7 +5,9 @@ https://timt-code.github.io
 
 Menu
 
-1- StarFight
+1- [StarFight](https://timt-code.github.io/StarFight/StarFight.html)
+<br>
+---
 
 2- Fruit Search Engine Demo
 
