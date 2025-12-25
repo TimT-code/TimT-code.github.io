@@ -9,7 +9,9 @@ Menu
 <br>
 ---
 
-2- Fruit Search Engine Demo
+2- [Fruit Search Engine Demo](https://timt-code.github.io/Fruit_Search/fruit_search.html)
+<br>
+---
 
 3- MMA_Fighters_Demo
 
