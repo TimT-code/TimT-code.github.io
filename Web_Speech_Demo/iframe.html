@@ -1,1 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <style>
+        body { font-size: 12px; color: #555; }
+    </style>
+</head>
+<body>
+    <p>Status: Waiting for command...</p>
+
+    <script>
+        const synth = window.speechSynthesis;
+        let voices = [];
+
+        function populateVoiceList() {
+            voices = synth.getVoices();
+            // Inform the parent window that voices are loaded
+            window.parent.postMessage({
+                type: 'voicesLoaded',
+                iframeId: window.frameElement.id.split('-')[1], // Send back the iframe's index/ID
+                voices: voices.map(v => ({ name: v.name, lang: v.lang }))
+            }, '*');
+        }
+
+        populateVoiceList();
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = populateVoiceList;
+        }
+
+        function utterThis(text, pitch = 1, rate = 1, voiceName, delay = 0) {
+            setTimeout(() => {
+                const utter = new SpeechSynthesisUtterance(text);
+                utter.pitch = pitch;
+                utter.rate = rate;
+                // Find and set the selected voice
+                const selectedVoice = voices.find(voice => voice.name === voiceName);
+                if (selectedVoice) {
+                    utter.voice = selectedVoice;
+                } else {
+                    // Fallback to default if not found
+                    console.warn(`Voice ${voiceName} not found, using default.`);
+                }
+                
+                utter.onend = function(event) {
+                    document.querySelector('p').textContent = 'Status: Utterance complete.';
+                }
+                utter.onerror = function(event) {
+                    document.querySelector('p').textContent = `Status: Error - ${event.error}`;
+                }
+
+                synth.speak(utter);
+                document.querySelector('p').textContent = 'Status: Speaking...';
+            }, delay);
+        }
+
+        // Listen for messages from the parent window
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'speak') {
+                const { text, delay, pitch, rate, voiceName } = event.data;
+                utterThis(text, parseFloat(pitch), parseFloat(rate), voiceName, parseInt(delay));
+            }
+        });
+    </script>
+</body>
+</html>
 
