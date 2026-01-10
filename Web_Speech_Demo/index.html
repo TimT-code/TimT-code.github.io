@@ -1,66 +1,122 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <title>Web Speech API Multi-Iframe Demo</title>
     <style>
-        body { font-size: 12px; color: #555; }
+        body { font-family: sans-serif; }
+        .controls-container { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; }
+        .iframe-container { display: flex; flex-direction: column; margin-bottom: 10px; }
+        .iframe-container input, .iframe-container select, .iframe-container button { margin: 5px 0; }
+        iframe { border: 1px solid #000; width: 100%; height: 100px; }
+        button#startAll { padding: 10px 20px; background-color: #007bff; color: white; border: none; cursor: pointer; }
+        button#startAll:hover { background-color: #0056b3; }
     </style>
 </head>
 <body>
-    <p>Status: Waiting for command...</p>
+    <h1>Multi-Voice Web Speech API Demo</h1>
+    <button id="startAll">Start All Voices Simultaneously</button>
+
+    <div id="iframesContainer">
+        <!-- Iframes will be generated here by JavaScript -->
+    </div>
 
     <script>
-        const synth = window.speechSynthesis;
-        let voices = [];
+        const iframesContainer = document.getElementById('iframesContainer');
+        const startAllBtn = document.getElementById('startAll');
+        const NUM_IFRAMES = 4;
+        let iframes = [];
+        let voicesLoadedCount = 0;
 
-        function populateVoiceList() {
-            voices = synth.getVoices();
-            // Inform the parent window that voices are loaded
-            window.parent.postMessage({
-                type: 'voicesLoaded',
-                iframeId: window.frameElement.id.split('-')[1], // Send back the iframe's index/ID
-                voices: voices.map(v => ({ name: v.name, lang: v.lang }))
-            }, '*');
+        // Function to create GUI for an iframe
+        function createIframeGUI(index) {
+            const container = document.createElement('div');
+            container.className = 'controls-container';
+            container.id = `container-${index}`;
+            
+            container.innerHTML = `
+                <h3>Voice ${index + 1}</h3>
+                <label for="text-${index}">Text:</label>
+                <input type="text" id="text-${index}" value="This is a web speech api demo that uses multiple iframes to launch multiple voices at the same time" style="width: 80%;">
+                <br>
+                <label for="delay-${index}">Start Delay (ms): <span id="delayValue-${index}">0</span></label>
+                <input type="range" id="delay-${index}" min="0" max="5000" value="0">
+                <br>
+                <label for="pitch-${index}">Pitch (0-2): <span id="pitchValue-${index}">1</span></label>
+                <input type="range" id="pitch-${index}" min="0" max="2" step="0.1" value="1">
+                <br>
+                <label for="rate-${index}">Rate (0.1-10): <span id="rateValue-${index}">1</span></label>
+                <input type="range" id="rate-${index}" min="0.1" max="10" step="0.1" value="1">
+                <br>
+                <label for="voice-${index}">Voice:</label>
+                <select id="voice-${index}"></select>
+                <iframe id="iframe-${index}" src="iframe.html"></iframe>
+            `;
+            iframesContainer.appendChild(container);
+            
+            const delaySlider = container.querySelector(`#delay-${index}`);
+            const pitchSlider = container.querySelector(`#pitch-${index}`);
+            const rateSlider = container.querySelector(`#rate-${index}`);
+            const delayValue = container.querySelector(`#delayValue-${index}`);
+            const pitchValue = container.querySelector(`#pitchValue-${index}`);
+            const rateValue = container.querySelector(`#rateValue-${index}`);
+
+            delaySlider.oninput = () => delayValue.textContent = delaySlider.value;
+            pitchSlider.oninput = () => pitchValue.textContent = pitchSlider.value;
+            rateSlider.oninput = () => rateValue.textContent = rateSlider.value;
+
+            return container.querySelector(`#iframe-${index}`);
         }
 
-        populateVoiceList();
-        if (speechSynthesis.onvoiceschanged !== undefined) {
-            speechSynthesis.onvoiceschanged = populateVoiceList;
+        // Initialize iframes
+        for (let i = 0; i < NUM_IFRAMES; i++) {
+            const iframe = createIframeGUI(i);
+            iframes.push(iframe);
         }
 
-        function utterThis(text, pitch = 1, rate = 1, voiceName, delay = 0) {
-            setTimeout(() => {
-                const utter = new SpeechSynthesisUtterance(text);
-                utter.pitch = pitch;
-                utter.rate = rate;
-                // Find and set the selected voice
-                const selectedVoice = voices.find(voice => voice.name === voiceName);
-                if (selectedVoice) {
-                    utter.voice = selectedVoice;
-                } else {
-                    // Fallback to default if not found
-                    console.warn(`Voice ${voiceName} not found, using default.`);
-                }
-                
-                utter.onend = function(event) {
-                    document.querySelector('p').textContent = 'Status: Utterance complete.';
-                }
-                utter.onerror = function(event) {
-                    document.querySelector('p').textContent = `Status: Error - ${event.error}`;
-                }
-
-                synth.speak(utter);
-                document.querySelector('p').textContent = 'Status: Speaking...';
-            }, delay);
-        }
-
-        // Listen for messages from the parent window
+        // Handle messages from iframes (e.g., voices loaded event)
         window.addEventListener('message', (event) => {
-            if (event.data.type === 'speak') {
-                const { text, delay, pitch, rate, voiceName } = event.data;
-                utterThis(text, parseFloat(pitch), parseFloat(rate), voiceName, parseInt(delay));
+            if (event.data.type === 'voicesLoaded') {
+                voicesLoadedCount++;
+                const iframeId = event.data.iframeId;
+                const selectElement = document.querySelector(`#voice-${iframeId} select`);
+                if (selectElement) {
+                    event.data.voices.forEach(voice => {
+                        const option = document.createElement('option');
+                        option.textContent = `${voice.name} (${voice.lang})`;
+                        option.value = voice.name;
+                        selectElement.appendChild(option);
+                    });
+                }
             }
+        });
+
+        // Main Start Button logic
+        startAllBtn.addEventListener('click', () => {
+            if (voicesLoadedCount < NUM_IFRAMES) {
+                alert('Voices are still loading in some iframes. Please wait a moment.');
+                return;
+            }
+
+            iframes.forEach((iframe, index) => {
+                const container = document.querySelector(`#container-${index}`);
+                const text = container.querySelector(`#text-${index}`).value;
+                const delay = container.querySelector(`#delay-${index}`).value;
+                const pitch = container.querySelector(`#pitch-${index}`).value;
+                const rate = container.querySelector(`#rate-${index}`).value;
+                const voiceName = container.querySelector(`#voice-${index}`).value;
+
+                // Send a message to the iframe with speech parameters
+                iframe.contentWindow.postMessage({
+                    type: 'speak',
+                    text,
+                    delay,
+                    pitch,
+                    rate,
+                    voiceName
+                }, '*'); // Use '*' as targetOrigin for a self-contained demo
+            });
         });
     </script>
 </body>
 </html>
-
