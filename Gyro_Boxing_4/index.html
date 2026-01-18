@@ -92,33 +92,33 @@
         import * as THREE from 'three';
         
     // --- THREE.JS SCENE ---
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    window.scene = new THREE.Scene();
+    window.camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+    window.renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
     // Arena Lighting
-    const amb = new THREE.AmbientLight(0xffffff, 0.4); scene.add(amb);
-    const spot = new THREE.SpotLight(0xffffff, 1); spot.position.set(0, 10, 5); scene.add(spot);
+    window.amb = new THREE.AmbientLight(0xffffff, 0.4); scene.add(amb);
+    window.spot = new THREE.SpotLight(0xffffff, 1); spot.position.set(0, 10, 5); scene.add(spot);
 
     // Textured Opponent Materials
     window.gridTex = new THREE.MeshPhongMaterial({ color: 0xffffff, wireframe: true, emissive: 0x222222 });
     
     // Opponent Rig
     window.enemy = new THREE.Group();
-    const eBody = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 0.8, 4, 8), gridTex);
+    window.eBody = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 0.8, 4, 8), gridTex);
     eBody.position.y = 1;
-    const eHead = new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 8), gridTex);
+    window.eHead = new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 8), gridTex);
     eHead.position.y = 1.7;
     enemy.add(eBody, eHead);
     scene.add(enemy);
     enemy.position.z = -2.5;
 
     // Crowd (Humanized faces)
-    const crowdGroup = new THREE.Group();
+    window.crowdGroup = new THREE.Group();
     for(let i=0; i<100; i++) {
-        const face = new THREE.Mesh(
+        window.face = new THREE.Mesh(
             new THREE.PlaneGeometry(0.5, 0.5),
             new THREE.MeshBasicMaterial({ color: 0x444444, side: THREE.DoubleSide })
         );
