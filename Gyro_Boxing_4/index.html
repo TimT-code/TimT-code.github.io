@@ -106,7 +106,7 @@
     window.gridTex = new THREE.MeshPhongMaterial({ color: 0xffffff, wireframe: true, emissive: 0x222222 });
     
     // Opponent Rig
-    const enemy = new THREE.Group();
+    window.enemy = new THREE.Group();
     const eBody = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 0.8, 4, 8), gridTex);
     eBody.position.y = 1;
     const eHead = new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 8), gridTex);
