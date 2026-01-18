@@ -1,1 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Gyro Boxing Simulator</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', Courier, monospace; }
+        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,0,0.8); color: white; z-index: 10; pointer-events: auto; }
+        #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: none; }
+        .bar-container { position: absolute; width: 30%; height: 20px; border: 2px solid white; background: #333; }
+        #playerBar { top: 20px; left: 20px; }
+        #enemyBar { top: 20px; right: 20px; }
+        .fill { height: 100%; width: 100%; background-color: #0f0; transition: width 0.2s, background-color 0.2s; }
+        #log { position: absolute; bottom: 10px; left: 10px; color: #0f0; font-size: 12px; pointer-events: none; }
+        button { padding: 15px 30px; font-size: 18px; cursor: pointer; background: #fff; border: none; border-radius: 5px; }
+        .flash { animation: flashAnim 0.1s; }
+        @keyframes flashAnim { 0% { opacity: 0; } 50% { opacity: 0.8; background: red; } 100% { opacity: 0; } }
+        #knockdown-msg { position: absolute; top: 50%; width: 100%; text-align: center; color: red; font-size: 40px; display: none; font-weight: bold; text-shadow: 2px 2px #000; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.7/dat.gui.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.26/Tone.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.7.1/gsap.min.js"></script>
+</head>
+<body>
 
+<div id="overlay">
+    <h1>WIRE BOXING</h1>
+    <p>Hold phone in landscape. Punch air to hit.</p>
+    <button id="startBtn">ENTER RING (Enable Sensors)</button>
+</div>
+
+<div id="hud">
+    <div id="playerBar" class="bar-container"><div id="pFill" class="fill"></div></div>
+    <div id="enemyBar" class="bar-container"><div id="eFill" class="fill"></div></div>
+    <div id="knockdown-msg">KNOCKDOWN! SHAKE TO RISE!</div>
+</div>
+<div id="log"></div>
+
+<script>
+    // --- CONFIG & STATE ---
+    const CONFIG = {
+        accelThreshold: 15, // Sensitivity for punch detection
+        moveThreshold: 5,   // Sensitivity for movement
+        regenRate: 1.5,     // HP per 3 sec
+        blockAngle: 45      // Degrees to tilt back for block
+    };
+
+    const STATE = {
+        playerHP: 100,
+        enemyHP: 100,
+        combo: 0,
+        isKnockedDown: false,
+        canRecover: true,
+        knockdownCount: 0,
+        recovering: false,
+        gameActive: false,
+        lastPunchTime: 0
+    };
+
+    // --- THREE.JS SETUP ---
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x000000, 0.02);
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Lights
+    const ambientLight = new THREE.AmbientLight(0x404040);
+    scene.add(ambientLight);
+    const spotLight = new THREE.SpotLight(0xffffff, 1);
+    spotLight.position.set(0, 10, 0);
+    spotLight.angle = Math.PI / 4;
+    scene.add(spotLight);
+
+    // Arena / Crowd
+    const crowdGeo = new THREE.BufferGeometry();
+    const crowdCount = 500;
+    const positions = [];
+    for(let i = 0; i < crowdCount; i++) {
+        const x = (Math.random() - 0.5) * 50;
+        const y = Math.random() * 10 - 5;
+        const z = (Math.random() - 0.5) * 50;
+        if (Math.abs(x) > 10 || Math.abs(z) > 10) positions.push(x, y, z);
+    }
+    crowdGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    const crowdMat = new THREE.PointsMaterial({ color: 0x333333, size: 0.5 });
+    const crowd = new THREE.Points(crowdGeo, crowdMat);
+    scene.add(crowd);
+
+    // Ropes
+    const ringGeo = new THREE.BoxGeometry(16, 0.1, 16);
+    const ringMat = new THREE.MeshPhongMaterial({ color: 0x222222, wireframe: true });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.position.y = -2;
+    scene.add(ring);
+
+    // --- FIGHTER GENERATION ---
+    function createFighterMesh(color, isEnemy) {
+        const group = new THREE.Group();
+        
+        // Material
+        const mat = new THREE.MeshBasicMaterial({ 
+            color: color, 
+            wireframe: true, 
+            transparent: true, 
+            opacity: 0.8 
+        });
+
+        // Head
+        const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5, 1), mat.clone());
+        head.position.y = 1.6;
+        head.name = "head";
+        group.add(head);
+
+        // Torso
+        const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.5, 1.2, 8), mat);
+        torso.position.y = 0.8;
+        torso.name = "body";
+        group.add(torso);
+
+        // Arms (Visual only)
+        const armGeo = new THREE.CylinderGeometry(0.2, 0.2, 1.5);
+        const leftArm = new THREE.Mesh(armGeo, mat);
+        leftArm.position.set(-0.8, 1, 0.5);
+        leftArm.rotation.x = Math.PI / 2;
+        group.add(leftArm);
+
+        const rightArm = new THREE.Mesh(armGeo, mat);
+        rightArm.position.set(0.8, 1, 0.5);
+        rightArm.rotation.x = Math.PI / 2;
+        group.add(rightArm);
+
+        // Referee
+        if (isEnemy) {
+           const refGeo = new THREE.ConeGeometry(0.4, 1.8, 8);
+           const refMat = new THREE.MeshBasicMaterial({color: 0xffffff, wireframe:true});
+           const ref = new THREE.Mesh(refGeo, refMat);
+           ref.position.set(5, 0, -5);
+           scene.add(ref);
+        }
+
+        return { group, head, torso, mat };
+    }
+
+    const enemy = createFighterMesh(0xff0000, true);
+    enemy.group.position.z = -3;
+    scene.add(enemy.group);
+
+    // Player Hands (First Person View)
+    const playerGloves = new THREE.Group();
+    const gloveGeo = new THREE.SphereGeometry(0.3, 8, 8);
+    const gloveMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
+    
+    const leftGlove = new THREE.Mesh(gloveGeo, gloveMat);
+    leftGlove.position.set(-0.5, -0.5, -1);
+    
+    const rightGlove = new THREE.Mesh(gloveGeo, gloveMat);
+    rightGlove.position.set(0.5, -0.5, -1);
+    
+    playerGloves.add(leftGlove);
+    playerGloves.add(rightGlove);
+    camera.add(playerGloves);
+    scene.add(camera);
+
+    // --- AUDIO (TONE.JS) ---
+    let synth, noise, crowdLoop;
+    async function initAudio() {
+        await Tone.start();
+        
+        // Punch Sounds
+        synth = new Tone.PolySynth(Tone.Synth).toDestination();
+        synth.set({ oscillator: { type: "sawtooth" }, envelope: { attack: 0.01, decay: 0.2, sustain: 0, release: 0.1 }});
+        
+        const filter = new Tone.Filter(800, "lowpass").toDestination();
+        noise = new Tone.NoiseSynth({ noise: { type: "brown" }, envelope: { attack: 0.01, decay: 0.3, sustain: 0 } }).connect(filter);
+
+        // Crowd Atmosphere
+        const crowdNoise = new Tone.Noise("pink");
+        const autoFilter = new Tone.AutoFilter({ frequency: "8m", min: 800, max: 15000 }).connect(Tone.Destination);
+        crowdNoise.connect(autoFilter);
+        crowdNoise.volume.value = -20;
+        crowdLoop = crowdNoise;
+    }
+
+    function playPunchSound(type) {
+        if(type === 'hit') {
+            synth.triggerAttackRelease(["C2", "E2"], "8n");
+            noise.triggerAttackRelease("8n");
+        } else if (type === 'miss') {
+            noise.triggerAttackRelease("16n");
+        } else if (type === 'block') {
+            synth.triggerAttackRelease("G1", "16n");
+        }
+    }
+
+    // --- INPUT HANDLING ---
+    let gyroData = { alpha: 0, beta: 0, gamma: 0 };
+    let accelData = { x: 0, y: 0, z: 0 };
+
+    function handleMotion(event) {
+        if (!STATE.gameActive) return;
+
+        accelData = event.accelerationIncludingGravity || {x:0,y:0,z:0};
+        const pureAccel = event.acceleration || {x:0,y:0,z:0}; // Without gravity
+
+        // Shake to recover
+        if (STATE.isKnockedDown) {
+            if (Math.abs(pureAccel.x) > 20 || Math.abs(pureAccel.y) > 20) {
+                recoverStamina();
+            }
+            return;
+        }
+
+        // Punch Detection
+        const totalAccel = Math.sqrt(pureAccel.x**2 + pureAccel.y**2 + pureAccel.z**2);
+        
+        if (totalAccel > CONFIG.accelThreshold && (Date.now() - STATE.lastPunchTime > 400)) {
+            STATE.lastPunchTime = Date.now();
+            throwPunch(pureAccel);
+        }
+
+        // Movement (Tilt) logic handled in update loop
+    }
+
+    function handleOrientation(event) {
+        gyroData = event;
+    }
+
+    // --- GAMEPLAY LOGIC ---
+
+    function throwPunch(accel) {
+        if (STATE.playerHP <= 0) return;
+
+        // Determine Punch Type based on Rotation (Z-axis / Alpha) & Direction
+        // Simple logic: Forward = Jab, Rotate+Forward = Hook, Upward = Uppercut
+        let type = 'jab';
+        let target = 'head';
+
+        // Aiming (Pitch/Beta determines Head vs Body)
+        if (gyroData.beta > 60) target = 'body'; 
+        
+        // Type Logic
+        if (accel.z > CONFIG.accelThreshold) type = 'uppercut';
+        else if (Math.abs(gyroData.gamma) > 30) type = 'hook';
+
+        // Cost
+        updatePower('player', -2);
+
+        // Animate Glove
+        const glove = (accel.x < 0) ? leftGlove : rightGlove;
+        gsap.to(glove.position, { z: -4, y: (target==='head'?0.5:-0.5), duration: 0.1, yoyo: true, repeat: 1 });
+
+        // Hit Calculation
+        checkHit(type, target);
+    }
+
+    function checkHit(playerPunchType, target) {
+        // AI Defense check
+        const enemyBlocking = Math.random() > 0.5; // Simple AI
+        const enemyDodging = Math.random() > 0.7;
+
+        if (enemyBlocking) {
+            playPunchSound('block');
+            updatePower('player', -1); // Block cost
+            log("Blocked!");
+            enemyFlash(0x0000ff); // Blue flash for block
+        } else if (enemyDodging) {
+            playPunchSound('miss');
+            log("Dodged!");
+            // Enemy moves mesh slightly
+            gsap.to(enemy.group.position, { x: (Math.random()-0.5)*2, duration: 0.2, yoyo:true, repeat:1 });
+        } else {
+            // HIT!
+            playPunchSound('hit');
+            let damage = 5;
+            
+            // Combo Bonus
+            STATE.combo++;
+            if (STATE.combo >= 3) damage = 20;
+
+            updatePower('enemy', -damage);
+            updatePower('player', 1); // Regain stamina on hit
+
+            // Visual feedback
+            enemyFlash(0xff0000);
+            enemyWince();
+            log(`HIT! ${playerPunchType.toUpperCase()} to ${target.toUpperCase()}`);
+        }
+    }
+
+    function enemyFlash(colorHex) {
+        enemy.head.material.color.setHex(colorHex);
+        enemy.torso.material.color.setHex(colorHex);
+        setTimeout(() => {
+            enemy.head.material.color.setHex(0xff0000);
+            enemy.torso.material.color.setHex(0xff0000);
+        }, 100);
+    }
+
+    function enemyWince() {
+        enemy.group.scale.set(1.1, 0.9, 1.1); // Squish
+        setTimeout(() => enemy.group.scale.set(1,1,1), 200);
+    }
+
+    function updatePower(who, amount) {
+        if (who === 'player') {
+            STATE.playerHP = Math.min(100, Math.max(0, STATE.playerHP + amount));
+            updateBar('pFill', STATE.playerHP);
+            if (STATE.playerHP <= 20 && amount < 0) checkKnockdown('player');
+        } else {
+            STATE.enemyHP = Math.min(100, Math.max(0, STATE.enemyHP + amount));
+            updateBar('eFill', STATE.enemyHP);
+            if (STATE.enemyHP <= 0) doKnockout('enemy');
+        }
+    }
+
+    function updateBar(id, hp) {
+        const el = document.getElementById(id);
+        el.style.width = hp + '%';
+        if (hp > 66) el.style.backgroundColor = '#0f0';
+        else if (hp > 33) el.style.backgroundColor = 'yellow';
+        else el.style.backgroundColor = 'red';
+
+        if (hp < 10) el.classList.add('flash'); // CSS Anim
+        else el.classList.remove('flash');
+    }
+
+    function checkKnockdown(who) {
+        // Only trigger on incoming hit (simplified here by checkHit logic)
+        // If HP drops below 20 on a hit
+        // Ideally called inside damage logic
+    }
+
+    // --- PLAYER DAMAGE / ENEMY AI ---
+    setInterval(() => {
+        if (!STATE.gameActive || STATE.isKnockedDown) return;
+
+        // Regen
+        updatePower('player', CONFIG.regenRate / 20); // Scaled for interval
+
+        // Enemy Attack
+        if (Math.random() < 0.03) { // Random attack chance
+            // Check if player is blocking (Phone tilted back)
+            const isBlocking = (gyroData.beta < 10); // Tilt back
+            
+            if (isBlocking) {
+                playPunchSound('block');
+                log("You Blocked!");
+            } else {
+                playPunchSound('hit');
+                // Screen shake
+                camera.position.x = (Math.random() - 0.5);
+                setTimeout(()=>camera.position.x = 0, 100);
+                
+                updatePower('player', -10);
+                if (STATE.playerHP < 20) {
+                    doKnockdown();
+                }
+            }
+        }
+    }, 100); // Game tick
+
+    function doKnockdown() {
+        if (!STATE.canRecover) {
+             doKnockout('player');
+             return;
+        }
+        STATE.isKnockedDown = true;
+        document.getElementById('knockdown-msg').style.display = 'block';
+        
+        // Count out logic (10 seconds)
+        let count = 10;
+        const interval = setInterval(() => {
+            if (!STATE.isKnockedDown) { clearInterval(interval); return; }
+            document.getElementById('knockdown-msg').innerText = `GET UP! ${count}`;
+            count--;
+            if (count < 0) {
+                clearInterval(interval);
+                doKnockout('player');
+            }
+        }, 1000);
+    }
+
+    function recoverStamina() {
+        STATE.playerHP += 2; // Fast regen on shake
+        updateBar('pFill', STATE.playerHP);
+        if (STATE.playerHP >= 20) {
+            STATE.isKnockedDown = false;
+            STATE.canRecover = false; // Only once per fight
+            document.getElementById('knockdown-msg').style.display = 'none';
+            log("RECOVERED!");
+        }
+    }
+
+    function doKnockout(who) {
+        STATE.gameActive = false;
+        document.getElementById('knockdown-msg').style.display = 'block';
+        document.getElementById('knockdown-msg').innerText = (who === 'enemy') ? "YOU WIN!" : "KNOCKED OUT";
+        
+        if (who === 'enemy') {
+            gsap.to(enemy.group.rotation, { x: -Math.PI/2, duration: 1 }); // Crumple
+            gsap.to(enemy.group.position, { y: -1, duration: 1 });
+        }
+    }
+
+    function log(msg) {
+        const l = document.getElementById('log');
+        l.innerText = msg;
+        setTimeout(() => l.innerText = '', 2000);
+    }
+
+    // --- MAIN LOOP ---
+    function animate() {
+        requestAnimationFrame(animate);
+        
+        if (STATE.gameActive && !STATE.isKnockedDown) {
+            // Player Movement (Accelerometer Drift)
+            if (accelData.x > CONFIG.moveThreshold) camera.position.x -= 0.05;
+            if (accelData.x < -CONFIG.moveThreshold) camera.position.x += 0.05;
+            camera.position.x = Math.max(-4, Math.min(4, camera.position.x));
+
+            // Camera Look (Gyro)
+            // Normalize Beta/Gamma for look
+            camera.rotation.x = THREE.MathUtils.degToRad(gyroData.beta - 90); 
+            // We subtract 90 because phone is held upright or landscape
+        }
+
+        // Crowd Sway
+        const positions = crowd.geometry.attributes.position.array;
+        for(let i=1; i<positions.length; i+=3) {
+            positions[i] += Math.sin(Date.now() * 0.005 + positions[i-1]) * 0.01;
+        }
+        crowd.geometry.attributes.position.needsUpdate = true;
+
+        renderer.render(scene, camera);
+    }
+
+    // --- DAT.GUI ---
+    const gui = new dat.GUI();
+    gui.add(CONFIG, 'accelThreshold', 5, 30).name("Punch Force");
+    gui.add(CONFIG, 'regenRate', 0, 5).name("Stamina Regen");
+    gui.close();
+
+    // --- INIT ---
+    document.getElementById('startBtn').addEventListener('click', async () => {
+        // Request Permissions (iOS 13+)
+        if (typeof DeviceMotionEvent.requestPermission === 'function') {
+            try {
+                const response = await DeviceMotionEvent.requestPermission();
+                if (response === 'granted') {
+                    window.addEventListener('devicemotion', handleMotion);
+                    window.addEventListener('deviceorientation', handleOrientation);
+                }
+            } catch (e) { console.error(e); }
+        } else {
+            // Android / Non-iOS
+            window.addEventListener('devicemotion', handleMotion);
+            window.addEventListener('deviceorientation', handleOrientation);
+        }
+
+        // Start Audio
+        await initAudio();
+        if(crowdLoop) crowdLoop.start();
+
+        document.getElementById('overlay').style.display = 'none';
+        document.getElementById('hud').style.display = 'block';
+        STATE.gameActive = true;
+        animate();
+    });
+
+</script>
+</body>
+</html>
