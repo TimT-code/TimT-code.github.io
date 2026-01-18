@@ -1,1 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Gyro Boxing Simulator - Pro Edition</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', Courier, monospace; user-select: none; }
+        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: rgba(0,0,0,0.9); color: white; z-index: 10; pointer-events: auto; text-align: center; padding: 20px; }
+        #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: none; }
+        
+        /* Power Bars */
+        .bar-wrapper { position: absolute; width: 35%; top: 20px; }
+        #pWrapper { left: 20px; }
+        #eWrapper { right: 20px; text-align: right; }
+        .bar-container { width: 100%; height: 25px; border: 2px solid white; background: #222; position: relative; }
+        .fill { height: 100%; width: 100%; background-color: #0f0; transition: width 0.1s linear, background-color 0.2s; }
+        .name-tag { color: white; font-weight: bold; font-size: 14px; margin-top: 5px; text-transform: uppercase; text-shadow: 1px 1px 2px black; }
 
+        #log { position: absolute; bottom: 20px; width: 100%; text-align: center; color: #0f0; font-size: 18px; font-weight: bold; text-shadow: 1px 1px 0 #000; pointer-events: none; }
+        button { padding: 20px 40px; font-size: 20px; cursor: pointer; background: #d00; color: white; border: 2px solid white; border-radius: 5px; font-weight: bold; margin-top: 20px; }
+        button:active { background: #900; }
+        
+        .flash { animation: flashAnim 0.1s infinite; }
+        @keyframes flashAnim { 0% { opacity: 1; } 50% { opacity: 0.2; } 100% { opacity: 1; } }
+        
+        #knockdown-msg { position: absolute; top: 50%; width: 100%; text-align: center; color: red; font-size: 50px; display: none; font-weight: bold; text-shadow: 3px 3px #000; transform: translateY(-50%); }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.7/dat.gui.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.26/Tone.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.7.1/gsap.min.js"></script>
+</head>
+<body>
+
+<div id="overlay">
+    <h1 style="color:red; text-shadow: 2px 2px white;">IRON GLOVES</h1>
+    <p>Landscape Mode Required.<br>Punch air to Hit. Tilt Back to Block.<br>Shake to Get Up.</p>
+    <button id="startBtn">FIGHT!</button>
+</div>
+
+<div id="hud">
+    <div id="pWrapper" class="bar-wrapper">
+        <div id="playerBar" class="bar-container"><div id="pFill" class="fill"></div></div>
+        <div id="pName" class="name-tag">YOU</div>
+    </div>
+    <div id="eWrapper" class="bar-wrapper">
+        <div id="enemyBar" class="bar-container"><div id="eFill" class="fill"></div></div>
+        <div id="eName" class="name-tag">OPPONENT</div>
+    </div>
+    <div id="knockdown-msg">KNOCKDOWN! SHAKE!</div>
+</div>
+<div id="log"></div>
+
+<script>
+    // --- CONFIG & STATE ---
+    const CONFIG = {
+        accelThreshold: 15, // Punch sensitivity
+        moveThreshold: 4,   // Movement sensitivity
+        regenRate: 1.5,     // HP per 3 sec
+        blockAngle: 10,     // Angle to trigger block
+        musicVol: -10,
+        sfxVol: -5
+    };
+
+    const STATE = {
+        playerHP: 100,
+        enemyHP: 100,
+        combo: 0,
+        isKnockedDown: false,
+        canRecover: true,
+        gameActive: false,
+        lastPunchTime: 0,
+        lastHitTime: 0
+    };
+
+    const NAMES = ["Iron Jaw Jack", "The Crusher", "Dynamite Dave", "Sledgehammer Sam", "Hurricane Hank", "Tank Tyler", "Viper Vance", "Bruiser Bill"];
+
+    // --- THREE.JS SETUP ---
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x050505, 0.03); // Darker fog for atmosphere
+    
+    // Camera fixed more centrally
+    const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 1.7, 0); // Eye level
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    document.body.appendChild(renderer.domElement);
+
+    // Lights
+    const spotLight = new THREE.SpotLight(0xffffff, 1.2);
+    spotLight.position.set(0, 10, 0);
+    spotLight.penumbra = 0.5;
+    spotLight.castShadow = true;
+    scene.add(spotLight);
+    scene.add(new THREE.AmbientLight(0x202030)); // Cool ambient
+
+    // --- ARENA ---
+    // Crowd Particles (More of them, swaying)
+    const crowdGeo = new THREE.BufferGeometry();
+    const crowdCount = 1000;
+    const posArray = new Float32Array(crowdCount * 3);
+    for(let i=0; i<crowdCount * 3; i+=3) {
+        let x = (Math.random() - 0.5) * 60;
+        let z = (Math.random() - 0.5) * 60;
+        // Keep center clear
+        if (Math.abs(x) < 8 && Math.abs(z) < 8) x += 10; 
+        posArray[i] = x;
+        posArray[i+1] = Math.random() * 5 - 2; // Tiered seating
+        posArray[i+2] = z;
+    }
+    crowdGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+    const crowdMat = new THREE.PointsMaterial({ color: 0x555555, size: 0.4 });
+    const crowd = new THREE.Points(crowdGeo, crowdMat);
+    scene.add(crowd);
+
+    // Ring Floor
+    const floorGeo = new THREE.PlaneGeometry(12, 12);
+    const floorMat = new THREE.MeshPhongMaterial({ color: 0x111111, specular: 0x222222 });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -1.5;
+    scene.add(floor);
+    
+    // Ropes
+    const ropeGroup = new THREE.Group();
+    const ropeMat = new THREE.MeshBasicMaterial({ color: 0x880000 });
+    for(let h of [0.5, 1.0, 1.5]) { // 3 Rope heights
+        // Simple box representation for ropes
+        const r1 = new THREE.Mesh(new THREE.BoxGeometry(12, 0.05, 0.05), ropeMat); r1.position.set(0, h-1.5, -6);
+        const r2 = new THREE.Mesh(new THREE.BoxGeometry(12, 0.05, 0.05), ropeMat); r2.position.set(0, h-1.5, 6);
+        const r3 = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 12), ropeMat); r3.position.set(-6, h-1.5, 0);
+        const r4 = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 12), ropeMat); r4.position.set(6, h-1.5, 0);
+        ropeGroup.add(r1, r2, r3, r4);
+    }
+    scene.add(ropeGroup);
+
+    // --- FIGHTER ---
+    function createFighter(color) {
+        const group = new THREE.Group();
+        const mat = new THREE.MeshLambertMaterial({ 
+            color: color, 
+            wireframe: true, 
+            transparent: true, 
+            opacity: 0.6,
+            emissive: color,
+            emissiveIntensity: 0.2
+        });
+
+        // Head
+        const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.25, 1), mat.clone());
+        head.position.y = 1.6;
+        
+        // Upper Torso
+        const upperTorso = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.35, 0.5, 8), mat.clone());
+        upperTorso.position.y = 1.2;
+
+        // Lower Torso (Abs/Hips)
+        const lowerTorso = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.38, 0.5, 8), mat.clone());
+        lowerTorso.position.y = 0.7;
+
+        // Arms (Visual cues)
+        const lArm = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.8), mat);
+        lArm.position.set(-0.5, 1.3, 0.3); lArm.rotation.x = 0.5; lArm.rotation.z = 0.2;
+        
+        const rArm = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.8), mat);
+        rArm.position.set(0.5, 1.3, 0.3); rArm.rotation.x = 0.5; rArm.rotation.z = -0.2;
+
+        group.add(head, upperTorso, lowerTorso, lArm, rArm);
+        
+        // References for animation
+        group.userData = { head, upperTorso, lowerTorso }; 
+        return group;
+    }
+
+    const enemy = createFighter(0xff0000);
+    enemy.position.z = -2.5; // Centered distance
+    enemy.position.y = -1.5; // On floor
+    scene.add(enemy);
+
+    // Player Gloves (First Person)
+    const gloveGeo = new THREE.SphereGeometry(0.15, 16, 16);
+    const gloveMat = new THREE.MeshPhongMaterial({ color: 0x00ff00, wireframe: true });
+    const leftGlove = new THREE.Mesh(gloveGeo, gloveMat);
+    leftGlove.position.set(-0.3, -0.3, -0.5);
+    const rightGlove = new THREE.Mesh(gloveGeo, gloveMat);
+    rightGlove.position.set(0.3, -0.3, -0.5);
+    camera.add(leftGlove);
+    camera.add(rightGlove);
+    scene.add(camera);
+
+    // --- AUDIO & MUSIC (TONE.JS) ---
+    let synth, bassSynth, noise, ambientCrowd;
+    let musicLoop;
+
+    async function initAudio() {
+        await Tone.start();
+        Tone.Destination.volume.value = -5;
+
+        // 1. Music: "Eye of the Tiger" simplified riff
+        // C - C - Bb - C ... 
+        const poly = new Tone.PolySynth(Tone.Synth, {
+            oscillator: { type: "sawtooth" },
+            envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 1 }
+        }).toDestination();
+        poly.volume.value = CONFIG.musicVol;
+
+        const kick = new Tone.MembraneSynth().toDestination();
+        kick.volume.value = CONFIG.musicVol + 2;
+
+        // Sequence
+        const riff = [
+            { time: "0:0", note: "C3", dur: "8n" },
+            { time: "0:0:2", note: "C3", dur: "8n" }, // fast punch
+            { time: "0:1:0", note: "Bb2", dur: "8n" },
+            { time: "0:1:2", note: "C3", dur: "4n" },
+            // ... truncated loop for style
+            { time: "0:3:0", note: "G2", dur: "8n" }
+        ];
+
+        const part = new Tone.Part((time, value) => {
+            poly.trigger
