@@ -166,17 +166,17 @@
     function startGame() {
         document.getElementById('overlay').style.display = 'none';
         document.getElementById('hud').style.display = 'block';
-        initFight();
+        initFight(gridTex);
     }
 
-    async function initFight() {
+    async function initFight(sendVar) {
         const opp = OPPONENTS[(STATE.level - 1) % OPPONENTS.length];
         STATE.enemyHP = 100;
         STATE.playerHP = 100;
         document.getElementById('e-name').innerText = opp.name;
         
         // Visual Update
-        window.gridTex.color.setHex(opp.color);
+        gridTex.color.setHex(opp.color);
         
         await Tone.start();
         if(currentThemePart) currentThemePart.stop();
