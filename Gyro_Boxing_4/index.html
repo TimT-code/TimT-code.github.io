@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Iron Gloves: World Tour - v1.1</title>
+    <title>Iron Gloves: World Tour - v1.2</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Impact', sans-serif; }
         #overlay, #victory-screen { 
@@ -103,7 +103,7 @@
     const spot = new THREE.SpotLight(0xffffff, 1); spot.position.set(0, 10, 5); scene.add(spot);
 
     // Textured Opponent Materials
-    const gridTex = new THREE.MeshPhongMaterial({ color: 0xffffff, wireframe: true, emissive: 0x222222 });
+    window.gridTex = new THREE.MeshPhongMaterial({ color: 0xffffff, wireframe: true, emissive: 0x222222 });
     
     // Opponent Rig
     const enemy = new THREE.Group();
@@ -166,10 +166,10 @@
     function startGame() {
         document.getElementById('overlay').style.display = 'none';
         document.getElementById('hud').style.display = 'block';
-        initFight(window.gridTex);
+        initFight();
     }
 
-    async function initFight(sendVar) {
+    async function initFight() {
         const opp = OPPONENTS[(STATE.level - 1) % OPPONENTS.length];
         STATE.enemyHP = 100;
         STATE.playerHP = 100;
