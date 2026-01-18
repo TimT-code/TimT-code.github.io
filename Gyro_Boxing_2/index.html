@@ -221,4 +221,353 @@
         ];
 
         const part = new Tone.Part((time, value) => {
-            poly.trigger
+            poly.triggerAttackRelease(value.note, value.dur, time);
+            if(Math.random()>0.5) kick.triggerAttackRelease("C1", "8n", time);
+        }, riff).start(0);
+        part.loop = true;
+        part.loopEnd = "1m";
+
+        musicLoop = part;
+
+        // 2. SFX Synths
+        synth = new Tone.Synth({ oscillator: { type: "square" } }).toDestination(); // Hits
+        noise = new Tone.NoiseSynth({ noise: { type: "pink" } }).toDestination();   // Misses/Breath
+
+        // 3. Atmosphere (Crowd/Arena)
+        ambientCrowd = new Tone.Player("https://tonejs.github.io/audio/berklee/gong_1.mp3").toDestination(); // Placeholder URL, generated noise below is better
+        
+        // Procedural crowd roar
+        const crowdNoise = new Tone.Noise("brown");
+        const crowdFilter = new Tone.AutoFilter({ frequency: 0.5, depth: 0.5, baseFrequency: 200 }).connect(Tone.Destination);
+        crowdNoise.connect(crowdFilter);
+        crowdNoise.volume.value = -20;
+        crowdNoise.start();
+
+        // Random vocal effects
+        setInterval(playRandomCrowdSound, 4000);
+    }
+
+    function playRandomCrowdSound() {
+        if(!STATE.gameActive) return;
+        // Simulate Boo, Cheer, Laugh using filtered noise bursts
+        const type = Math.floor(Math.random() * 3);
+        const roar = new Tone.NoiseSynth({ 
+            envelope: { attack: 0.5, decay: 1, sustain: 0 },
+            filter: { Q: 1, type: "bandpass", frequency: 400 }
+        }).toDestination();
+        
+        if (type === 0) { // Cheer
+            roar.volume.value = -10;
+            roar.triggerAttackRelease("1n"); 
+        } else if (type === 1) { // Boo (lower pitch illusion via filter)
+             roar.filter.frequency.value = 150;
+             roar.triggerAttackRelease("2n");
+        }
+    }
+
+    function playSound(type) {
+        if(type === 'hit') {
+            synth.triggerAttackRelease(Math.random()>0.5?"C2":"E2", "16n");
+            // Heavy impact noise
+            const impact = new Tone.NoiseSynth({ envelope: { attack: 0.001, decay: 0.2 } }).toDestination();
+            impact.triggerAttackRelease("16n");
+        } else if (type === 'miss') {
+            noise.triggerAttackRelease("32n");
+        } else if (type === 'block') {
+            // Metallic/Dull thud
+            const blockSynth = new Tone.MembraneSynth().toDestination();
+            blockSynth.triggerAttackRelease("G1", "32n");
+        }
+    }
+
+    // --- VIBRATION & HAPTICS ---
+    function vibrate(pattern) {
+        if (navigator.vibrate) {
+            navigator.vibrate(pattern);
+        }
+    }
+
+    // --- INPUT ---
+    let gyro = { alpha: 0, beta: 0, gamma: 0 };
+    let accel = { x: 0, y: 0, z: 0 };
+
+    function handleMotion(e) {
+        if (!STATE.gameActive) return;
+        
+        accel = e.accelerationIncludingGravity || {x:0,y:0,z:0};
+        const pureAccel = e.acceleration || {x:0,y:0,z:0};
+
+        // Shake to recover
+        if (STATE.isKnockedDown) {
+            if (Math.abs(pureAccel.x) > 20 || Math.abs(pureAccel.y) > 20) {
+                recoverStamina();
+                vibrate(50); // Feedback for effort
+            }
+            return;
+        }
+
+        // Punch Logic
+        const force = Math.sqrt(pureAccel.x**2 + pureAccel.y**2 + pureAccel.z**2);
+        if (force > CONFIG.accelThreshold && (Date.now() - STATE.lastPunchTime > 400)) {
+            STATE.lastPunchTime = Date.now();
+            throwPunch(pureAccel, force);
+        }
+    }
+
+    function handleOrientation(e) {
+        gyro = e;
+    }
+
+    // --- GAME LOGIC ---
+
+    function throwPunch(a, force) {
+        if (STATE.playerHP <= 0) return;
+
+        // Vibrate on throw (light)
+        vibrate(30);
+
+        // Aiming Logic
+        // Beta (Front/Back tilt): > 60 is usually upright. < 45 is leaning forward.
+        // Let's invert: If phone is held high/upright = Head. Tilted down = Body.
+        // Or simpler: Random/Gyro based zone. 
+        // Let's use Beta: 
+        let target = (gyro.beta < 50) ? 'body' : 'head';
+        
+        // Type Logic
+        let type = 'jab';
+        if (a.z > 10) type = 'uppercut'; // Upward motion
+        else if (Math.abs(gyro.gamma) > 25) type = 'hook'; // Twist
+
+        // Cost
+        updatePower('player', -2);
+
+        // Animation
+        const glove = (a.x < 0) ? leftGlove : rightGlove;
+        const targetY = (target==='head') ? 0.2 : -0.3;
+        gsap.to(glove.position, { z: -3, y: targetY, duration: 0.1, yoyo: true, repeat: 1 });
+
+        // Resolve Hit
+        setTimeout(() => checkHit(type, target, force), 100);
+    }
+
+    function checkHit(type, target, force) {
+        // AI Logic
+        const enemyBlocking = (Math.random() > 0.6); 
+        
+        if (enemyBlocking) {
+            playSound('block');
+            log("BLOCKED!");
+            vibrate([20, 50, 20]); // Dull thud
+            updatePower('player', -1);
+            enemyFlash(0x0000ff);
+        } else {
+            playSound('hit');
+            vibrate(100); // Strong hit
+            let dmg = 5;
+            if (STATE.combo > 2) dmg = 15;
+            
+            // Critical hit based on force
+            if (force > 25) { 
+                dmg *= 1.5; 
+                log("CRITICAL!"); 
+            } else {
+                log("HIT!");
+            }
+
+            updatePower('enemy', -dmg);
+            updatePower('player', 1);
+            
+            enemyFlash(0xff0000);
+            enemyWince(target);
+        }
+    }
+
+    function enemyWince(target) {
+        const mesh = (target === 'head') ? enemy.userData.head : enemy.userData.lowerTorso;
+        // Flash specific part
+        mesh.material.emissive.setHex(0xffffff);
+        mesh.material.emissiveIntensity = 1;
+        setTimeout(() => {
+            mesh.material.emissive.setHex(0xff0000);
+            mesh.material.emissiveIntensity = 0.2;
+        }, 150);
+
+        // Squish body
+        gsap.to(enemy.scale, { y: 0.9, x: 1.1, duration: 0.1, yoyo: true, repeat: 1 });
+    }
+
+    function enemyFlash(color) {
+        // Brief tint
+        enemy.userData.head.material.color.setHex(color);
+        setTimeout(() => enemy.userData.head.material.color.setHex(0xff0000), 100);
+    }
+
+    function updatePower(who, amt) {
+        if (who === 'player') {
+            STATE.playerHP = Math.min(100, Math.max(0, STATE.playerHP + amt));
+            renderBar('pFill', STATE.playerHP);
+            if (STATE.playerHP <= 20 && amt < 0) checkKnockdown();
+        } else {
+            STATE.enemyHP = Math.min(100, Math.max(0, STATE.enemyHP + amt));
+            renderBar('eFill', STATE.enemyHP);
+            if (STATE.enemyHP <= 0) doKnockout('enemy');
+        }
+    }
+
+    function renderBar(id, hp) {
+        const el = document.getElementById(id);
+        el.style.width = hp + '%';
+        if (hp > 60) el.style.backgroundColor = '#0f0';
+        else if (hp > 30) el.style.backgroundColor = 'yellow';
+        else {
+            el.style.backgroundColor = 'red';
+            if (hp < 15) el.parentElement.classList.add('flash');
+            else el.parentElement.classList.remove('flash');
+        }
+    }
+
+    // --- AI ENEMY LOOP ---
+    setInterval(() => {
+        if (!STATE.gameActive || STATE.isKnockedDown) return;
+
+        // Regen
+        updatePower('player', CONFIG.regenRate / 10);
+
+        // Enemy Attack
+        if (Math.random() < 0.05) { 
+            // 1. Determine player block status (Tilt Back)
+            const isBlocking = (gyro.beta < CONFIG.blockAngle); 
+
+            if (isBlocking) {
+                playSound('block');
+                log("YOU BLOCKED!");
+                vibrate([30, 30]);
+                updatePower('player', -1);
+            } else {
+                // Player hit
+                playSound('hit');
+                vibrate([100, 50, 100]); // Heavy shake
+                log("OUCH!");
+                
+                // Camera shake
+                const shake = 0.2;
+                camera.position.x += (Math.random()-0.5)*shake;
+                camera.position.y += (Math.random()-0.5)*shake;
+                setTimeout(() => camera.position.set(0, 1.7, 0), 100);
+
+                updatePower('player', -8);
+                
+                // Red flash overlay
+                document.body.style.backgroundColor = '#500';
+                setTimeout(() => document.body.style.backgroundColor = '#000', 50);
+            }
+        }
+    }, 300);
+
+    function checkKnockdown() {
+        if (!STATE.canRecover) { doKnockout('player'); return; }
+        
+        STATE.isKnockedDown = true;
+        Tone.Transport.stop(); // Stop music
+        
+        const msg = document.getElementById('knockdown-msg');
+        msg.style.display = 'block';
+        
+        let count = 10;
+        const cd = setInterval(() => {
+            if (!STATE.isKnockedDown) { clearInterval(cd); return; }
+            msg.innerText = `SHAKE!! ${count}`;
+            playSound('miss'); // Ticking sound
+            count--;
+            if (count < 0) {
+                clearInterval(cd);
+                doKnockout('player');
+            }
+        }, 1000);
+    }
+
+    function recoverStamina() {
+        STATE.playerHP += 3;
+        renderBar('pFill', STATE.playerHP);
+        if (STATE.playerHP > 25) {
+            STATE.isKnockedDown = false;
+            STATE.canRecover = false;
+            document.getElementById('knockdown-msg').style.display = 'none';
+            Tone.Transport.start(); // Resume music
+            log("BACK IN THE FIGHT!");
+        }
+    }
+
+    function doKnockout(who) {
+        STATE.gameActive = false;
+        Tone.Transport.stop();
+        document.getElementById('knockdown-msg').style.display = 'block';
+        document.getElementById('knockdown-msg').innerText = (who === 'enemy') ? "KO! YOU WIN!" : "KNOCKED OUT";
+        
+        if (who === 'enemy') {
+            gsap.to(enemy.rotation, { x: -Math.PI/2, duration: 1.5, ease: "bounce.out" });
+            gsap.to(enemy.position, { y: -2, duration: 1 });
+        }
+    }
+
+    function log(txt) {
+        const l = document.getElementById('log');
+        l.innerText = txt;
+        l.style.opacity = 1;
+        setTimeout(() => l.style.opacity = 0, 1500);
+    }
+
+    // --- LOOP ---
+    function animate() {
+        requestAnimationFrame(animate);
+
+        // Subtle Crowd sway
+        const p = crowd.geometry.attributes.position.array;
+        for(let i=1; i<p.length; i+=3) p[i] += Math.sin(Date.now()*0.005 + p[i-1])*0.01;
+        crowd.geometry.attributes.position.needsUpdate = true;
+
+        // Player Drift (Accelerometer)
+        if (STATE.gameActive && !STATE.isKnockedDown) {
+            // Slight parallax based on phone tilt
+            camera.rotation.z = THREE.MathUtils.degToRad(-gyro.gamma / 2);
+            camera.rotation.x = THREE.MathUtils.degToRad(gyro.beta - 90); 
+            
+            // Constrain camera to center
+            camera.position.x = THREE.MathUtils.clamp(camera.position.x + (accel.x * 0.01), -1, 1);
+        }
+
+        renderer.render(scene, camera);
+    }
+
+    // --- SETUP ---
+    document.getElementById('startBtn').addEventListener('click', async () => {
+        // Names
+        document.getElementById('eName').innerText = NAMES[Math.floor(Math.random() * NAMES.length)];
+        document.getElementById('pName').innerText = "CHALLENGER";
+
+        // Permission
+        if (typeof DeviceMotionEvent.requestPermission === 'function') {
+            try {
+                const r = await DeviceMotionEvent.requestPermission();
+                if (r!=='granted') alert("Sensors needed!");
+            } catch(e) {}
+        }
+
+        window.addEventListener('devicemotion', handleMotion);
+        window.addEventListener('deviceorientation', handleOrientation);
+
+        // Audio
+        await initAudio();
+        Tone.Transport.start();
+
+        // UI
+        document.getElementById('overlay').style.display = 'none';
+        document.getElementById('hud').style.display = 'block';
+        
+        STATE.gameActive = true;
+        animate();
+    });
+
+</script>
+</body>
+</html>
