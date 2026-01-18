@@ -62,6 +62,10 @@
     </div>
     <div id="announcer-text"></div>
 </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+    </script>
     
     <script>  
     // --- DATA & STATE ---
@@ -86,10 +90,6 @@
         document.getElementById('announcer-text').innerText = text;
         setTimeout(() => document.getElementById('announcer-text').innerText = "", 3000);
     }
-    </script>
-
-    <script type="module">
-        import * as THREE from 'three';
         
     // --- THREE.JS SCENE ---
     const scene = new THREE.Scene();
@@ -103,10 +103,10 @@
     const spot = new THREE.SpotLight(0xffffff, 1); spot.position.set(0, 10, 5); scene.add(spot);
 
     // Textured Opponent Materials
-    window.gridTex = new THREE.MeshPhongMaterial({ color: 0xffffff, wireframe: true, emissive: 0x222222 });
+    gridTex = new THREE.MeshPhongMaterial({ color: 0xffffff, wireframe: true, emissive: 0x222222 });
     
     // Opponent Rig
-    window.enemy = new THREE.Group();
+    enemy = new THREE.Group();
     const eBody = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 0.8, 4, 8), gridTex);
     eBody.position.y = 1;
     const eHead = new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 8), gridTex);
@@ -116,7 +116,7 @@
     enemy.position.z = -2.5;
 
     // Crowd (Humanized faces)
-    const crowdGroup = new THREE.Group();
+    crowdGroup = new THREE.Group();
     for(let i=0; i<100; i++) {
         const face = new THREE.Mesh(
             new THREE.PlaneGeometry(0.5, 0.5),
@@ -126,9 +126,7 @@
         crowdGroup.add(face);
     }
     scene.add(crowdGroup);
-        </script>
     
-    <script>
     // --- AUDIO ENGINE ---
     const music = {
         tiger: () => {
