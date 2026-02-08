@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Orbital Singularity: Deep Void</title>
+    <title>Orbital Singularity: Fixed</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; user-select: none; }
         
@@ -28,7 +28,6 @@
         }
         #crosshair::before { top: 29px; left: 0; width: 60px; height: 2px; }
         #crosshair::after { top: 0; left: 29px; width: 2px; height: 60px; }
-        .crosshair-locked { opacity: 1 !important; border-color: #ff0000; }
 
         /* Radar (Oval) */
         #radar-container {
@@ -69,7 +68,7 @@
 
 <div id="start-screen">
     <h1 style="color: #00ffaa; text-shadow: 0 0 20px #00ffaa;">ORBITAL SINGULARITY</h1>
-    <p style="color: #fff; font-size: 12px;">WASD/STICK: THRUST | ARROWS/R-STICK: ROTATE | SPACE/TRIGGER: FIRE</p>
+    <p style="color: #fff; font-size: 12px;">WASD: THRUST | ARROWS: ROTATE | SPACE/CLICK: FIRE</p>
     <button id="start-btn">INITIALIZE SYSTEM</button>
 </div>
 
@@ -119,9 +118,8 @@
         shotSpeed: 3.5,
         shotDamage: 8,
         pushPower: 0.08,
-        universeRadius: 600, // Approx 4 seconds of travel
-        starCount: 4000,
-        reset: () => resetGame()
+        universeRadius: 600, 
+        starCount: 4000
     };
 
     // --- STATE ---
@@ -147,8 +145,8 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    // --- AUDIO (INDUSTRIAL) ---
-    // 1. Industrial Shot
+    // --- AUDIO ---
+    // Industrial Shot
     const shotFilter = new Tone.Filter(800, "highpass").toDestination();
     const shotSynth = new Tone.NoiseSynth({
         noise: { type: "white" },
@@ -160,14 +158,13 @@
     }).toDestination();
     shotMetal.volume.value = -10;
 
-    // 2. Formation Sound (Deep Swell)
+    // Formation & Explosion
     const formSynth = new Tone.MembraneSynth().toDestination();
     const formMetal = new Tone.MetalSynth({ harmonicity: 12, resonance: 800, modulationIndex: 20, envelope: { decay: 1.5 } }).toDestination();
-
-    // 3. Explosion (Variance based)
     const explodeSynth = new Tone.NoiseSynth({ envelope: { decay: 1.0 } }).toDestination();
-    
-    // 4. Thruster
+    const boomSynth = new Tone.MembraneSynth().toDestination();
+
+    // Thruster
     const thrustNoise = new Tone.Noise("brown").toDestination();
     thrustNoise.volume.value = -Infinity; 
     thrustNoise.start();
@@ -182,384 +179,8 @@
         formMetal.triggerAttackRelease("32n", "+0.1");
     }
 
-    function playExplosion(speedFactor, hits) {
-        // More gusto based on speed
-        explodeSynth.volume.value = Math.min(0, -10 + (speedFactor * 5));
+    function playExplosion(speedFactor) {
+        // Adjust volume safely (Tone.js nodes handle decibels)
+        explodeSynth.volume.value = Math.max(-20, Math.min(0, -10 + (speedFactor * 5)));
         explodeSynth.triggerAttackRelease("4n");
-        const boom = new Tone.MembraneSynth().toDestination();
-        boom.triggerAttackRelease("C0", "8n");
-    }
-
-    // --- SPEECH ---
-    function speak(text, type) {
-        if (!window.speechSynthesis || (Date.now() - lastVoiceTime < 2000)) return;
-        const msg = new SpeechSynthesisUtterance(text);
-        const voices = window.speechSynthesis.getVoices();
-        lastVoiceTime = Date.now();
-        
-        if (type === 'robot') {
-            msg.pitch = 1.0; msg.rate = 1.1;
-            const v = voices.find(v => v.name.includes('Google US English'));
-            if(v) msg.voice = v;
-        } else if (type === 'alien') {
-            msg.pitch = 0.5; msg.rate = 0.9; // Lower pitch for alien
-        } else if (type === 'scold') {
-            msg.pitch = 0.2; msg.rate = 0.8;
-            msg.volume = 1.0;
-        }
-        window.speechSynthesis.speak(msg);
-    }
-
-    // --- OBJECTS ---
-    // Starfield
-    const starGeo = new THREE.BufferGeometry();
-    const starPos = [];
-    for(let i=0; i<CONFIG.starCount; i++) {
-        starPos.push((Math.random()-0.5)*5000, (Math.random()-0.5)*5000, (Math.random()-0.5)*5000);
-    }
-    starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
-    scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({color: 0x888888, size: 1.2})));
-
-    // Universe Edge (Force Field)
-    const edgeGeo = new THREE.SphereGeometry(CONFIG.universeRadius, 64, 64);
-    const edgeMat = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true, side: THREE.DoubleSide, transparent: true, opacity: 0 });
-    const universeEdge = new THREE.Mesh(edgeGeo, edgeMat);
-    scene.add(universeEdge);
-
-    // Target Logic
-    let target;
-    let targetVelocity = new THREE.Vector3();
-    let targetRotVelocity = new THREE.Vector3();
-    let targetSpawnTime = 0;
-
-    function spawnTarget() {
-        if(target) {
-            stickyParticles.forEach(p => scene.remove(p.mesh));
-            stickyParticles.length = 0;
-            scene.remove(target);
-        }
-
-        playFormationSound();
-        targetSpawnTime = Date.now();
-
-        // 1. Random Geometry
-        const type = Math.floor(Math.random() * 3);
-        let geo;
-        if(type === 0) geo = new THREE.DodecahedronGeometry(12, 0);
-        else if(type === 1) geo = new THREE.IcosahedronGeometry(14, 0);
-        else geo = new THREE.OctahedronGeometry(12, 0);
-
-        const mat = new THREE.MeshPhongMaterial({ color: 0x00ff00, shininess: 80, emissive: 0x001100, flatShading: true });
-        target = new THREE.Mesh(geo, mat);
-        target.add(new THREE.LineSegments(new THREE.WireframeGeometry(geo), new THREE.LineBasicMaterial({color: 0x00ffaa, transparent: true, opacity: 0.3})));
-
-        // 2. Spawn far away at random location
-        const theta = Math.random() * Math.PI * 2;
-        const phi = Math.acos((Math.random() * 2) - 1);
-        const r = 500 + Math.random() * 200; // Between 500 and 700u distance
-        
-        target.position.set(
-            r * Math.sin(phi) * Math.cos(theta),
-            r * Math.sin(phi) * Math.sin(theta),
-            r * Math.cos(phi)
-        );
-
-        scene.add(target);
-        targetMaxHealth = 100 + (killCount * 15);
-        targetHealth = targetMaxHealth;
-        targetVelocity.set(0,0,0);
-        targetRotVelocity.set(Math.random()*0.01, Math.random()*0.01, Math.random()*0.01);
-    }
-
-    // Ship
-    const ship = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16), new THREE.MeshBasicMaterial({ visible: false })); // Invisible anchor
-    ship.position.set(0, 0, 0);
-    scene.add(ship);
-    
-    // Lights
-    scene.add(new THREE.AmbientLight(0x333333));
-    const sun = new THREE.DirectionalLight(0xffffff, 1);
-    sun.position.set(100, 200, 100);
-    scene.add(sun);
-    const shipLight = new THREE.PointLight(0xffffff, 1, 300);
-    ship.add(shipLight);
-
-    // --- INPUTS ---
-    const keys = {};
-    window.addEventListener('keydown', e => { 
-        keys[e.code] = true; 
-        if(e.code === 'Space') fireShot();
-    });
-    window.addEventListener('keyup', e => keys[e.code] = false);
-    window.addEventListener('mousedown', () => fireShot());
-
-    function fireShot() {
-        if(!isActive) return;
-        playShotSound();
-        document.getElementById('crosshair').style.opacity = 1.0;
-
-        const geo = new THREE.SphereGeometry(0.3, 8, 8);
-        const mat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-        const shot = new THREE.Mesh(geo, mat);
-        
-        // Offset slightly forward
-        const offset = new THREE.Vector3(0, -1, -2).applyQuaternion(ship.quaternion);
-        shot.position.copy(ship.position).add(offset);
-        
-        // STRAIGHT SHOT - NO HOMING
-        const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(ship.quaternion);
-        
-        projectiles.push({
-            mesh: shot,
-            velocity: dir.multiplyScalar(CONFIG.shotSpeed),
-            life: 200
-        });
-        scene.add(shot);
-    }
-
-    // --- GAMEPAD ---
-    function handleGamepad() {
-        const gp = navigator.getGamepads()[0];
-        if(!gp) return null;
-
-        const deadzone = 0.1;
-        let mvX = Math.abs(gp.axes[0]) > deadzone ? gp.axes[0] : 0; // Left Stick X
-        let mvY = Math.abs(gp.axes[1]) > deadzone ? gp.axes[1] : 0; // Left Stick Y
-        let rotX = Math.abs(gp.axes[3]) > deadzone ? gp.axes[3] : 0; // Right Stick Y
-        let rotY = Math.abs(gp.axes[2]) > deadzone ? gp.axes[2] : 0; // Right Stick X
-
-        // D-Pad Support (Standard Mapping)
-        if(gp.buttons[12].pressed) mvY = -1; // Up
-        if(gp.buttons[13].pressed) mvY = 1;  // Down
-        if(gp.buttons[14].pressed) mvX = -1; // Left
-        if(gp.buttons[15].pressed) mvX = 1;  // Right
-
-        // Fire Button (A/Cross or RT)
-        if((gp.buttons[0].pressed || gp.buttons[7].value > 0.5) && !keys.gpFireLock) {
-            fireShot();
-            keys.gpFireLock = true; // Prevent rapid fire spam per frame
-        } else if (!gp.buttons[0].pressed && gp.buttons[7].value < 0.5) {
-            keys.gpFireLock = false;
-        }
-
-        return { mvX, mvY, rotX, rotY };
-    }
-
-    // --- UPDATE LOOP ---
-    function update() {
-        requestAnimationFrame(update);
-        if(!isActive) return;
-
-        const gp = handleGamepad();
-        
-        // 1. Movement Logic (Keyboard + Gamepad)
-        const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(ship.quaternion);
-        const right = new THREE.Vector3(1, 0, 0).applyQuaternion(ship.quaternion);
-        const up = new THREE.Vector3(0, 1, 0).applyQuaternion(ship.quaternion);
-
-        let inputX = 0, inputY = 0, inputZ = 0; // Strafe, Up/Down, Forward/Back
-
-        // Keyboard
-        if(keys['KeyW']) inputZ = 1;
-        if(keys['KeyS']) inputZ = -1;
-        if(keys['KeyA']) inputX = -1;
-        if(keys['KeyD']) inputX = 1;
-        // Gamepad Thrust
-        if(gp) {
-            inputX += gp.mvX;
-            inputZ -= gp.mvY; 
-        }
-
-        // Apply Thrust
-        let isThrusting = (Math.abs(inputX) + Math.abs(inputZ)) > 0.1;
-        if(isThrusting) {
-            velocity.add(forward.multiplyScalar(inputZ * CONFIG.thrustPower));
-            velocity.add(right.multiplyScalar(inputX * CONFIG.thrustPower));
-            thrustNoise.volume.rampTo(-15, 0.1);
-        } else {
-            thrustNoise.volume.rampTo(-Infinity, 0.2);
-        }
-
-        // Rotation
-        if(keys['ArrowLeft']) ship.rotation.y += CONFIG.rotationSpeed;
-        if(keys['ArrowRight']) ship.rotation.y -= CONFIG.rotationSpeed;
-        if(keys['ArrowUp']) ship.rotation.x += CONFIG.rotationSpeed;
-        if(keys['ArrowDown']) ship.rotation.x -= CONFIG.rotationSpeed;
-        if(gp) {
-            ship.rotation.y -= gp.rotY * CONFIG.rotationSpeed;
-            ship.rotation.x -= gp.rotX * CONFIG.rotationSpeed;
-        }
-
-        ship.position.add(velocity);
-        velocity.multiplyScalar(CONFIG.friction);
-        
-        // 2. Camera Follow
-        camera.position.copy(ship.position);
-        camera.quaternion.copy(ship.quaternion);
-
-        // 3. Universe Edge Logic
-        const distFromCenter = ship.position.length();
-        if(distFromCenter > CONFIG.universeRadius) {
-            // Outside!
-            if(!isOutside) {
-                isOutside = true;
-                speak("Warning. Return to star system immediately.", "scold");
-                document.getElementById('warning-msg').style.opacity = 1;
-                universeEdge.material.opacity = 0.5;
-            }
-            // Damage DoT
-            shipHealth -= 0.2;
-            document.getElementById('damage-overlay').style.opacity = (Math.sin(Date.now()*0.01)*0.2) + 0.2;
-            
-            if(shipHealth <= 0 && isActive) {
-                speak("Pilot lost. Simulation terminated.", "scold");
-                isActive = false;
-                alert("HULL CRITICAL. EJECTED.");
-                location.reload();
-            }
-        } else {
-            if(isOutside) {
-                isOutside = false;
-                document.getElementById('warning-msg').style.opacity = 0;
-                document.getElementById('damage-overlay').style.opacity = 0;
-                universeEdge.material.opacity = 0;
-            }
-        }
-
-        // 4. Projectiles
-        for(let i=projectiles.length-1; i>=0; i--) {
-            const p = projectiles[i];
-            p.mesh.position.add(p.velocity);
-            p.life--;
-            
-            // Collision
-            const d = p.mesh.position.distanceTo(target.position);
-            if(d < 15) { // Hit
-                scene.remove(p.mesh);
-                projectiles.splice(i, 1);
-                
-                targetHealth -= CONFIG.shotDamage;
-                score += 10;
-
-                // Push Object
-                const pushDir = p.velocity.clone().normalize();
-                targetVelocity.add(pushDir.multiplyScalar(CONFIG.pushPower));
-                targetRotVelocity.add(new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5).multiplyScalar(0.01));
-
-                // Visuals
-                const healthPct = targetHealth/targetMaxHealth;
-                target.material.color.setHSL(0.33 * healthPct, 1, 0.5); // Green to Red
-                target.material.emissive.setHex(0xffffff);
-                setTimeout(()=>target.material.emissive.setHex(0x001100), 50);
-
-                if(targetHealth <= 0) destroyTarget();
-            } else if (p.life <= 0) {
-                scene.remove(p.mesh);
-                projectiles.splice(i, 1);
-            }
-        }
-
-        // 5. Target Physics
-        target.position.add(targetVelocity);
-        targetVelocity.multiplyScalar(0.95);
-        target.rotation.x += targetRotVelocity.x;
-        target.rotation.y += targetRotVelocity.y;
-        target.rotation.z += targetRotVelocity.z;
-
-        // 6. Powerups
-        powerups.forEach((pu, idx) => {
-            pu.position.add(pu.userData.vel);
-            pu.rotation.y += 0.05;
-            if(pu.position.distanceTo(ship.position) < 5) {
-                scene.remove(pu);
-                powerups.splice(idx, 1);
-                speak("Weapon systems optimized.", "robot");
-                CONFIG.shotDamage += 5;
-                score += 500;
-            }
-        });
-
-        // 7. HUD Logic
-        // Radar
-        const vecToTarget = target.position.clone().sub(ship.position);
-        const dist = vecToTarget.length();
-        // Convert to local ship space
-        vecToTarget.applyQuaternion(ship.quaternion.clone().invert());
-        
-        // Map X/Z to radar oval (ignore Y for radar plane)
-        const radarX = Math.max(-90, Math.min(90, vecToTarget.x * 0.2));
-        const radarY = Math.max(-40, Math.min(40, -vecToTarget.y * 0.2)); // Using Y relative to screen for 'up/down' feel
-        
-        const blip = document.getElementById('radar-blip');
-        blip.style.transform = `translate(${radarX}px, ${radarY}px)`;
-        
-        // Fade logic: If object is close AND in front (z is negative in local space)
-        const isInFront = vecToTarget.z < 0 && Math.abs(vecToTarget.x) < 50 && Math.abs(vecToTarget.y) < 50;
-        const radarOpacity = (isInFront && dist < 300) ? 0.2 : 0.8;
-        document.getElementById('radar-container').style.opacity = radarOpacity;
-
-        // Crosshair Fade
-        const currentOpacity = parseFloat(document.getElementById('crosshair').style.opacity);
-        if(currentOpacity > 0.3) document.getElementById('crosshair').style.opacity = currentOpacity - 0.02;
-
-        document.getElementById('dist').innerText = Math.floor(dist); // Distance HUD removed in cleanup but var useful
-        document.getElementById('score').innerText = score;
-        document.getElementById('kill-count').innerText = killCount;
-        document.getElementById('target-health-fill').style.width = Math.max(0, (targetHealth/targetMaxHealth)*100) + '%';
-        document.getElementById('ship-health-fill').style.width = Math.max(0, shipHealth) + '%';
-        
-        renderer.render(scene, camera);
-    }
-
-    function destroyTarget() {
-        killCount++;
-        const speedFactor = Math.max(0, (5000 - (Date.now() - targetSpawnTime)) / 5000);
-        playExplosion(speedFactor, 5);
-        speak("Object Destroyed.", "alien");
-
-        // Particles
-        for(let i=0; i<20; i++) {
-            const p = new THREE.Mesh(new THREE.BoxGeometry(2,2,2), new THREE.MeshBasicMaterial({color: 0xffaa00}));
-            p.position.copy(target.position);
-            scene.add(p);
-            // Simple drift (no array tracking for perf in this snippets)
-            setTimeout(()=>scene.remove(p), 1000); 
-        }
-
-        // Spawn Powerup?
-        if(killCount % 3 === 0) spawnPowerup();
-
-        spawnTarget();
-    }
-
-    function spawnPowerup() {
-        speak("Weapon upgrade detected near sector edge.", "alien");
-        const pu = new THREE.Mesh(new THREE.OctahedronGeometry(3), new THREE.MeshBasicMaterial({color: 0x00ffff, wireframe: true}));
-        
-        // Spawn at edge relative to player
-        const offset = new THREE.Vector3(0, 0, -400).applyQuaternion(ship.quaternion);
-        pu.position.copy(ship.position).add(offset);
-        
-        // Drift toward player
-        const drift = new THREE.Vector3().subVectors(ship.position, pu.position).normalize().multiplyScalar(0.2);
-        pu.userData = { vel: drift };
-        
-        scene.add(pu);
-        powerups.push(pu);
-    }
-
-    function resetGame() {
-        score = 0;
-        killCount = 0;
-        shipHealth = 100;
-        ship.position.set(0,0,0);
-        velocity.set(0,0,0);
-        spawnTarget();
-    }
-
-    // --- GUI ---
-    const gui = new GUI();
-    gui.add(CONFIG, 'shotDamage', 1, 50).name('Weapon Power');
-    gui.add(CONFIG, 'thrustPower', 0.01, 0.2).name('Thruster Power');
-    gui.add(CONFIG, 'universeRadius', 400, 2000).name('Universe Size');
-    gui.dom
+        boomSynth.triggerAttackRelease("C0", "8n");
