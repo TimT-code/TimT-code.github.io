@@ -1,1 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orbital Singularity - Debug Mode</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', Courier, monospace; }
+        #ui { position: absolute; top: 20px; left: 20px; color: #00ffaa; pointer-events: none; z-index: 10; }
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 30px; height: 30px; border: 1px solid rgba(0,255,170,0.5); transform: translate(-50%, -50%); border-radius: 50%; }
+        #power-bar { position: absolute; bottom: 50px; left: 50%; width: 300px; height: 8px; border: 1px solid #00ffaa; transform: translateX(-50%); }
+        #power-fill { width: 0%; height: 100%; background: #00ffaa; box-shadow: 0 0 15px #00ffaa; }
+        #start-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.85); z-index: 100; color: #00ffaa; text-align: center; }
+        #menu-content { padding: 40px; border: 1px solid #00ffaa; background: rgba(0, 20, 15, 0.9); backdrop-filter: blur(10px); }
+        button { background: transparent; border: 2px solid #00ffaa; color: #00ffaa; padding: 15px 30px; font-size: 1.2em; cursor: pointer; transition: 0.3s; margin-top: 20px; font-family: inherit; }
+        button:hover { background: #00ffaa; color: #000; box-shadow: 0 0 20px #00ffaa; }
+        #hud-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0px solid transparent; pointer-events: none; box-sizing: border-box; transition: border 0.2s; z-index: 5; }
+        .warning { animation: flash-red 0.5s infinite alternate; border-width: 20px !important; }
+        @keyframes flash-red { from { border-color: rgba(255,0,0,0.5); } to { border-color: transparent; } }
+        /* Instruction for GUI */
+        #gui-hint { position: absolute; bottom: 10px; right: 10px; color: rgba(0,255,170,0.5); font-size: 0.7em; }
+    </style>
+</head>
+<body>
 
+<div id="start-screen">
+    <div id="menu-content">
+        <h1>ORBITAL SINGULARITY</h1>
+        <p>SYSTEM STATUS: <span style="color:#fff">STABLE ORBIT</span></p>
+        <button id="start-btn">ENGAGE PILOT</button>
+        <p style="font-size: 0.8em; margin-top: 20px;">PRESS 'H' TO TOGGLE DEBUG SETTINGS</p>
+    </div>
+</div>
+
+<div id="ui">
+    <div>SECTOR SCORE: <span id="score">0</span></div>
+    <div>ALTITUDE: <span id="dist">0</span>u</div>
+</div>
+<div id="crosshair"></div>
+<div id="hud-overlay"></div>
+<div id="power-bar"><div id="power-fill"></div></div>
+<div id="gui-hint">Press [H] for Debug Menu</div>
+
+<script type="importmap">
+    { "imports": { 
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "dat.gui": "https://unpkg.com/dat.gui@0.7.9/build/dat.gui.module.js"
+    } }
+</script>
+
+<script type="module">
+    import * as THREE from 'three';
+    import * as Tone from 'https://esm.sh/tone';
+    import { GUI } from 'dat.gui';
+
+    // --- CONFIG & EDITABLE PARAMETERS ---
+    const params = {
+        gravity: 0.02,        // Significantly reduced from 0.08
+        growthRate: 1.00005,  // Slower growth
+        shipAccel: 0.01,
+        friction: 0.98,
+        startDist: 150,       // Farther away
+        targetColor: '#00ffaa',
+        shipColor: '#00ffaa',
+        bloomIntensity: 0.5,
+        masterVolume: -20,
+        scoreMultiplier: 10,
+        resetGame: () => finalizeReset()
+    };
+
+    let gameState = 'PREFLIGHT';
+    let score = 0;
+    let powerLevel = 0;
+    let isCharging = false;
+    let velocity = new THREE.Vector3();
+
+    // --- GUI SETUP ---
+    const gui = new GUI();
+    gui.hide(); // Hidden by default
+    const physFolder = gui.addFolder('Physics');
+    physFolder.add(params, 'gravity', 0, 0.2).name('Gravity Strength');
+    physFolder.add(params, 'growthRate', 1.0, 1.001).step(0.00001).name('Target Growth');
+    physFolder.add(params, 'shipAccel', 0.001, 0.05).name('Engine Thrust');
+    physFolder.add(params, 'friction', 0.9, 1.0).name('Space Friction');
+    physFolder.add(params, 'startDist', 50, 400).name('Starting Distance');
+    
+    const visualFolder = gui.addFolder('Visuals');
+    visualFolder.addColor(params, 'targetColor').onChange(val => target.material.color.set(val));
+    visualFolder.addColor(params, 'shipColor').onChange(val => shipMat.uniforms.uColor.value.set(val));
+
+    const audioFolder = gui.addFolder('Audio');
+    audioFolder.add(params, 'masterVolume', -60, 0).onChange(val => Tone.Destination.volume.value = val);
+
+    gui.add(params, 'resetGame').name('Manual Reset');
+
+    window.addEventListener('keydown', (e) => {
+        if(e.key.toLowerCase() === 'h') {
+            gui.domElement.style.display = gui.domElement.style.display === 'none' ? 'block' : 'none';
+        }
+    });
+
+    // --- SCENE SETUP ---
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 3000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // --- SHADERS (The Blob Ship) ---
+    const vShader = `
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+        uniform float uTime;
+        void main() {
+            vNormal = normal;
+            vPosition = position;
+            float pulse = sin(uTime * 1.5 + position.y * 3.0) * 0.15;
+            vec3 newPos = position + normal * pulse;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);
+        }
+    `;
+    const fShader = `
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+        uniform vec3 uColor;
+        void main() {
+            vec3 viewDir = normalize(cameraPosition - vPosition);
+            float fresnel = pow(1.0 - dot(viewDir, vNormal), 3.0);
+            gl_FragColor = vec4(mix(uColor * 0.2, uColor, fresnel), 0.6);
+        }
+    `;
+
+    // --- OBJECTS ---
+    const sky = new THREE.Mesh(
+        new THREE.SphereGeometry(1500, 32, 32),
+        new THREE.MeshBasicMaterial({ color: 0x004422, wireframe: true, side: THREE.BackSide, transparent: true, opacity: 0.05 })
+    );
+    scene.add(sky);
+
+    let target;
+    function createTarget() {
+        if(target) scene.remove(target);
+        const geo = new THREE.DodecahedronGeometry(15, 0);
+        const mat = new THREE.MeshPhongMaterial({ color: params.targetColor, wireframe: true, transparent: true, opacity: 0.8 });
+        target = new THREE.Mesh(geo, mat);
+        target.userData = { 
+            health: new Array(12).fill(5), 
+            rotV: new THREE.Vector2(0.002, 0.002)
+        };
+        scene.add(target);
+    }
+    createTarget();
+
+    const shipMat = new THREE.ShaderMaterial({
+        uniforms: { uTime: {value: 0}, uColor: {value: new THREE.Color(params.shipColor)} },
+        vertexShader: vShader, fragmentShader: fShader, transparent: true
+    });
+    const ship = new THREE.Mesh(new THREE.SphereGeometry(2, 32, 32), shipMat);
+    ship.position.set(0, 0, params.startDist);
+    scene.add(ship);
+
+    const spot = new THREE.SpotLight(0xffffff, 800, 400, 0.4);
+    ship.add(spot);
+    ship.add(spot.target);
+    spot.target.position.set(0,0,-10);
+    scene.add(new THREE.AmbientLight(0x223344));
+
+    // --- AUDIO ---
+    const drone = new Tone.Oscillator(40, "sawtooth").toDestination();
+    drone.volume.value = -30;
+    const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+
+    function finalizeReset() {
+        score = 0;
+        velocity.set(0,0,0);
+        ship.position.set(0,0,params.startDist);
+        createTarget();
+        target.scale.setScalar(1);
+    }
+
+    // --- INPUTS ---
+    const keys = {};
+    window.addEventListener('keydown', e => keys[e.code] = true);
+    window.addEventListener('keyup', e => keys[e.code] = false);
+
+    function fireLaser() {
+        const ray = new THREE.Raycaster();
+        ray.set(ship.position, new THREE.Vector3(0,0,-1).applyQuaternion(ship.quaternion));
+        const hits = ray.intersectObject(target);
+        
+        if(hits.length > 0) {
+            const hit = hits[0];
+            const fIdx = Math.floor(hit.faceIndex / 3);
+            target.userData.health[fIdx]--;
+            score += params.scoreMultiplier;
+            
+            // Impact reaction
+            target.userData.rotV.x += (Math.random()-0.5) * 0.01;
+            target.userData.rotV.y += (Math.random()-0.5) * 0.01;
+
+            synth.triggerAttackRelease(200 + (powerLevel * 400), "16n");
+        }
+    }
+
+    // --- MAIN LOOP ---
+    function update() {
+        requestAnimationFrame(update);
+        const time = performance.now();
+        shipMat.uniforms.uTime.value = time / 1000;
+
+        if (gameState === 'PREFLIGHT') {
+            ship.position.x = Math.sin(time * 0.0003) * params.startDist;
+            ship.position.z = Math.cos(time * 0.0003) * params.startDist;
+            ship.lookAt(0,0,0);
+        } else {
+            const forward = new THREE.Vector3(0,0,-1).applyQuaternion(ship.quaternion);
+            const right = new THREE.Vector3(1,0,0).applyQuaternion(ship.quaternion);
+            
+            if(keys['KeyW']) velocity.add(forward.multiplyScalar(params.shipAccel));
+            if(keys['KeyS']) velocity.add(forward.multiplyScalar(-params.shipAccel));
+            if(keys['KeyA']) velocity.add(right.multiplyScalar(-params.shipAccel));
+            if(keys['KeyD']) velocity.add(right.multiplyScalar(params.shipAccel));
+
+            if(keys['ArrowLeft']) ship.rotation.y += 0.035;
+            if(keys['ArrowRight']) ship.rotation.y -= 0.035;
+            if(keys['ArrowUp']) ship.rotation.x += 0.035;
+            if(keys['ArrowDown']) ship.rotation.x -= 0.035;
+
+            // Revised Gravity (F = G / r^2 feel but linear-damped for gameplay)
+            const dist = ship.position.distanceTo(target.position);
+            const dir = new THREE.Vector3().subVectors(target.position, ship.position).normalize();
+            velocity.add(dir.multiplyScalar(params.gravity));
+            
+            ship.position.add(velocity);
+            velocity.multiplyScalar(params.friction);
+
+            target.rotation.x += target.userData.rotV.x;
+            target.rotation.y += target.userData.rotV.y;
+            target.scale.multiplyScalar(params.growthRate);
+
+            if(isCharging) powerLevel = Math.min(powerLevel + 0.01, 1);
+
+            document.getElementById('score').innerText = score;
+            document.getElementById('dist').innerText = Math.floor(dist);
+            document.getElementById('power-fill').style.width = (powerLevel * 100) + '%';
+            
+            const hud = document.getElementById('hud-overlay');
+            if(dist < 50) {
+                hud.classList.add('warning');
+                if(dist < 18) { finalizeReset(); } // Soft reset instead of hard reload
+            } else {
+                hud.classList.remove('warning');
+            }
+        }
+
+        camera.position.copy(ship.position);
+        camera.quaternion.copy(ship.quaternion);
+        renderer.render(scene, camera);
+    }
+
+    document.getElementById('start-btn').addEventListener('click', async () => {
+        await Tone.start();
+        drone.start();
+        gameState = 'ACTIVE';
+        document.getElementById('start-screen').style.display = 'none';
+        finalizeReset(); // Start at distance
+    });
+
+    window.addEventListener('mousedown', () => { if(gameState==='ACTIVE') isCharging = true; });
+    window.addEventListener('mouseup', () => { if(isCharging){ fireLaser(); isCharging=false; powerLevel=0; } });
+
+    update();
+</script>
+</body>
+</html>
