@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Singularity: Tactical Overhaul</title>
+    <title>Orbital Singularity: Command & Control</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; user-select: none; }
         #hud { position: absolute; inset: 0; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; z-index: 10; }
@@ -18,45 +18,48 @@
         #power-container { position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%); width: 200px; height: 10px; background: #111; border: 1px solid #00ffaa; }
         #power-fill { height: 100%; background: #00ffaa; width: 0%; box-shadow: 0 0 15px #00ffaa; }
 
-        #crosshair { position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; transform: translate(-50%, -50%); pointer-events: none; z-index: 15; border: 1px solid #00ffaa; border-radius: 50%; }
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 60px; height: 60px; transform: translate(-50%, -50%); pointer-events: none; z-index: 15; border: 1px solid #00ffaa; border-radius: 50%; }
         #crosshair::before, #crosshair::after { content: ''; position: absolute; background: #00ffaa; }
-        #crosshair::before { top: 50%; left: -10px; width: 60px; height: 1px; }
-        #crosshair::after { left: 50%; top: -10px; width: 1px; height: 60px; }
+        #crosshair::before { top: 50%; left: -10px; width: 80px; height: 1px; }
+        #crosshair::after { left: 50%; top: -10px; width: 1px; height: 80px; }
 
-        #audio-gui { position: absolute; left: 0; top: 0; width: 280px; height: 100vh; background: rgba(15, 15, 15, 0.95); border-right: 1px solid #444; color: #eee; font-size: 11px; overflow-y: auto; z-index: 500; display: none; }
+        #audio-gui { position: absolute; left: 0; top: 0; width: 280px; height: 100vh; background: rgba(10, 10, 10, 0.95); border-right: 1px solid #444; color: #eee; font-size: 11px; overflow-y: auto; z-index: 500; display: none; }
         .audio-folder { border-bottom: 1px solid #333; }
-        .audio-folder-title { background: #000; padding: 8px; cursor: pointer; font-weight: bold; color: #00ffaa; display: flex; justify-content: space-between; border-left: 3px solid #00ffaa; }
+        .audio-folder-title { background: #000; padding: 8px; cursor: pointer; font-weight: bold; color: #00ffaa; display: flex; justify-content: space-between; border-left: 3px solid #00ffaa; text-transform: uppercase; }
         .audio-content { padding: 5px 0; display: none; }
         .audio-content.open { display: block; }
         .audio-row { padding: 4px 15px; display: flex; align-items: center; justify-content: space-between; }
         canvas#waveform { width: 100%; height: 100px; background: #000; border-bottom: 1px solid #444; }
         
-        #start-screen { position: absolute; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: center; align-items: center; justify-content: center; flex-direction: column; }
+        #start-screen { position: absolute; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         button { background: transparent; border: 2px solid #00ffaa; color: #00ffaa; padding: 20px 50px; cursor: pointer; font-family: inherit; font-size: 20px; }
     </style>
 </head>
 <body>
 
 <div id="crosshair"></div>
-<div id="start-screen"><button id="start-btn">INITIALIZE COMBAT SYSTEMS</button></div>
+<div id="start-screen">
+    <h1 style="color: #00ffaa; letter-spacing: 5px;">TACTICAL SINGULARITY</h1>
+    <button id="start-btn">INITIALIZE SYSTEMS</button>
+</div>
 
 <div id="audio-gui">
-    <div style="padding: 10px; font-weight: bold; color: #00ffaa;">TONE ANALYZER</div>
+    <div style="padding: 10px; font-weight: bold; color: #00ffaa; border-bottom: 1px solid #333;">SIGNAL PROCESSOR</div>
     <canvas id="waveform"></canvas>
     <div id="audio-controls-root"></div>
 </div>
 
 <div id="hud">
     <div class="row">
-        <div class="hud-text">STATUS: ACTIVE</div>
+        <div class="hud-text">VELOCITY: <span id="vel-val">0</span></div>
         <div class="hud-text">SCORE: <span id="score">0</span></div>
     </div>
     <div id="bars-container">
         <span class="bar-label">TARGET INTEGRITY</span>
         <div class="bar-track"><div id="target-health-fill"></div></div>
-        <span class="bar-label">HULL INTEGRITY</span>
+        <span class="bar-label">SHIP HULL</span>
         <div class="bar-track"><div id="ship-health-fill"></div></div>
-        <span class="bar-label">CAPACITOR</span>
+        <span class="bar-label">BOOST CAPACITOR</span>
         <div class="bar-track"><div id="boost-fill"></div></div>
     </div>
     <div id="power-container"><div id="power-fill"></div></div>
@@ -76,9 +79,9 @@
 
     const params = {
         thrustRF: 0.03, thrustAD: 0.02, thrustWS: 0.02, rotationQE: 0.04,
-        friction: 0.97, boostRegen: 0.2, shotFadeDist: 800, shotShrinkSpeed: 0.01,
-        starCount: 6000, starOpacity: 0.8, dodecaColor: '#00ffaa', dodecaOpacity: 1.0,
-        hudOpacity: 0.9, crosshairSize: 40
+        friction: 0.97, boostRegen: 0.2, shotFadeDist: 800, starCount: 6000,
+        starOpacity: 0.8, dodecaColor: '#00ffaa', dodecaOpacity: 1.0,
+        hudOpacity: 0.9, crosshairSize: 60, crosshairOpacity: 0.8
     };
 
     let score = 0, isActive = false, isCharging = false, chargeLevel = 0, boostTank = 100, shipHealth = 100;
@@ -91,109 +94,139 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    // --- AUDIO ---
+    // --- AUDIO SYSTEM ---
     const analyser = new Tone.Analyser("waveform", 256);
     const masterBus = new Tone.Gain(0.6).connect(analyser).toDestination();
 
-    const setupSound = (type) => {
-        const vol = new Tone.Volume(-10).connect(masterBus);
-        const env = new Tone.AmplitudeEnvelope({ attack: 0.01, decay: 0.1, sustain: 0.5, release: 0.1 }).connect(vol);
-        let src;
-        if(type === 'noise') { src = new Tone.Noise("pink").connect(env).start(); }
-        else { src = new Tone.PolySynth(Tone.Synth).connect(vol); }
-        return { src, env, vol };
+    const createSoundChain = (type = "synth") => {
+        const vol = new Tone.Volume(-15).connect(masterBus);
+        const pan = new Tone.Panner(0).connect(vol);
+        const dist = new Tone.Distortion(0).connect(pan);
+        const verb = new Tone.Reverb(0.1).connect(dist);
+        let source, env;
+        if(type === "noise") {
+            source = new Tone.Noise("pink");
+            env = new Tone.AmplitudeEnvelope({attack:0.1, decay:0.2, sustain:0.5, release:0.5});
+            source.connect(env).connect(verb);
+            source.start();
+        } else {
+            source = new Tone.PolySynth(Tone.Synth).connect(verb);
+            env = null; // PolySynth has internal env
+        }
+        return { source, env, vol, pan, dist, verb };
     };
 
-    const s_engine = setupSound('noise');
-    const s_shot = setupSound('synth');
-    const s_impact = setupSound('synth');
-    const s_hit_target = new Tone.MembraneSynth().connect(masterBus);
+    const s_engine = createSoundChain("noise");
+    const s_shot = createSoundChain("synth");
+    const s_impact = createSoundChain("synth");
+    const s_target_hit = new Tone.MembraneSynth().connect(masterBus);
 
     // --- WORLD ---
-    const starGeo = new THREE.BufferGeometry();
-    const starPos = [];
-    for(let i=0; i<params.starCount; i++) starPos.push((Math.random()-0.5)*4000, (Math.random()-0.5)*4000, (Math.random()-0.5)*4000);
-    starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
-    const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({color:0xffffff, size:1, transparent:true, opacity:0.8}));
-    scene.add(stars);
+    let stars;
+    const refreshStars = () => {
+        if(stars) { scene.remove(stars); stars.geometry.dispose(); }
+        const geo = new THREE.BufferGeometry();
+        const pos = [];
+        for(let i=0; i<params.starCount; i++) pos.push((Math.random()-0.5)*4000, (Math.random()-0.5)*4000, (Math.random()-0.5)*4000);
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        stars = new THREE.Points(geo, new THREE.PointsMaterial({color: 0xffffff, size: 1.2, transparent: true, opacity: params.starOpacity}));
+        scene.add(stars);
+    };
+    refreshStars();
 
     let target;
     function spawnTarget() {
         if(target) scene.remove(target);
-        target = new THREE.Mesh(new THREE.DodecahedronGeometry(25), new THREE.MeshPhongMaterial({color:params.dodecaColor, flatShading:true, transparent:true}));
-        target.position.set((Math.random()-0.5)*500, (Math.random()-0.5)*500, (Math.random()-0.5)*500);
+        target = new THREE.Mesh(new THREE.DodecahedronGeometry(25), new THREE.MeshPhongMaterial({color: params.dodecaColor, transparent: true, flatShading: true}));
+        target.position.set((Math.random()-0.5)*600, (Math.random()-0.5)*600, (Math.random()-0.5)*600);
         scene.add(target);
         targetHealth = 100;
     }
     spawnTarget();
 
-    const ship = new THREE.Group();
-    scene.add(ship);
+    const ship = new THREE.Object3D();
     ship.position.z = 300;
-    scene.add(new THREE.AmbientLight(0x404040, 3));
-    const sun = new THREE.DirectionalLight(0xffffff, 2);
-    sun.position.set(5, 5, 5);
-    scene.add(sun);
+    scene.add(ship);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    const dLight = new THREE.DirectionalLight(0xffffff, 2);
+    dLight.position.set(10,10,10);
+    scene.add(dLight);
 
     // --- LOGIC ---
-    function spawnParticles(pos, color) {
-        for(let i=0; i<15; i++) {
+    function spawnSplatter(pos, color) {
+        for(let i=0; i<12; i++) {
             const p = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshBasicMaterial({color: color}));
             p.position.copy(pos);
-            const vel = new THREE.Vector3((Math.random()-0.5)*2, (Math.random()-0.5)*2, (Math.random()-0.5)*2);
-            particles.push({mesh:p, vel:vel, life:1.0});
+            const v = new THREE.Vector3((Math.random()-0.5)*3, (Math.random()-0.5)*3, (Math.random()-0.5)*3);
+            particles.push({mesh:p, vel:v, life:1.0});
             scene.add(p);
         }
     }
 
     function fire() {
         const shotPos = new THREE.Vector3();
-        ship.getWorldPosition(shotPos); // Fix: Get current absolute position
+        ship.getWorldPosition(shotPos); // High Precision coordinate retrieval
         
-        const shot = new THREE.Mesh(new THREE.SphereGeometry(1.5 + (chargeLevel*2)), new THREE.MeshBasicMaterial({color:0x00ffaa}));
+        const shot = new THREE.Mesh(new THREE.SphereGeometry(1.5 + (chargeLevel*3)), new THREE.MeshBasicMaterial({color: 0x00ffaa}));
         shot.position.copy(shotPos);
         const dir = new THREE.Vector3(0,0,-1).applyQuaternion(ship.quaternion);
-        projectiles.push({mesh:shot, vel:dir.multiplyScalar(3.5), spawn:shotPos.clone(), damage: 10 + (chargeLevel*40)});
+        projectiles.push({mesh:shot, vel:dir.multiplyScalar(4), spawn:shotPos.clone(), damage: 15 + (chargeLevel*50)});
         scene.add(shot);
         
-        s_shot.src.triggerAttackRelease(100 + (chargeLevel*500), "8n");
+        s_shot.source.triggerAttackRelease(150 + (chargeLevel*400), "8n");
         chargeLevel = 0;
     }
 
     window.addEventListener('keydown', e => keys[e.code] = true);
     window.addEventListener('keyup', e => keys[e.code] = false);
 
-    function updatePhysics() {
+    function handleInput() {
         const gp = navigator.getGamepads()[0];
         const fwd = new THREE.Vector3(0,0,-1).applyQuaternion(ship.quaternion);
         const right = new THREE.Vector3(1,0,0).applyQuaternion(ship.quaternion);
         const up = new THREE.Vector3(0,1,0).applyQuaternion(ship.quaternion);
 
         let boostMult = 1.0;
+        // Right Stick Up (Boost) or Down (Brake)
         const boosting = keys['ShiftLeft'] || (gp && gp.axes[3] < -0.5);
-        if(boosting && boostTank > 0) { boostMult = 3.0; boostTank -= 0.8; }
-        else { boostTank = Math.min(100, boostTank + params.boostRegen); }
+        const braking = keys['KeyX'] || (gp && gp.axes[3] > 0.5);
 
-        let thrusting = false;
-        if(keys['KeyR'] || (gp && gp.buttons[3].pressed)) { velocity.add(fwd.multiplyScalar(params.thrustRF * boostMult)); thrusting = true; }
-        if(keys['KeyF'] || (gp && gp.buttons[0].pressed)) { velocity.add(fwd.multiplyScalar(-params.thrustRF)); thrusting = true; }
-        if(keys['KeyA']) velocity.add(right.multiplyScalar(-params.thrustAD));
-        if(keys['KeyD']) velocity.add(right.multiplyScalar(params.thrustAD));
-        if(keys['KeyW']) velocity.add(up.multiplyScalar(params.thrustWS));
-        if(keys['KeyS']) velocity.add(up.multiplyScalar(-params.thrustWS));
+        if((boosting || braking) && boostTank > 0) {
+            boostMult = boosting ? 3.0 : 0.2;
+            boostTank -= 0.7;
+        } else { boostTank = Math.min(100, boostTank + params.boostRegen); }
+
+        let isThrusting = false;
+        // Mapped Gamepad Buttons: Y (3) -> Fwd, A (0) -> Back
+        if(keys['KeyR'] || (gp && gp.buttons[3].pressed)) { velocity.add(fwd.multiplyScalar(params.thrustRF * boostMult)); isThrusting = true; }
+        if(keys['KeyF'] || (gp && gp.buttons[0].pressed)) { velocity.add(fwd.multiplyScalar(-params.thrustRF)); isThrusting = true; }
         
-        if(keys['KeyQ']) ship.rotation.y += params.rotationQE;
-        if(keys['KeyE']) ship.rotation.y -= params.rotationQE;
+        // Translation: Left Stick
+        if(keys['KeyA'] || (gp && gp.axes[0] < -0.2)) velocity.add(right.multiplyScalar(-params.thrustAD));
+        if(keys['KeyD'] || (gp && gp.axes[0] > 0.2)) velocity.add(right.multiplyScalar(params.thrustAD));
+        if(keys['KeyW'] || (gp && gp.axes[1] < -0.2)) velocity.add(up.multiplyScalar(params.thrustWS));
+        if(keys['KeyS'] || (gp && gp.axes[1] > 0.2)) velocity.add(up.multiplyScalar(-params.thrustWS));
 
-        if(thrusting) s_engine.env.triggerAttack(); else s_engine.env.triggerRelease();
+        // Rotation: Right Stick X-axis
+        if(keys['KeyQ'] || (gp && gp.axes[2] < -0.2)) ship.rotation.y += params.rotationQE;
+        if(keys['KeyE'] || (gp && gp.axes[2] > 0.2)) ship.rotation.y -= params.rotationQE;
+
+        // Firing: Triggers L2(6) or R2(7)
+        if(keys['Space'] || (gp && (gp.buttons[6].pressed || gp.buttons[7].pressed))) {
+            isCharging = true;
+            chargeLevel = Math.min(chargeLevel + 0.015, 1.0);
+        } else if(isCharging) { fire(); isCharging = false; }
+
+        if(isThrusting) s_engine.env.triggerAttack(); else s_engine.env.triggerRelease();
 
         ship.position.add(velocity);
         velocity.multiplyScalar(params.friction);
         
+        // Collision Detection
         if(ship.position.distanceTo(target.position) < 30) {
-            shipHealth -= 5;
+            shipHealth -= velocity.length() * 20;
             velocity.multiplyScalar(-0.5);
-            s_hit_target.triggerAttackRelease("C1", "4n");
+            s_target_hit.triggerAttackRelease("C1", "4n");
         }
 
         camera.position.copy(ship.position);
@@ -203,28 +236,20 @@
     function update() {
         requestAnimationFrame(update);
         if(!isActive) return;
-        updatePhysics();
+        handleInput();
 
-        if(keys['Space'] || (navigator.getGamepads()[0]?.buttons[6].pressed)) {
-            isCharging = true;
-            chargeLevel = Math.min(chargeLevel + 0.015, 1.0);
-        } else if(isCharging) {
-            fire();
-            isCharging = false;
-        }
-
-        // Projectile handling
+        // Projectiles
         for(let i=projectiles.length-1; i>=0; i--) {
             const p = projectiles[i];
             p.mesh.position.add(p.vel);
             if(p.mesh.position.distanceTo(target.position) < 25) {
                 targetHealth -= p.damage;
                 score += 10;
-                spawnParticles(p.mesh.position, 0x00ffaa);
-                s_hit_target.triggerAttackRelease("G2", "16n");
+                spawnSplatter(p.mesh.position, 0x00ffaa);
+                s_target_hit.triggerAttackRelease("G2", "16n");
                 scene.remove(p.mesh); projectiles.splice(i,1);
                 if(targetHealth <= 0) {
-                    spawnParticles(target.position, 0xffaa00);
+                    spawnSplatter(target.position, 0xffaa00);
                     spawnTarget();
                     score += 500;
                 }
@@ -233,7 +258,7 @@
             }
         }
 
-        // Particle handling
+        // Particles
         for(let i=particles.length-1; i>=0; i--) {
             const p = particles[i];
             p.mesh.position.add(p.vel);
@@ -242,12 +267,21 @@
             if(p.life <= 0) { scene.remove(p.mesh); particles.splice(i,1); }
         }
 
+        // UI Sync
         document.getElementById('power-fill').style.width = (chargeLevel * 100) + '%';
         document.getElementById('target-health-fill').style.width = targetHealth + '%';
         document.getElementById('ship-health-fill').style.width = shipHealth + '%';
         document.getElementById('boost-fill').style.width = boostTank + '%';
         document.getElementById('score').innerText = score;
+        document.getElementById('vel-val').innerText = (velocity.length() * 100).toFixed(0);
+        
+        const ch = document.getElementById('crosshair');
+        ch.style.width = ch.style.height = params.crosshairSize + 'px';
+        ch.style.opacity = params.crosshairOpacity;
+        target.material.color.set(params.dodecaColor);
+        target.material.opacity = params.dodecaOpacity;
 
+        // Waveform
         const canvas = document.getElementById('waveform');
         const ctx = canvas.getContext('2d');
         const values = analyser.getValue();
@@ -256,37 +290,56 @@
         for(let i=0; i<values.length; i++){
             const x = (i/values.length)*canvas.width;
             const y = (values[i]+1)/2*canvas.height;
-            if(i===0)ctx.moveTo(x,y); else ctx.lineTo(x,y);
+            if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
         }
         ctx.stroke();
 
         renderer.render(scene, camera);
     }
 
+    // --- GUI SETUP ---
     const gui = new GUI();
-    const f1 = gui.addFolder('Combat & Flight');
+    const f1 = gui.addFolder('Dynamics');
     f1.add(params, 'thrustRF', 0.01, 0.1);
-    f1.add(params, 'boostRegen', 0.01, 1.0);
-    f1.add(params, 'shotFadeDist', 100, 2000);
-    
-    function buildAudioUI() {
+    f1.add(params, 'friction', 0.9, 1.0);
+    f1.add(params, 'boostRegen', 0.05, 0.5);
+
+    const f2 = gui.addFolder('Visuals');
+    f2.add(params, 'starCount', 1000, 10000).onChange(refreshStars);
+    f2.addColor(params, 'dodecaColor');
+    f2.add(params, 'dodecaOpacity', 0, 1);
+    f2.add(params, 'crosshairSize', 20, 200);
+
+    function buildAudioMenu() {
         const root = document.getElementById('audio-controls-root');
-        const sounds = [{n:'Thrusters', s:s_engine}, {n:'Weaponry', s:s_shot}];
+        const sounds = [ {n: 'Engine', s: s_engine, type:'env'}, {n: 'Weaponry', s: s_shot, type:'poly'}, {n: 'Impacts', s: s_impact, type:'poly'} ];
+        
         sounds.forEach(item => {
             const folder = document.createElement('div');
             folder.className = 'audio-folder';
-            folder.innerHTML = `<div class="audio-folder-title">${item.n}<span>▼</span></div>`;
+            folder.innerHTML = `<div class="audio-folder-title">${item.n} <span>▼</span></div>`;
             const content = document.createElement('div');
             content.className = 'audio-content';
-            const add = (label, min, max, val, cb) => {
-                const r = document.createElement('div'); r.className = 'audio-row';
-                r.innerHTML = `<span>${label}</span><input type="range" min="${min}" max="${max}" step="0.01" value="${val}">`;
-                r.querySelector('input').oninput = (e) => cb(parseFloat(e.target.value));
-                content.appendChild(r);
+            
+            const addS = (label, min, max, step, start, cb) => {
+                const row = document.createElement('div');
+                row.className = 'audio-row';
+                row.innerHTML = `<span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}" value="${start}">`;
+                row.querySelector('input').oninput = (e) => cb(parseFloat(e.target.value));
+                content.appendChild(row);
             };
-            add('Vol (dB)', -60, 0, -10, v => item.s.vol.volume.value = v);
-            add('Attack', 0, 1, 0.01, v => item.s.env ? item.s.env.attack = v : item.s.src.set({envelope:{attack:v}}));
-            add('Release', 0, 2, 0.1, v => item.s.env ? item.s.env.release = v : item.s.src.set({envelope:{release:v}}));
+
+            addS('Vol (dB)', -60, 5, 1, -15, v => item.s.vol.volume.value = v);
+            ['attack', 'decay', 'sustain', 'release'].forEach(p => {
+                addS(p.charAt(0).toUpperCase()+p.slice(1), 0, 3, 0.01, 0.2, v => {
+                    if(item.type === 'env') item.s.env[p] = v;
+                    else item.s.source.set({envelope:{[p]:v}});
+                });
+            });
+            addS('Pan', -1, 1, 0.1, 0, v => item.s.pan.pan.value = v);
+            addS('Reverb', 0, 1, 0.1, 0.1, v => item.s.verb.wet.value = v);
+            addS('Distort', 0, 1, 0.1, 0, v => item.s.dist.distortion = v);
+
             folder.querySelector('.audio-folder-title').onclick = () => content.classList.toggle('open');
             folder.appendChild(content); root.appendChild(folder);
         });
@@ -295,7 +348,9 @@
     window.addEventListener('keydown', e => {
         if(e.key.toLowerCase() === 'h') {
             const ag = document.getElementById('audio-gui');
-            ag.style.display = ag.style.display === 'block' ? 'none' : 'block';
+            const state = ag.style.display === 'block' ? 'none' : 'block';
+            ag.style.display = state;
+            document.querySelector('.dg.main').style.display = state;
         }
     });
 
@@ -303,7 +358,7 @@
         await Tone.start();
         isActive = true;
         document.getElementById('start-screen').style.display = 'none';
-        buildAudioUI();
+        buildAudioMenu();
         update();
     };
 </script>
