@@ -2,46 +2,33 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Orbital Singularity: Deep Space</title>
+    <title>Orbital Singularity: Command & Control</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; user-select: none; }
-        
-        #hud { position: absolute; inset: 0; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; z-index: 10; }
+        #hud { position: absolute; inset: 0; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; z-index: 10; transition: opacity 0.3s; }
         .row { display: flex; justify-content: space-between; width: 100%; }
         .hud-text { color: #00ffaa; text-shadow: 0 0 5px #00ffaa; font-size: 14px; }
-        
         #bars-container { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 400px; text-align: center; }
         .bar-label { font-size: 10px; color: #fff; letter-spacing: 2px; margin-bottom: 2px; display: block; }
-        .bar-track { width: 100%; height: 8px; background: rgba(255, 255, 255, 0.1); border: 1px solid #444; margin-bottom: 10px; position: relative; }
-        #target-health-fill { width: 100%; height: 100%; background: linear-gradient(90deg, #ff0000, #ffff00, #00ff00); transition: width 0.2s; }
-        #ship-health-fill { width: 100%; height: 100%; background: #00aaff; transition: width 0.2s; }
+        .bar-track { width: 100%; height: 8px; background: rgba(255, 255, 255, 0.1); border: 1px solid #444; margin-bottom: 10px; position: relative; overflow: hidden; }
+        #target-health-fill { width: 100%; height: 100%; background: #00ffaa; transition: width 0.2s; }
+        #ship-health-fill { width: 100%; height: 100%; background: #ff3333; transition: width 0.2s; }
         #boost-fill { width: 100%; height: 100%; background: #ffaa00; transition: width 0.1s; }
-
-        #crosshair { 
-            position: absolute; top: 50%; left: 50%; width: 60px; height: 60px;
-            transform: translate(-50%, -50%); pointer-events: none; z-index: 15;
-        }
-        #crosshair::before, #crosshair::after { content: ''; position: absolute; background: #00ffaa; box-shadow: 0 0 5px #00ffaa; }
-        #crosshair::before { top: 50%; left: 0; width: 100%; height: 2px; transform: translateY(-50%); }
-        #crosshair::after { left: 50%; top: 0; width: 2px; height: 100%; transform: translateX(-50%); }
-
-        #start-screen { position: absolute; inset: 0; background: #000; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        button { background: transparent; border: 2px solid #00ffaa; color: #00ffaa; padding: 15px 40px; cursor: pointer; font-family: inherit; margin-top: 20px; }
-        
-        #power-container { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); width: 200px; height: 4px; background: #222; }
-        #power-fill { height: 100%; background: #00ffaa; width: 0%; box-shadow: 0 0 10px #00ffaa; }
-
-        /* Left Side Audio Menu */
-        #audio-gui { 
-            position: absolute; left: 0; top: 0; width: 260px; height: 100vh; 
-            background: rgba(0,0,0,0.9); border-right: 1px solid #444; 
-            color: #eee; font-size: 10px; overflow-y: auto; z-index: 20; display: none;
-        }
-        .audio-folder { border-bottom: 1px solid #333; padding-bottom: 5px; }
-        .audio-folder-title { background: #222; padding: 6px; cursor: pointer; font-weight: bold; color: #00ffaa; text-transform: uppercase; }
-        .audio-row { padding: 3px 10px; display: flex; align-items: center; justify-content: space-between; }
-        .audio-row input { width: 70px; }
-        canvas { width: 100%; height: 80px; background: #050505; }
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; transform: translate(-50%, -50%); pointer-events: none; z-index: 15; border: 1px solid #00ffaa; border-radius: 50%; }
+        #crosshair::before, #crosshair::after { content: ''; position: absolute; background: #00ffaa; }
+        #crosshair::before { top: 50%; left: -10px; width: 60px; height: 1px; }
+        #crosshair::after { left: 50%; top: -10px; width: 1px; height: 60px; }
+        #start-screen { position: absolute; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        button { background: transparent; border: 2px solid #00ffaa; color: #00ffaa; padding: 15px 40px; font-size: 18px; cursor: pointer; transition: 0.3s; font-family: inherit; }
+        button:hover { background: #00ffaa; color: #000; box-shadow: 0 0 20px #00ffaa; }
+        #audio-gui { position: absolute; left: 0; top: 0; width: 280px; height: 100vh; background: rgba(26, 26, 26, 0.95); border-right: 1px solid #444; color: #eee; font-size: 11px; overflow-y: auto; z-index: 500; display: none; }
+        .audio-folder { border-bottom: 1px solid #333; }
+        .audio-folder-title { background: #000; padding: 8px; cursor: pointer; font-weight: bold; color: #00ffaa; display: flex; justify-content: space-between; border-left: 3px solid #00ffaa; }
+        .audio-content { padding: 5px 0; display: none; }
+        .audio-content.open { display: block; }
+        .audio-row { padding: 4px 15px; display: flex; align-items: center; justify-content: space-between; }
+        .audio-row input[type="range"] { width: 100px; }
+        canvas#waveform { width: 100%; height: 100px; background: #000; border-bottom: 1px solid #444; }
     </style>
 </head>
 <body>
@@ -49,32 +36,30 @@
 <div id="crosshair"></div>
 
 <div id="start-screen">
-    <h1 style="color: #00ffaa; text-shadow: 0 0 20px #00ffaa;">ORBITAL SINGULARITY</h1>
-    <p style="color: #fff; font-size: 11px; text-align: center;">R/F: FWD/BK | A/D: STRAFE | W/S: VERT | Q/E: ROTATE | SHIFT: BOOST | X: BRAKE<br>GAMEPAD: Y/A: FWD/BK | L2/R2: FIRE | STICKS: MOVE/ROT</p>
-    <button id="start-btn">INITIALIZE SYSTEMS</button>
+    <h1 style="color: #00ffaa; letter-spacing: 10px;">SINGULARITY</h1>
+    <p style="color: #888; margin-bottom: 30px;">[R/F] THRUST | [W/S/A/D] STRAFE | [Q/E] ROTATE | [SHIFT/X] BOOST/BRAKE<br>Press [H] to toggle all Interface Settings</p>
+    <button id="start-btn">ENGAGE SYSTEMS</button>
 </div>
 
 <div id="audio-gui">
-    <div style="background:#000; padding:10px; color:#00ffaa; border-bottom:1px solid #00ffaa; font-size: 12px;">SIGNAL PROCESSOR</div>
+    <div style="padding: 10px; font-weight: bold; background: #000; border-bottom: 1px solid #00ffaa;">TONE.JS MASTER SIGNAL</div>
     <canvas id="waveform"></canvas>
     <div id="audio-controls-root"></div>
 </div>
 
 <div id="hud">
     <div class="row">
+        <div class="hud-text">VELOCITY: <span id="vel-val">0</span> m/s</div>
         <div class="hud-text">SCORE: <span id="score">0</span></div>
-        <div class="hud-text">HULL: <span id="hull-val">100</span>%</div>
     </div>
-    
     <div id="bars-container">
-        <span class="bar-label">TARGET INTEGRITY</span>
+        <span class="bar-label">DODECAHEDRA STABILITY</span>
         <div class="bar-track"><div id="target-health-fill"></div></div>
-        <span class="bar-label">SHIP HULL</span>
+        <span class="bar-label">HULL INTEGRITY</span>
         <div class="bar-track"><div id="ship-health-fill"></div></div>
-        <span class="bar-label">BOOST CAPACITOR</span>
+        <span class="bar-label">CAPACITOR</span>
         <div class="bar-track"><div id="boost-fill"></div></div>
     </div>
-    <div id="power-container"><div id="power-fill"></div></div>
 </div>
 
 <script type="importmap">
@@ -89,33 +74,27 @@
     import * as Tone from 'https://esm.sh/tone';
     import { GUI } from 'dat.gui';
 
+    // --- CONFIGURATION ---
     const params = {
-        // --- RESTORED PHYSICS ---
-        gravity: 0.005,
-        pushPower: 0.2,
+        thrustRF: 0.02,
+        thrustAD: 0.015,
+        thrustWS: 0.015,
+        rotationQE: 0.04,
         friction: 0.98,
-        thrustFwd: 0.02,
-        thrustStrafe: 0.015,
-        thrustVertical: 0.015,
-        rotationSpeed: 0.04,
-        boostRegen: 0.2,
-        // --- WEAPONS ---
-        shotSpeed: 2.0,
-        shotFadeDist: 800,
-        shotShrinkSpeed: 0.99,
-        // --- TARGET VISUALS ---
-        targetColor: '#00ff00',
-        targetOpacity: 1.0,
-        // --- ENVIRONMENT ---
-        starCount: 5000,
+        boostRegen: 0.15,
+        shotFadeTime: 1.5,
+        shotFadeDist: 600,
+        shotShrinkSpeed: 0.02,
+        starCount: 6000,
         starOpacity: 0.8,
-        crosshairSize: 60,
-        crosshairOpacity: 0.7,
+        dodecaColor: '#00ffaa',
+        dodecaOpacity: 1.0,
         hudOpacity: 0.8,
-        refreshStars: () => createStarfield()
+        crosshairOpacity: 0.8,
+        crosshairSize: 40
     };
 
-    let score = 0, isActive = false, isCharging = false, chargeLevel = 0, boostTank = 100, shipHealth = 100;
+    let score = 0, isActive = false, isCharging = false, boostTank = 100, shipHealth = 100;
     let velocity = new THREE.Vector3(), targetHealth = 100;
     const projectiles = [], keys = {};
 
@@ -125,116 +104,119 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    // --- AUDIO ---
+    // --- AUDIO SYSTEM ---
     const analyser = new Tone.Analyser("waveform", 256);
-    const masterGain = new Tone.Gain(0.5).connect(analyser).toDestination();
+    const masterBus = new Tone.Gain(0.6).connect(analyser).toDestination();
 
-    const engineFilter = new Tone.Filter(400, "lowpass").connect(masterGain);
-    const engineEnv = new Tone.AmplitudeEnvelope({ attack: 0.2, decay: 0.2, sustain: 1, release: 1 }).connect(engineFilter);
-    const engineNoise = new Tone.Noise("pink").connect(engineEnv);
-    engineNoise.start();
+    const createSoundChain = (type = "synth") => {
+        const vol = new Tone.Volume(-10);
+        const pan = new Tone.Panner(0);
+        const dist = new Tone.Distortion(0);
+        const delay = new Tone.FeedbackDelay("8n", 0);
+        const verb = new Tone.Reverb(0.1);
+        
+        const chain = vol.chain(pan, dist, delay, verb, masterBus);
+        let source;
+        if(type === "noise") {
+            source = new Tone.Noise("white");
+            const env = new Tone.AmplitudeEnvelope();
+            source.connect(env);
+            env.connect(vol);
+            source.start();
+            return { source, env, vol, pan, dist, delay, verb };
+        } else {
+            source = new Tone.PolySynth(Tone.Synth).connect(vol);
+            return { source, vol, pan, dist, delay, verb };
+        }
+    };
 
-    const shotSynth = new Tone.PolySynth(Tone.Synth).connect(masterGain);
-    const impactSynth = new Tone.MembraneSynth().connect(masterGain);
+    const s_engine = createSoundChain("noise");
+    const s_shot = createSoundChain("synth");
+    const s_impact = createSoundChain("synth");
 
-    // --- OBJECTS ---
+    // --- WORLD ---
     let stars;
-    function createStarfield() {
-        if(stars) { scene.remove(stars); stars.geometry.dispose(); stars.material.dispose(); }
-        const starGeo = new THREE.BufferGeometry();
-        const starPos = [];
-        for(let i=0; i<params.starCount; i++) starPos.push((Math.random()-0.5)*4000, (Math.random()-0.5)*4000, (Math.random()-0.5)*4000);
-        starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
-        stars = new THREE.Points(starGeo, new THREE.PointsMaterial({color: 0xffffff, size: 1.5, transparent: true, opacity: params.starOpacity}));
+    const refreshStars = () => {
+        if(stars) { scene.remove(stars); stars.geometry.dispose(); }
+        const geo = new THREE.BufferGeometry();
+        const pos = [];
+        for(let i=0; i<params.starCount; i++) pos.push((Math.random()-0.5)*4000, (Math.random()-0.5)*4000, (Math.random()-0.5)*4000);
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        stars = new THREE.Points(geo, new THREE.PointsMaterial({color: 0xffffff, size: 1.2, transparent: true, opacity: params.starOpacity}));
         scene.add(stars);
-    }
-    createStarfield();
+    };
+    refreshStars();
 
-    const target = new THREE.Mesh(new THREE.DodecahedronGeometry(20), new THREE.MeshPhongMaterial({color: 0x00ff00, transparent: true, shininess: 100}));
+    const target = new THREE.Mesh(new THREE.DodecahedronGeometry(25), new THREE.MeshPhongMaterial({color: params.dodecaColor, transparent: true, flatShading: true}));
     scene.add(target);
-    
-    const targetLight = new THREE.PointLight(0x00ffaa, 2, 100);
+    const targetLight = new THREE.PointLight(0x00ffaa, 5, 200);
     scene.add(targetLight);
 
-    const ship = new THREE.Mesh(new THREE.SphereGeometry(2), new THREE.MeshPhongMaterial({color: 0x00aaff}));
-    ship.position.set(0, 0, 150);
+    const ship = new THREE.Object3D();
+    ship.position.z = 200;
     scene.add(ship);
-    scene.add(new THREE.AmbientLight(0x404040), new THREE.DirectionalLight(0xffffff, 1.5));
+    scene.add(new THREE.AmbientLight(0x404040, 2));
 
-    // --- CONTROLS ---
+    // --- INPUT HANDLERS ---
     window.addEventListener('keydown', e => keys[e.code] = true);
     window.addEventListener('keyup', e => keys[e.code] = false);
+    window.addEventListener('mousedown', () => { if(isActive) isCharging = true; });
+    window.addEventListener('mouseup', () => { if(isCharging) fire(); isCharging = false; });
 
-    function fireShot() {
-        const shot = new THREE.Mesh(new THREE.SphereGeometry(1 + chargeLevel), new THREE.MeshBasicMaterial({ color: 0x00ffaa, transparent: true }));
+    function fire() {
+        const shot = new THREE.Mesh(new THREE.SphereGeometry(1.5), new THREE.MeshBasicMaterial({color: 0x00ffaa, transparent: true}));
         shot.position.copy(ship.position);
-        const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(ship.quaternion);
-        projectiles.push({ mesh: shot, velocity: dir.multiplyScalar(params.shotSpeed + chargeLevel), spawnPos: shot.position.clone() });
+        const dir = new THREE.Vector3(0,0,-1).applyQuaternion(ship.quaternion);
+        projectiles.push({ mesh: shot, vel: dir.multiplyScalar(2.5), spawn: shot.position.clone(), life: 1.0 });
         scene.add(shot);
-        shotSynth.triggerAttackRelease(200 + (chargeLevel * 400), "8n");
+        s_shot.source.triggerAttackRelease("C4", "16n");
     }
 
-    function handleCollisions() {
-        const dist = ship.position.distanceTo(target.position);
-        if (dist < 22) { // Target radius (20) + Ship radius (2)
-            const impactForce = velocity.length();
-            shipHealth -= impactForce * params.pushPower * 100;
-            
-            // Bounce back
-            const bounceDir = ship.position.clone().sub(target.position).normalize();
-            velocity.copy(bounceDir.multiplyScalar(impactForce * 0.8 + 0.1));
-            
-            impactSynth.triggerAttackRelease("C1", "4n");
-            if(shipHealth < 0) { shipHealth = 100; ship.position.set(0,0,200); velocity.set(0,0,0); }
-        }
-    }
-
-    function updatePhysics() {
+    function updateControls() {
         const gp = navigator.getGamepads()[0];
-        const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(ship.quaternion);
-        const right = new THREE.Vector3(1, 0, 0).applyQuaternion(ship.quaternion);
-        const up = new THREE.Vector3(0, 1, 0).applyQuaternion(ship.quaternion);
+        const fwd = new THREE.Vector3(0,0,-1).applyQuaternion(ship.quaternion);
+        const right = new THREE.Vector3(1,0,0).applyQuaternion(ship.quaternion);
+        const up = new THREE.Vector3(0,1,0).applyQuaternion(ship.quaternion);
 
-        let isThrusting = false;
-        let currentMult = 1.0;
+        let moveMult = 1.0;
+        const boosting = keys['ShiftLeft'] || (gp && gp.axes[3] < -0.5);
+        const braking = keys['KeyX'] || (gp && gp.axes[3] > 0.5);
 
-        // Boost/Brake logic
-        if((keys['ShiftLeft'] || (gp && gp.axes[3] < -0.5)) && boostTank > 0) {
-            currentMult = 2.5; boostTank -= 0.6;
-        } else if((keys['KeyX'] || (gp && gp.axes[3] > 0.5)) && boostTank > 0) {
-            currentMult = 0.2; boostTank -= 0.3;
+        if((boosting || braking) && boostTank > 0) {
+            moveMult = boosting ? 2.8 : 0.3;
+            boostTank -= 0.6;
         } else {
             boostTank = Math.min(100, boostTank + params.boostRegen);
         }
 
-        // Key Mapping
-        if(keys['KeyR'] || (gp && gp.buttons[3].pressed)) { velocity.add(fwd.multiplyScalar(params.thrustFwd * currentMult)); isThrusting = true; }
-        if(keys['KeyF'] || (gp && gp.buttons[0].pressed)) { velocity.add(fwd.multiplyScalar(-params.thrustFwd)); isThrusting = true; }
-        if(keys['KeyA']) velocity.add(right.multiplyScalar(-params.thrustStrafe));
-        if(keys['KeyD']) velocity.add(right.multiplyScalar(params.thrustStrafe));
-        if(keys['KeyW']) velocity.add(up.multiplyScalar(params.thrustVertical));
-        if(keys['KeyS']) velocity.add(up.multiplyScalar(-params.thrustVertical));
-        if(keys['KeyQ']) ship.rotation.y += params.rotationSpeed;
-        if(keys['KeyE']) ship.rotation.y -= params.rotationSpeed;
+        // Translation
+        if(keys['KeyR'] || (gp && gp.buttons[3].pressed)) velocity.add(fwd.multiplyScalar(params.thrustRF * moveMult));
+        if(keys['KeyF'] || (gp && gp.buttons[0].pressed)) velocity.add(fwd.multiplyScalar(-params.thrustRF));
+        if(keys['KeyA'] || (gp && gp.axes[0] < -0.1)) velocity.add(right.multiplyScalar(-params.thrustAD));
+        if(keys['KeyD'] || (gp && gp.axes[0] > 0.1)) velocity.add(right.multiplyScalar(params.thrustAD));
+        if(keys['KeyW'] || (gp && gp.axes[1] < -0.1)) velocity.add(up.multiplyScalar(params.thrustWS));
+        if(keys['KeyS'] || (gp && gp.axes[1] > 0.1)) velocity.add(up.multiplyScalar(-params.thrustWS));
 
-        if(gp) {
-            velocity.add(right.multiplyScalar(gp.axes[0] * params.thrustStrafe));
-            velocity.add(up.multiplyScalar(-gp.axes[1] * params.thrustVertical));
-            ship.rotation.y -= gp.axes[2] * params.rotationSpeed;
-            if(gp.buttons[6].pressed || gp.buttons[7].pressed) isCharging = true;
-            else if(isCharging) { fireShot(); isCharging = false; chargeLevel = 0; }
-        }
+        // Rotation
+        if(keys['KeyQ'] || (gp && gp.axes[2] < -0.1)) ship.rotation.y += params.rotationQE;
+        if(keys['KeyE'] || (gp && gp.axes[2] > 0.1)) ship.rotation.y -= params.rotationQE;
 
-        if(keys['Space']) isCharging = true; else if(!gp && isCharging) { fireShot(); isCharging = false; chargeLevel = 0; }
+        // Firing
+        if(gp && (gp.buttons[6].pressed || gp.buttons[7].pressed)) {
+            if(!isCharging) isCharging = true;
+        } else if(gp && isCharging) { fire(); isCharging = false; }
 
-        if(isThrusting) engineEnv.triggerAttack(); else engineEnv.triggerRelease();
+        if(velocity.length() > 0.01) s_engine.env.triggerAttack(); else s_engine.env.triggerRelease();
 
-        // Environment Physics
-        velocity.y -= params.gravity;
         ship.position.add(velocity);
         velocity.multiplyScalar(params.friction);
         
-        handleCollisions();
+        // Collisions
+        if(ship.position.distanceTo(target.position) < 30) {
+            shipHealth -= velocity.length() * 10;
+            velocity.reflect(ship.position.clone().sub(target.position).normalize()).multiplyScalar(0.8);
+            s_impact.source.triggerAttackRelease("G2", "8n");
+        }
 
         camera.position.copy(ship.position);
         camera.quaternion.copy(ship.quaternion);
@@ -244,34 +226,38 @@
     function update() {
         requestAnimationFrame(update);
         if(!isActive) return;
-        updatePhysics();
+        updateControls();
 
-        projectiles.forEach((p, i) => {
-            p.mesh.position.add(p.velocity);
-            if(p.mesh.position.distanceTo(p.spawnPos) > params.shotFadeDist) {
-                p.mesh.material.opacity -= 0.05;
-                p.mesh.scale.multiplyScalar(params.shotShrinkSpeed);
+        // Projectiles
+        for(let i=projectiles.length-1; i>=0; i--) {
+            const p = projectiles[i];
+            p.mesh.position.add(p.vel);
+            const dist = p.mesh.position.distanceTo(p.spawn);
+            if(dist > params.shotFadeDist) {
+                p.life -= params.shotShrinkSpeed;
+                p.mesh.material.opacity = p.life;
+                p.mesh.scale.setScalar(p.life);
             }
-            if(p.mesh.position.distanceTo(target.position) < 20) {
-                targetHealth -= 10; score += 50;
+            if(p.mesh.position.distanceTo(target.position) < 25) {
+                targetHealth -= 5; score += 10;
                 scene.remove(p.mesh); projectiles.splice(i, 1);
-                if(targetHealth <= 0) targetHealth = 100;
+            } else if(p.life <= 0) {
+                scene.remove(p.mesh); projectiles.splice(i, 1);
             }
-        });
+        }
 
-        // UI Updates
-        target.material.color.set(params.targetColor);
-        target.material.opacity = params.targetOpacity;
-        const ch = document.getElementById('crosshair');
-        ch.style.width = ch.style.height = params.crosshairSize + 'px';
-        ch.style.opacity = params.crosshairOpacity;
+        // UI
         document.getElementById('hud').style.opacity = params.hudOpacity;
-        document.getElementById('target-health-fill').style.width = targetHealth + '%';
-        document.getElementById('ship-health-fill').style.width = shipHealth + '%';
         document.getElementById('boost-fill').style.width = boostTank + '%';
-        document.getElementById('hull-val').innerText = Math.max(0, Math.floor(shipHealth));
-        if(isCharging) chargeLevel = Math.min(chargeLevel + 0.02, 1);
-        document.getElementById('power-fill').style.width = (chargeLevel * 100) + '%';
+        document.getElementById('ship-health-fill').style.width = shipHealth + '%';
+        document.getElementById('target-health-fill').style.width = targetHealth + '%';
+        document.getElementById('vel-val').innerText = (velocity.length() * 100).toFixed(1);
+        document.getElementById('score').innerText = score;
+        const ch = document.getElementById('crosshair');
+        ch.style.opacity = params.crosshairOpacity;
+        ch.style.width = ch.style.height = params.crosshairSize + 'px';
+        target.material.color.set(params.dodecaColor);
+        target.material.opacity = params.dodecaOpacity;
 
         renderWaveform();
         renderer.render(scene, camera);
@@ -281,8 +267,8 @@
         const canvas = document.getElementById('waveform');
         const ctx = canvas.getContext('2d');
         const values = analyser.getValue();
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.beginPath(); ctx.strokeStyle = '#00ffaa';
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        ctx.beginPath(); ctx.strokeStyle = '#00ffaa'; ctx.lineWidth = 2;
         for(let i=0; i<values.length; i++) {
             const x = (i/values.length)*canvas.width;
             const y = (values[i]+1)/2*canvas.height;
@@ -291,69 +277,56 @@
         ctx.stroke();
     }
 
-    // --- GUI CONFIG ---
+    // --- GUI GENERATION ---
     const gui = new GUI();
+    const f1 = gui.addFolder('Thruster Dynamics');
+    f1.add(params, 'thrustRF', 0, 0.1).name('R/F Power');
+    f1.add(params, 'thrustAD', 0, 0.1).name('A/D Power');
+    f1.add(params, 'thrustWS', 0, 0.1).name('W/S Power');
+    f1.add(params, 'rotationQE', 0, 0.1).name('Q/E Rotation');
     
-    const phys = gui.addFolder('Physics & Dynamics');
-    phys.add(params, 'gravity', 0, 0.05);
-    phys.add(params, 'pushPower', 0, 1.0).name('Impact Force');
-    phys.add(params, 'friction', 0.9, 1.0);
-    phys.add(params, 'thrustFwd', 0.01, 0.1);
-    phys.add(params, 'rotationSpeed', 0.01, 0.1);
+    const f2 = gui.addFolder('Visual & FX');
+    f2.add(params, 'starCount', 1000, 10000).onChange(refreshStars);
+    f2.add(params, 'starOpacity', 0, 1).onChange(refreshStars);
+    f2.addColor(params, 'dodecaColor');
+    f2.add(params, 'dodecaOpacity', 0, 1);
+    f2.add(params, 'hudOpacity', 0, 1);
+    f2.add(params, 'crosshairOpacity', 0, 1);
 
-    const vis = gui.addFolder('Visual FX');
-    vis.add(params, 'starCount', 100, 10000).onChange(() => params.refreshStars());
-    vis.add(params, 'starOpacity', 0, 1).onChange(() => createStarfield());
-    vis.addColor(params, 'targetColor').name('Dodeca Color');
-    vis.add(params, 'targetOpacity', 0, 1).name('Dodeca Opacity');
-    vis.add(params, 'crosshairSize', 10, 200);
-    vis.add(params, 'hudOpacity', 0, 1);
+    const f3 = gui.addFolder('Weapon Systems');
+    f3.add(params, 'shotFadeDist', 100, 2000);
+    f3.add(params, 'shotShrinkSpeed', 0.001, 0.1);
 
-    function createAudioMenu() {
+    function buildAudioUI() {
         const root = document.getElementById('audio-controls-root');
-        const sounds = [
-            { name: 'Thrusters', obj: engineEnv, type: 'env', osc: engineNoise },
-            { name: 'Weaponry', obj: shotSynth, type: 'poly' },
-            { name: 'Collisions', obj: impactSynth, type: 'mono' }
-        ];
-
-        sounds.forEach(s => {
+        const sounds = [ {n: 'Engine', s: s_engine}, {n: 'Laser', s: s_shot}, {n: 'Impact', s: s_impact} ];
+        
+        sounds.forEach(item => {
             const folder = document.createElement('div');
             folder.className = 'audio-folder';
-            folder.innerHTML = `<div class="audio-folder-title">${s.name}</div>`;
+            folder.innerHTML = `<div class="audio-folder-title">${item.n} <span>▼</span></div>`;
+            const content = document.createElement('div');
+            content.className = 'audio-content';
             
-            // Volume / Gain
-            const volRow = document.createElement('div');
-            volRow.className = 'audio-row';
-            volRow.innerHTML = `<span>Gain (dB)</span><input type="range" min="-60" max="5" value="-10">`;
-            volRow.querySelector('input').oninput = (e) => {
-                if(s.obj.volume) s.obj.volume.value = e.target.value;
-            };
-            folder.appendChild(volRow);
-
-            // Oscillator Selection
-            if(s.type !== 'env') {
-                const oscRow = document.createElement('div');
-                oscRow.className = 'audio-row';
-                oscRow.innerHTML = `<span>Wave</span><select><option>sine</option><option>square</option><option>sawtooth</option><option>triangle</option></select>`;
-                oscRow.querySelector('select').onchange = (e) => {
-                    s.obj.set({ oscillator: { type: e.target.value }});
-                };
-                folder.appendChild(oscRow);
-            }
-
-            // ADSR Envelopes
-            ['attack', 'decay', 'sustain', 'release'].forEach(p => {
+            const addSlider = (label, min, max, step, start, cb) => {
                 const row = document.createElement('div');
                 row.className = 'audio-row';
-                row.innerHTML = `<span>${p[0].toUpperCase()}${p.slice(1)}</span><input type="range" min="0" max="3" step="0.01" value="0.2">`;
-                row.querySelector('input').oninput = (e) => {
-                    const val = parseFloat(e.target.value);
-                    if(s.type === 'env') s.obj[p] = val;
-                    else s.obj.set({ envelope: { [p]: val }});
-                };
-                folder.appendChild(row);
-            });
+                row.innerHTML = `<span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}" value="${start}">`;
+                row.querySelector('input').oninput = (e) => cb(parseFloat(e.target.value));
+                content.appendChild(row);
+            };
+
+            addSlider('Vol (dB)', -60, 0, 1, -10, v => item.s.vol.volume.value = v);
+            addSlider('Attack', 0, 2, 0.01, 0.1, v => item.s.source.set ? item.s.source.set({envelope:{attack:v}}) : item.s.env.attack = v);
+            addSlider('Decay', 0, 2, 0.01, 0.1, v => item.s.source.set ? item.s.source.set({envelope:{decay:v}}) : item.s.env.decay = v);
+            addSlider('Sustain', 0, 1, 0.01, 0.5, v => item.s.source.set ? item.s.source.set({envelope:{sustain:v}}) : item.s.env.sustain = v);
+            addSlider('Release', 0, 4, 0.01, 1, v => item.s.source.set ? item.s.source.set({envelope:{release:v}}) : item.s.env.release = v);
+            addSlider('Pan', -1, 1, 0.1, 0, v => item.s.pan.pan.value = v);
+            addSlider('Reverb', 0, 1, 0.1, 0.1, v => item.s.verb.wet.value = v);
+            addSlider('Distort', 0, 1, 0.1, 0, v => item.s.dist.distortion = v);
+
+            folder.querySelector('.audio-folder-title').onclick = () => content.classList.toggle('open');
+            folder.appendChild(content);
             root.appendChild(folder);
         });
     }
@@ -361,17 +334,24 @@
     window.addEventListener('keydown', e => {
         if(e.key.toLowerCase() === 'h') {
             const ag = document.getElementById('audio-gui');
-            ag.style.display = ag.style.display === 'block' ? 'none' : 'block';
-            const dgui = document.querySelector('.dg.main');
-            if(dgui) dgui.style.display = ag.style.display;
+            const state = ag.style.display === 'block' ? 'none' : 'block';
+            ag.style.display = state;
+            document.querySelector('.dg.main').style.display = state;
         }
     });
 
-    document.getElementById('start-btn').addEventListener('click', async () => {
-        await Tone.start(); isActive = true;
+    document.getElementById('start-btn').onclick = async () => {
+        await Tone.start();
+        isActive = true;
         document.getElementById('start-screen').style.display = 'none';
-        createAudioMenu(); update();
-    });
+        buildAudioUI();
+        update();
+    };
+
+    window.onresize = () => {
+        camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    };
 </script>
 </body>
 </html>
