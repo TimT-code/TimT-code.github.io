@@ -256,3 +256,122 @@
                 targetHealth -= 10; score += 50;
                 scene.remove(p.mesh); projectiles.splice(i, 1);
                 if(targetHealth <= 0) targetHealth = 100;
+            }
+        });
+
+        // UI Updates
+        target.material.color.set(params.targetColor);
+        target.material.opacity = params.targetOpacity;
+        const ch = document.getElementById('crosshair');
+        ch.style.width = ch.style.height = params.crosshairSize + 'px';
+        ch.style.opacity = params.crosshairOpacity;
+        document.getElementById('hud').style.opacity = params.hudOpacity;
+        document.getElementById('target-health-fill').style.width = targetHealth + '%';
+        document.getElementById('ship-health-fill').style.width = shipHealth + '%';
+        document.getElementById('boost-fill').style.width = boostTank + '%';
+        document.getElementById('hull-val').innerText = Math.max(0, Math.floor(shipHealth));
+        if(isCharging) chargeLevel = Math.min(chargeLevel + 0.02, 1);
+        document.getElementById('power-fill').style.width = (chargeLevel * 100) + '%';
+
+        renderWaveform();
+        renderer.render(scene, camera);
+    }
+
+    function renderWaveform() {
+        const canvas = document.getElementById('waveform');
+        const ctx = canvas.getContext('2d');
+        const values = analyser.getValue();
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.beginPath(); ctx.strokeStyle = '#00ffaa';
+        for(let i=0; i<values.length; i++) {
+            const x = (i/values.length)*canvas.width;
+            const y = (values[i]+1)/2*canvas.height;
+            if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        }
+        ctx.stroke();
+    }
+
+    // --- GUI CONFIG ---
+    const gui = new GUI();
+    
+    const phys = gui.addFolder('Physics & Dynamics');
+    phys.add(params, 'gravity', 0, 0.05);
+    phys.add(params, 'pushPower', 0, 1.0).name('Impact Force');
+    phys.add(params, 'friction', 0.9, 1.0);
+    phys.add(params, 'thrustFwd', 0.01, 0.1);
+    phys.add(params, 'rotationSpeed', 0.01, 0.1);
+
+    const vis = gui.addFolder('Visual FX');
+    vis.add(params, 'starCount', 100, 10000).onChange(() => params.refreshStars());
+    vis.add(params, 'starOpacity', 0, 1).onChange(() => createStarfield());
+    vis.addColor(params, 'targetColor').name('Dodeca Color');
+    vis.add(params, 'targetOpacity', 0, 1).name('Dodeca Opacity');
+    vis.add(params, 'crosshairSize', 10, 200);
+    vis.add(params, 'hudOpacity', 0, 1);
+
+    function createAudioMenu() {
+        const root = document.getElementById('audio-controls-root');
+        const sounds = [
+            { name: 'Thrusters', obj: engineEnv, type: 'env', osc: engineNoise },
+            { name: 'Weaponry', obj: shotSynth, type: 'poly' },
+            { name: 'Collisions', obj: impactSynth, type: 'mono' }
+        ];
+
+        sounds.forEach(s => {
+            const folder = document.createElement('div');
+            folder.className = 'audio-folder';
+            folder.innerHTML = `<div class="audio-folder-title">${s.name}</div>`;
+            
+            // Volume / Gain
+            const volRow = document.createElement('div');
+            volRow.className = 'audio-row';
+            volRow.innerHTML = `<span>Gain (dB)</span><input type="range" min="-60" max="5" value="-10">`;
+            volRow.querySelector('input').oninput = (e) => {
+                if(s.obj.volume) s.obj.volume.value = e.target.value;
+            };
+            folder.appendChild(volRow);
+
+            // Oscillator Selection
+            if(s.type !== 'env') {
+                const oscRow = document.createElement('div');
+                oscRow.className = 'audio-row';
+                oscRow.innerHTML = `<span>Wave</span><select><option>sine</option><option>square</option><option>sawtooth</option><option>triangle</option></select>`;
+                oscRow.querySelector('select').onchange = (e) => {
+                    s.obj.set({ oscillator: { type: e.target.value }});
+                };
+                folder.appendChild(oscRow);
+            }
+
+            // ADSR Envelopes
+            ['attack', 'decay', 'sustain', 'release'].forEach(p => {
+                const row = document.createElement('div');
+                row.className = 'audio-row';
+                row.innerHTML = `<span>${p[0].toUpperCase()}${p.slice(1)}</span><input type="range" min="0" max="3" step="0.01" value="0.2">`;
+                row.querySelector('input').oninput = (e) => {
+                    const val = parseFloat(e.target.value);
+                    if(s.type === 'env') s.obj[p] = val;
+                    else s.obj.set({ envelope: { [p]: val }});
+                };
+                folder.appendChild(row);
+            });
+            root.appendChild(folder);
+        });
+    }
+
+    window.addEventListener('keydown', e => {
+        if(e.key.toLowerCase() === 'h') {
+            const ag = document.getElementById('audio-gui');
+            ag.style.display = ag.style.display === 'block' ? 'none' : 'block';
+            const dgui = document.querySelector('.dg.main');
+            if(dgui) dgui.style.display = ag.style.display;
+        }
+    });
+
+    document.getElementById('start-btn').addEventListener('click', async () => {
+        await Tone.start(); isActive = true;
+        document.getElementById('start-screen').style.display = 'none';
+        createAudioMenu(); update();
+    });
+</script>
+</body>
+</html>
