@@ -2,318 +2,798 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Orbital Singularity: Unified Command</title>
+    <title>Orbital Singularity: Integrated Systems</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; user-select: none; }
-        #hud { position: absolute; inset: 0; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; z-index: 10; }
-        .row { display: flex; justify-content: space-between; width: 100%; }
-        .hud-text { color: #00ffaa; text-shadow: 0 0 5px #00ffaa; font-size: 14px; }
-        #bars-container { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 400px; text-align: center; }
-        .bar-label { font-size: 10px; color: #fff; letter-spacing: 2px; margin-bottom: 2px; display: block; }
-        .bar-track { width: 100%; height: 8px; background: rgba(255, 255, 255, 0.1); border: 1px solid #444; margin-bottom: 10px; position: relative; overflow: hidden; }
-        #target-health-fill { width: 100%; height: 100%; background: #00ffaa; transition: width 0.1s; }
-        #ship-health-fill { width: 100%; height: 100%; background: #ff3333; }
-        #boost-fill { width: 100%; height: 100%; background: #ffaa00; }
         
-        #power-container { position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%); width: 200px; height: 10px; background: #111; border: 1px solid #00ffaa; }
-        #power-fill { height: 100%; background: #00ffaa; width: 0%; box-shadow: 0 0 15px #00ffaa; }
+        /* --- HUD LAYOUT --- */
+        #hud-layer { position: absolute; inset: 0; pointer-events: none; z-index: 10; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; }
+        .row { display: flex; justify-content: space-between; width: 100%; }
+        .hud-text { color: #00ffaa; text-shadow: 0 0 5px #00ffaa; font-size: 14px; font-weight: bold; }
+        
+        /* Center Cluster */
+        #center-hud { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 400px; text-align: center; pointer-events: none; }
+        .bar-label { font-size: 10px; color: #fff; letter-spacing: 2px; margin-bottom: 2px; display: block; }
+        .bar-track { width: 100%; height: 8px; background: rgba(255, 255, 255, 0.1); border: 1px solid #444; margin-bottom: 8px; position: relative; }
+        .bar-fill { height: 100%; transition: width 0.1s linear; }
+        #fill-target { background: #00ffaa; }
+        #fill-hull { background: #ff3333; }
+        #fill-boost { background: #ffaa00; }
+        
+        /* Weapon Charge Bar */
+        #charge-container { position: absolute; bottom: 140px; left: 50%; transform: translateX(-50%); width: 200px; height: 4px; background: #222; }
+        #charge-fill { height: 100%; background: #fff; width: 0%; box-shadow: 0 0 10px #fff; }
+        #weapon-mode { position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%); color: #00ffaa; font-size: 12px; }
 
-        #crosshair { position: absolute; top: 50%; left: 50%; width: 60px; height: 60px; transform: translate(-50%, -50%); pointer-events: none; z-index: 15; border: 1px solid #00ffaa; border-radius: 50%; }
-        #weapon-indicator { position: absolute; bottom: 140px; left: 50%; transform: translateX(-50%); color: #00ffaa; font-size: 12px; text-transform: uppercase; }
+        /* Crosshair */
+        #crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60px; height: 60px; border: 1px solid rgba(0,255,170,0.3); border-radius: 50%; pointer-events: none; z-index: 5; }
+        #crosshair::after { content: ''; position: absolute; top: 29px; left: 29px; width: 2px; height: 2px; background: #fff; box-shadow: 0 0 4px #fff; }
 
-        #start-screen { position: absolute; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-        button { background: transparent; border: 2px solid #00ffaa; color: #00ffaa; padding: 20px 50px; cursor: pointer; font-family: inherit; font-size: 20px; transition: 0.3s; }
+        /* --- CUSTOM GUI SYSTEM --- */
+        #gui-container { position: absolute; top: 0; right: 0; width: 300px; height: 100vh; background: rgba(0, 0, 0, 0.85); border-left: 2px solid #00ffaa; overflow-y: auto; z-index: 100; font-family: sans-serif; display: none; }
+        .gui-header { background: #1a1a1a; color: #fff; padding: 10px; font-weight: bold; border-bottom: 1px solid #333; display: flex; justify-content: space-between; }
+        .gui-folder { border-bottom: 1px solid #222; }
+        .gui-folder-title { background: #000; color: #eee; padding: 6px 10px; cursor: pointer; font-size: 11px; font-weight: bold; border-left: 3px solid #333; select-user: none; }
+        .gui-folder-title.active { border-left: 3px solid #00ffaa; background: #111; }
+        .gui-content { display: none; }
+        .gui-content.open { display: block; }
+        
+        .gui-item { padding: 4px 10px; display: flex; align-items: center; justify-content: space-between; color: #ccc; font-size: 11px; height: 24px; border-left: 3px solid transparent; }
+        .gui-item.focused { background: #004433; border-left: 3px solid #00ffaa; color: #fff; }
+        .gui-item input[type="text"] { width: 50px; background: #222; border: none; color: #00ffaa; text-align: right; padding: 2px; }
+        .gui-item .slider-bg { flex-grow: 1; height: 10px; background: #222; margin: 0 10px; position: relative; }
+        .gui-item .slider-fill { height: 100%; background: #00ffaa; width: 50%; }
+
+        /* Virtual Numpad */
+        #numpad-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.8); z-index: 200; display: none; align-items: center; justify-content: center; }
+        #numpad { background: #111; border: 2px solid #00ffaa; padding: 20px; width: 200px; }
+        #numpad-display { width: 100%; background: #000; color: #00ffaa; border: 1px solid #333; padding: 10px; margin-bottom: 10px; font-size: 18px; text-align: right; box-sizing: border-box; }
+        .np-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+        .np-btn { background: #222; color: #fff; border: 1px solid #444; padding: 10px; cursor: pointer; text-align: center; }
+        .np-btn.active { background: #00ffaa; color: #000; }
+
+        /* Start Screen */
+        #start-screen { position: absolute; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        button { background: transparent; border: 2px solid #00ffaa; color: #00ffaa; padding: 15px 40px; font-size: 16px; cursor: pointer; font-family: 'Courier New'; margin-top: 20px; transition: 0.2s; }
         button:hover { background: #00ffaa; color: #000; box-shadow: 0 0 20px #00ffaa; }
-        .key-map { color: #888; font-size: 11px; margin-top: 20px; line-height: 1.6; }
+        .info { color: #888; margin-top: 20px; font-size: 12px; line-height: 1.5; text-align: center; }
     </style>
 </head>
 <body>
 
-<div id="start-screen">
-    <h1 style="color: #00ffaa; letter-spacing: 5px;">SYSTEM INTEGRATION COMPLETE</h1>
-    <button id="start-btn">INITIALIZE CORE</button>
-    <div class="key-map">
-        [R/F] Fwd/Back | [A/D] Strafe | [W/S] Vertical | [Q/E] Rotate<br>
-        [C / Right-Click / Gamepad X] Toggle Weapon System<br>
-        [SPACE / Left-Click / L2-R2] Charge & Release Shot
-    </div>
-</div>
-
-<div id="hud">
+<div id="hud-layer">
     <div class="row">
-        <div class="hud-text">VELOCITY: <span id="vel-val">0</span></div>
-        <div class="hud-text">SCORE: <span id="score">0</span></div>
+        <div class="hud-text">VEL: <span id="val-vel">0</span></div>
+        <div class="hud-text">SCORE: <span id="val-score">0</span></div>
     </div>
-    <div id="bars-container">
+    
+    <div id="center-hud">
         <span class="bar-label">TARGET INTEGRITY</span>
-        <div class="bar-track"><div id="target-health-fill"></div></div>
+        <div class="bar-track"><div id="fill-target" class="bar-fill" style="width: 100%"></div></div>
+        
         <span class="bar-label">SHIP HULL</span>
-        <div class="bar-track"><div id="ship-health-fill"></div></div>
+        <div class="bar-track"><div id="fill-hull" class="bar-fill" style="width: 100%"></div></div>
+        
+        <span class="bar-label">BOOST</span>
+        <div class="bar-track"><div id="fill-boost" class="bar-fill" style="width: 100%"></div></div>
     </div>
-    <div id="weapon-indicator">WEAPON: TACTICAL (6.1)</div>
-    <div id="power-container"><div id="power-fill"></div></div>
+
+    <div id="weapon-mode">SYSTEM: KINETIC [L2]</div>
+    <div id="charge-container"><div id="charge-fill"></div></div>
 </div>
 
 <div id="crosshair"></div>
 
+<div id="gui-container">
+    <div class="gui-header"><span id="gui-title">PHYSICS CONFIG</span></div>
+    <div id="gui-body"></div>
+</div>
+
+<div id="numpad-overlay">
+    <div id="numpad">
+        <div id="numpad-display">0.00</div>
+        <div class="np-grid" id="np-grid">
+            <div class="np-btn">7</div><div class="np-btn">8</div><div class="np-btn">9</div>
+            <div class="np-btn">4</div><div class="np-btn">5</div><div class="np-btn">6</div>
+            <div class="np-btn">1</div><div class="np-btn">2</div><div class="np-btn">3</div>
+            <div class="np-btn">0</div><div class="np-btn">.</div><div class="np-btn">DEL</div>
+            <div class="np-btn" style="grid-column: span 3; background: #004400; border-color: #00ffaa;">ENTER</div>
+        </div>
+    </div>
+</div>
+
+<div id="start-screen">
+    <h1 style="color: #00ffaa; letter-spacing: 5px;">ORBITAL SINGULARITY</h1>
+    <h3 style="color: #fff;">UNIFIED SYSTEMS</h3>
+    <button id="start-btn">ENGAGE</button>
+    <div class="info">
+        GAMEPAD REQUIRED FOR FULL EXPERIENCE<br>
+        [B] Toggle Menus | [D-PAD] Navigate GUI | [X] Swap Weapons<br>
+        [L2] Kinetic Charge (Release to Fire) | [R2] Tactical Rapid Fire<br>
+        [Right Stick] Edit Values | [Y] Numpad Entry
+    </div>
+</div>
+
 <script type="importmap">
     { "imports": { 
         "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-        "dat.gui": "https://unpkg.com/dat.gui@0.7.9/build/dat.gui.module.js"
+        "tone": "https://esm.sh/tone"
     } }
 </script>
 
 <script type="module">
     import * as THREE from 'three';
-    import * as Tone from 'https://esm.sh/tone';
-    import { GUI } from 'dat.gui';
+    import * as Tone from 'tone';
 
+    // --- GLOBAL STATE ---
+    const state = {
+        score: 0,
+        isActive: false,
+        activeWeapon: '4.0', // '4.0' (Kinetic) or '6.1' (Tactical)
+        chargeLevel: 0,
+        isChargingL: false,
+        isChargingR: false,
+        shipHealth: 100,
+        boost: 100,
+        targetHealth: 100,
+        menuMode: 0, // 0=Closed, 1=PhysicsGUI, 2=AudioGUI
+        guiFocus: { folder: 0, item: -1, editing: false }, // Navigation state
+        numpad: { active: false, value: "", targetParam: null, targetObj: null }
+    };
+
+    // --- PARAMETERS (Combined List) ---
     const params = {
-        // Shared Physics
-        gravity: 0.005,
-        friction: 0.98,
-        thrustRF: 0.03,
-        rotationQE: 0.04,
-        // Combat Systems
-        activeSystem: '6.1', // '4.0' or '6.1'
-        shotSpeed: 2.5,
-        shotDamage: 15,
-        pushPower: 0.05,
-        targetMaxHealth: 250,
-        // Visuals
-        starCount: 3000,
+        // Source 4.0: Physics & Controls
+        phys_gravity: 0.005,
+        phys_thrustPower: 0.03, // Combined logic default
+        phys_pushPower: 0.05,
+        phys_shotSpeed: 2.0,
+        
+        // Source 6.1: Thruster Dynamics
+        dyn_friction: 0.98,
+        dyn_thrustRF: 0.03,
+        dyn_thrustAD: 0.02,
+        dyn_boostRegen: 0.2,
+
+        // Source 6.1: Visual FX
+        vis_starCount: 3000,
+        vis_starOpacity: 0.8,
+        vis_dodecaColor: '#00ffaa',
+        vis_dodecaOpacity: 1.0,
+        vis_hudOpacity: 1.0,
+        vis_crosshairSize: 60,
+
+        // Source 6.1: Weaponry
+        weap_firePower: 15,
+        weap_fadeDist: 800,
+        weap_shrinkSpd: 0.01,
+        weap_opacSpd: 0.015,
+
+        // Source 6.1: Target Physics
+        targ_maxHealth: 250,
+        targ_damping: 0.99,
+
+        // Actions
         reset: () => resetGame()
     };
 
-    let score = 0, isActive = false, isCharging = false, chargeLevel = 0, shipHealth = 100;
-    let velocity = new THREE.Vector3(), targetHealth = params.targetMaxHealth;
-    let targetVelocity = new THREE.Vector3(), targetAngularVel = new THREE.Vector3();
-    const projectiles = [], particles = [], stickyParticles = [], keys = {};
-
+    // --- THREE.JS SETUP ---
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 5000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    // Audio
-    const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+    // --- AUDIO SYSTEM (Tone.js 6.1 Implementation) ---
+    const masterVol = new Tone.Volume(-10).toDestination();
+    const synthKinetic = new Tone.PolySynth(Tone.Synth).connect(masterVol);
+    const synthTactical = new Tone.MembraneSynth().connect(masterVol);
+    const noiseThrust = new Tone.Noise("pink").start();
+    const thrustVol = new Tone.Volume(-100).connect(masterVol);
+    noiseThrust.connect(thrustVol);
 
-    // --- STARFIELD (4.0 style) ---
-    let stars;
-    function initStars() {
-        if(stars) scene.remove(stars);
-        const starGeo = new THREE.BufferGeometry();
-        const starPos = [];
-        for(let i=0; i<params.starCount; i++) starPos.push((Math.random()-0.5)*4000, (Math.random()-0.5)*4000, (Math.random()-0.5)*4000);
-        starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
-        stars = new THREE.Points(starGeo, new THREE.PointsMaterial({color: 0xffffff, size: 1.5, transparent: true, opacity: 0.8}));
-        scene.add(stars);
-    }
-    initStars();
+    // Audio Params for GUI
+    const audioParams = {
+        masterVolume: -10,
+        thrustVolume: -20, // Max volume
+        reverbWet: 0.1
+    };
+    const reverb = new Tone.Reverb(2).connect(masterVol);
+    synthKinetic.connect(reverb);
 
-    // --- TARGET SYSTEM (4.0 Geometry Logic) ---
-    let target;
-    function spawnTarget() {
-        if(target) {
-            stickyParticles.forEach(p => target.remove(p.mesh));
-            stickyParticles.length = 0;
-            scene.remove(target);
-        }
-        const type = Math.floor(Math.random() * 3);
-        let geo = type === 0 ? new THREE.DodecahedronGeometry(20) : type === 1 ? new THREE.IcosahedronGeometry(20) : new THREE.OctahedronGeometry(20);
-        target = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ color: 0x00ffaa, flatShading: true }));
-        target.position.set((Math.random()-0.5)*400, (Math.random()-0.5)*400, (Math.random()-0.5)*400);
-        scene.add(target);
-        targetHealth = params.targetMaxHealth;
-        targetVelocity.set(0,0,0);
-        targetAngularVel.set(0,0,0);
-    }
-
+    // --- GAME OBJECTS ---
     const ship = new THREE.Object3D();
     ship.position.z = 300;
     scene.add(ship);
-    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-    const dLight = new THREE.DirectionalLight(0xffffff, 1.5);
-    dLight.position.set(10, 10, 10);
-    scene.add(dLight);
+    
+    let stars;
+    function createStars() {
+        if(stars) scene.remove(stars);
+        const geo = new THREE.BufferGeometry();
+        const pos = [];
+        for(let i=0; i<params.vis_starCount; i++) {
+            pos.push((Math.random()-0.5)*4000, (Math.random()-0.5)*4000, (Math.random()-0.5)*4000);
+        }
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        stars = new THREE.Points(geo, new THREE.PointsMaterial({
+            color: 0xffffff, size: 1.5, transparent: true, opacity: params.vis_starOpacity
+        }));
+        scene.add(stars);
+    }
+    createStars();
 
-    // --- WEAPON TOGGLE LOGIC ---
-    function toggleWeapon() {
-        params.activeSystem = params.activeSystem === '6.1' ? '4.0' : '6.1';
-        document.getElementById('weapon-indicator').innerText = `WEAPON: ${params.activeSystem === '6.1' ? 'TACTICAL (6.1)' : 'KINETIC (4.0)'}`;
-        // Visual Feedback
-        const col = params.activeSystem === '6.1' ? '#00ffaa' : '#ffaa00';
-        document.getElementById('weapon-indicator').style.color = col;
-        document.getElementById('power-fill').style.backgroundColor = col;
+    let target;
+    let targetVel = new THREE.Vector3();
+    let targetRot = new THREE.Vector3();
+    
+    function spawnTarget() {
+        if(target) { scene.remove(target); target = null; }
+        
+        // Index 4.0 Geometry Randomizer
+        const type = Math.floor(Math.random()*3);
+        let geo;
+        if(type === 0) geo = new THREE.DodecahedronGeometry(20);
+        else if(type === 1) geo = new THREE.IcosahedronGeometry(20);
+        else geo = new THREE.OctahedronGeometry(20);
+
+        target = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({
+            color: params.vis_dodecaColor, 
+            flatShading: true,
+            transparent: true,
+            opacity: params.vis_dodecaOpacity
+        }));
+        
+        target.position.set((Math.random()-0.5)*400, (Math.random()-0.5)*400, (Math.random()-0.5)*400);
+        scene.add(target);
+        
+        state.targetHealth = params.targ_maxHealth;
+        targetVel.set(0,0,0);
+        targetRot.set(0,0,0);
     }
 
-    window.addEventListener('keydown', e => {
-        keys[e.code] = true;
-        if(e.code === 'KeyC') toggleWeapon();
-    });
-    window.addEventListener('keyup', e => keys[e.code] = false);
-    window.addEventListener('mousedown', e => { if(e.button === 0) isCharging = true; if(e.button === 2) toggleWeapon(); });
-    window.addEventListener('mouseup', e => { if(e.button === 0 && isCharging) { fire(); isCharging = false; }});
-    window.addEventListener('contextmenu', e => e.preventDefault());
+    const lights = new THREE.Group();
+    lights.add(new THREE.AmbientLight(0xffffff, 0.5));
+    const dl = new THREE.DirectionalLight(0xffffff, 1);
+    dl.position.set(100,100,100);
+    lights.add(dl);
+    scene.add(lights);
 
-    function fire() {
+    const projectiles = [];
+    const particles = [];
+    const stickyParticles = [];
+
+    // --- GUI SYSTEM IMPLEMENTATION ---
+    const guiConfig = [
+        {
+            title: "Physics & Controls (4.0)",
+            items: [
+                { label: "Gravity", obj: params, prop: "phys_gravity", min: 0, max: 0.05, step: 0.001 },
+                { label: "Thrust Pwr", obj: params, prop: "phys_thrustPower", min: 0.01, max: 0.1, step: 0.01 },
+                { label: "Impact Force", obj: params, prop: "phys_pushPower", min: 0.01, max: 0.5, step: 0.01 },
+                { label: "Proj Speed", obj: params, prop: "phys_shotSpeed", min: 0.5, max: 5.0, step: 0.1 },
+                { label: "Reset System", action: params.reset }
+            ]
+        },
+        {
+            title: "Thruster Dynamics (6.1)",
+            items: [
+                { label: "Friction", obj: params, prop: "dyn_friction", min: 0.9, max: 1.0, step: 0.001 },
+                { label: "Fwd/Back", obj: params, prop: "dyn_thrustRF", min: 0, max: 0.1, step: 0.01 },
+                { label: "Strafe", obj: params, prop: "dyn_thrustAD", min: 0, max: 0.1, step: 0.01 },
+                { label: "Boost Regen", obj: params, prop: "dyn_boostRegen", min: 0.05, max: 1.0, step: 0.01 }
+            ]
+        },
+        {
+            title: "Visual FX (6.1)",
+            items: [
+                { label: "Star Count", obj: params, prop: "vis_starCount", min: 1000, max: 10000, step: 100, onChange: createStars },
+                { label: "Star Opac", obj: params, prop: "vis_starOpacity", min: 0, max: 1, step: 0.1, onChange: createStars },
+                { label: "Target Opac", obj: params, prop: "vis_dodecaOpacity", min: 0, max: 1, step: 0.1 },
+                { label: "HUD Opac", obj: params, prop: "vis_hudOpacity", min: 0, max: 1, step: 0.1 },
+                { label: "Crosshair", obj: params, prop: "vis_crosshairSize", min: 10, max: 200, step: 1 }
+            ]
+        },
+        {
+            title: "Weaponry (6.1)",
+            items: [
+                { label: "Fire Power", obj: params, prop: "weap_firePower", min: 5, max: 100, step: 1 },
+                { label: "Fade Dist", obj: params, prop: "weap_fadeDist", min: 100, max: 1500, step: 50 }
+            ]
+        },
+        {
+            title: "Target Physics (6.1)",
+            items: [
+                { label: "Max Health", obj: params, prop: "targ_maxHealth", min: 50, max: 1000, step: 10 },
+                { label: "Spin Damp", obj: params, prop: "targ_damping", min: 0.8, max: 1.0, step: 0.001 }
+            ]
+        }
+    ];
+
+    const audioConfig = [
+        {
+            title: "Master Audio",
+            items: [
+                { label: "Volume dB", obj: audioParams, prop: "masterVolume", min: -60, max: 0, step: 1, onChange: () => masterVol.volume.rampTo(audioParams.masterVolume, 0.1) },
+                { label: "Reverb", obj: audioParams, prop: "reverbWet", min: 0, max: 1, step: 0.1, onChange: () => reverb.wet.value = audioParams.reverbWet }
+            ]
+        }
+    ];
+
+    function renderGUI(config, title) {
+        const container = document.getElementById('gui-body');
+        document.getElementById('gui-title').innerText = title;
+        container.innerHTML = '';
+        
+        config.forEach((folder, fIdx) => {
+            const fDiv = document.createElement('div');
+            fDiv.className = 'gui-folder';
+            
+            const titleDiv = document.createElement('div');
+            titleDiv.className = 'gui-folder-title';
+            titleDiv.innerText = folder.title;
+            if (state.guiFocus.folder === fIdx && state.guiFocus.item === -1) titleDiv.classList.add('active');
+            fDiv.appendChild(titleDiv);
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'gui-content';
+            if (state.guiFocus.folder === fIdx) contentDiv.classList.add('open');
+
+            folder.items.forEach((item, iIdx) => {
+                const iDiv = document.createElement('div');
+                iDiv.className = 'gui-item';
+                if (state.guiFocus.folder === fIdx && state.guiFocus.item === iIdx) iDiv.classList.add('focused');
+                
+                // Label
+                const lbl = document.createElement('span');
+                lbl.innerText = item.label;
+                iDiv.appendChild(lbl);
+
+                if (item.action) {
+                    const btn = document.createElement('span');
+                    btn.innerText = "[PRESS]";
+                    btn.style.color = "#aaa";
+                    iDiv.appendChild(btn);
+                } else {
+                    // Slider Background
+                    const slideBg = document.createElement('div');
+                    slideBg.className = 'slider-bg';
+                    const slideFill = document.createElement('div');
+                    slideFill.className = 'slider-fill';
+                    
+                    const pct = (item.obj[item.prop] - item.min) / (item.max - item.min);
+                    slideFill.style.width = (pct * 100) + '%';
+                    if(state.guiFocus.editing && state.guiFocus.folder === fIdx && state.guiFocus.item === iIdx) {
+                        slideFill.style.background = '#fff'; // Edit Mode Highlight
+                    }
+                    slideBg.appendChild(slideFill);
+                    iDiv.appendChild(slideBg);
+
+                    // Value Input
+                    const valDisp = document.createElement('input');
+                    valDisp.type = 'text';
+                    valDisp.value = typeof item.obj[item.prop] === 'number' ? item.obj[item.prop].toFixed(2) : item.obj[item.prop];
+                    valDisp.readOnly = true;
+                    iDiv.appendChild(valDisp);
+                }
+                contentDiv.appendChild(iDiv);
+            });
+
+            fDiv.appendChild(contentDiv);
+            container.appendChild(fDiv);
+        });
+    }
+
+    // --- GAME LOOP & LOGIC ---
+    let velocity = new THREE.Vector3();
+    const keys = {};
+
+    function resetGame() {
+        state.score = 0;
+        state.shipHealth = 100;
+        velocity.set(0,0,0);
+        ship.position.set(0,0,300);
+        spawnTarget();
+    }
+
+    function fire(type, charge) {
         const dir = new THREE.Vector3(0,0,-1).applyQuaternion(ship.quaternion);
-        const spawnPos = new THREE.Vector3();
-        ship.getWorldPosition(spawnPos);
+        const spawn = ship.position.clone();
+        
+        let mesh, dmg;
 
-        let shot;
-        if(params.activeSystem === '6.1') {
-            // 6.1 Logic: Sphere with Fading
-            shot = new THREE.Mesh(new THREE.SphereGeometry(1.5 + (chargeLevel*3)), new THREE.MeshBasicMaterial({color: 0x00ffaa, transparent: true}));
+        if (type === '4.0') {
+            // Kinetic / Index 4 style
+            const s = 1.0 + (charge * 2.0);
+            mesh = new THREE.Mesh(new THREE.BoxGeometry(s,s,s), new THREE.MeshBasicMaterial({color:0xffaa00}));
+            dmg = 20 + (charge * 50);
+            synthKinetic.triggerAttackRelease(200 - (charge*100), "8n");
+            // Add sticky physics tag
+            projectiles.push({ mesh, vel: dir.clone().multiplyScalar(params.phys_shotSpeed * 2), type: 'sticky', dmg, life: 3.0 });
         } else {
-            // 4.0 Logic: Kinetic Heavy Shot
-            shot = new THREE.Mesh(new THREE.BoxGeometry(2 + chargeLevel*4, 2, 2), new THREE.MeshBasicMaterial({color: 0xffaa00}));
+            // Tactical / Index 6.1 style
+            mesh = new THREE.Mesh(new THREE.SphereGeometry(1.5), new THREE.MeshBasicMaterial({color: 0x00ffaa, transparent: true}));
+            dmg = params.weap_firePower;
+            synthTactical.triggerAttackRelease("C4", "32n");
+            projectiles.push({ mesh, vel: dir.clone().multiplyScalar(4.0), type: 'fade', dmg, life: 1.0, opacity: 1.0 });
+        }
+        
+        mesh.position.copy(spawn);
+        scene.add(mesh);
+    }
+
+    // --- INPUT HANDLING ---
+    const gpState = { b: false, x: false, up: false, down: false, left: false, right: false, y: false };
+    
+    function handleInputs() {
+        if (!state.isActive) return;
+
+        // 1. Menu Toggle (B / H)
+        const gp = navigator.getGamepads()[0];
+        const keyH = keys['KeyH'];
+        const btnB = gp ? gp.buttons[1].pressed : false;
+
+        if ((keyH || btnB) && !gpState.b) {
+            state.menuMode = (state.menuMode + 1) % 3; // 0->1->2->0
+            const guiCont = document.getElementById('gui-container');
+            if (state.menuMode === 0) guiCont.style.display = 'none';
+            else {
+                guiCont.style.display = 'block';
+                // Reset nav to top when opening
+                state.guiFocus = { folder: 0, item: -1, editing: false }; 
+                renderGUI(state.menuMode === 1 ? guiConfig : audioConfig, state.menuMode === 1 ? "PHYSICS" : "AUDIO");
+            }
+        }
+        gpState.b = (keyH || btnB);
+
+        // 2. Menu Navigation (If Open)
+        if (state.menuMode > 0 && !state.numpad.active) {
+            handleMenuNav(gp);
+        } 
+        // 3. Numpad Navigation
+        else if (state.numpad.active) {
+            handleNumpad(gp);
+        }
+        // 4. Game Control (If Menu Closed)
+        else {
+            handleShipControl(gp);
+        }
+    }
+
+    function handleMenuNav(gp) {
+        const dUp = (keys['ArrowUp'] || (gp && gp.axes[7] < -0.5));
+        const dDn = (keys['ArrowDown'] || (gp && gp.axes[7] > 0.5));
+        const dLt = (keys['ArrowLeft'] || (gp && gp.axes[6] < -0.5));
+        const dRt = (keys['ArrowRight'] || (gp && gp.axes[6] > 0.5));
+        const btnY = (keys['KeyY'] || (gp && gp.buttons[3].pressed)); // Toggle Numpad
+
+        const config = state.menuMode === 1 ? guiConfig : audioConfig;
+        const activeFolder = config[state.guiFocus.folder];
+        
+        // Cooldown for navigation
+        if (Date.now() - (state.navTime || 0) < 150) return;
+
+        if (state.guiFocus.editing) {
+            // EDIT MODE
+            const item = activeFolder.items[state.guiFocus.item];
+            
+            // Exit Edit
+            if (dLt && !gpState.left) { 
+                state.guiFocus.editing = false; 
+                state.navTime = Date.now();
+            }
+            // Open Numpad
+            if ((btnY || (gp && gp.buttons[0].pressed)) && !gpState.y) {
+                openNumpad(item);
+                state.navTime = Date.now();
+            }
+            // Slider Adjust (Right Stick or D-Left/Right Hold)
+            let delta = 0;
+            if (gp && Math.abs(gp.axes[2]) > 0.2) delta = gp.axes[2] * 0.05; // Right stick X
+            if (keys['ArrowRight']) delta = 0.01;
+            if (keys['ArrowLeft']) delta = -0.01;
+
+            if (delta !== 0) {
+                let val = item.obj[item.prop];
+                val += delta * (item.max - item.min);
+                val = Math.max(item.min, Math.min(item.max, val));
+                item.obj[item.prop] = val;
+                if (item.onChange) item.onChange();
+            }
+        } else {
+            // NAVIGATION MODE
+            if (dUp && !gpState.up) {
+                if (state.guiFocus.item > -1) state.guiFocus.item--;
+                else {
+                    state.guiFocus.folder = (state.guiFocus.folder - 1 + config.length) % config.length;
+                    state.guiFocus.item = -1; // Select header
+                }
+                state.navTime = Date.now();
+            }
+            if (dDn && !gpState.down) {
+                if (state.guiFocus.item < activeFolder.items.length - 1) state.guiFocus.item++;
+                else if (state.guiFocus.item === -1 && activeFolder.items.length > 0) state.guiFocus.item = 0;
+                else {
+                    state.guiFocus.folder = (state.guiFocus.folder + 1) % config.length;
+                    state.guiFocus.item = -1;
+                }
+                state.navTime = Date.now();
+            }
+            if (dRt && !gpState.right) {
+                if (state.guiFocus.item === -1) {
+                    // It's a folder, just visual expand (handled by render)
+                    state.guiFocus.item = 0; // enter folder
+                } else {
+                    // It's an item
+                    const item = activeFolder.items[state.guiFocus.item];
+                    if (item.action) { item.action(); } // Button
+                    else { state.guiFocus.editing = true; } // Slider
+                }
+                state.navTime = Date.now();
+            }
+            if (dLt && !gpState.left) {
+                if (state.guiFocus.item !== -1) state.guiFocus.item = -1; // Back to header
+                state.navTime = Date.now();
+            }
         }
 
-        shot.position.copy(spawnPos);
-        projectiles.push({
-            mesh: shot,
-            vel: dir.multiplyScalar(params.shotSpeed + chargeLevel * 5),
-            type: params.activeSystem,
-            damage: params.shotDamage + (chargeLevel * 100),
-            opacity: 1.0,
-            life: 1.0
-        });
-        scene.add(shot);
-        synth.triggerAttackRelease(100 + (chargeLevel * 400), "8n");
-        chargeLevel = 0;
+        // Render update
+        renderGUI(config, state.menuMode === 1 ? "PHYSICS" : "AUDIO");
+        
+        gpState.up = dUp; gpState.down = dDn; gpState.left = dLt; gpState.right = dRt; gpState.y = btnY;
     }
 
-    function handleInput() {
-        const gp = navigator.getGamepads()[0];
+    // --- VIRTUAL NUMPAD LOGIC ---
+    let npIndex = 0; // 0-9, ., DEL, ENTER
+    const npMap = ['7','8','9','4','5','6','1','2','3','0','.','DEL','ENTER'];
+    
+    function openNumpad(item) {
+        state.numpad.active = true;
+        state.numpad.value = "";
+        state.numpad.targetParam = item;
+        document.getElementById('numpad-overlay').style.display = 'flex';
+        renderNumpad();
+    }
+
+    function renderNumpad() {
+        const grids = document.querySelectorAll('.np-btn');
+        grids.forEach((g, i) => {
+            if (i === npIndex) g.classList.add('active');
+            else g.classList.remove('active');
+        });
+        document.getElementById('numpad-display').innerText = state.numpad.value + "_";
+    }
+
+    function handleNumpad(gp) {
+        if (Date.now() - (state.navTime || 0) < 150) return;
+        
+        const dUp = (keys['ArrowUp'] || (gp && gp.axes[7] < -0.5));
+        const dDn = (keys['ArrowDown'] || (gp && gp.axes[7] > 0.5));
+        const dLt = (keys['ArrowLeft'] || (gp && gp.axes[6] < -0.5));
+        const dRt = (keys['ArrowRight'] || (gp && gp.axes[6] > 0.5));
+        const btnA = (keys['Enter'] || (gp && gp.buttons[0].pressed)); // Select
+
+        if (dUp && !gpState.up) { npIndex = Math.max(0, npIndex - 3); state.navTime = Date.now(); }
+        if (dDn && !gpState.down) { npIndex = Math.min(12, npIndex + 3); state.navTime = Date.now(); }
+        if (dLt && !gpState.left) { npIndex = Math.max(0, npIndex - 1); state.navTime = Date.now(); }
+        if (dRt && !gpState.right) { npIndex = Math.min(12, npIndex + 1); state.navTime = Date.now(); }
+
+        if (btnA && !gpState.x) {
+            const char = npMap[npIndex];
+            if (char === 'DEL') state.numpad.value = state.numpad.value.slice(0, -1);
+            else if (char === 'ENTER') {
+                // Save and Close
+                const num = parseFloat(state.numpad.value);
+                if (!isNaN(num)) {
+                    state.numpad.targetParam.obj[state.numpad.targetParam.prop] = num;
+                    if(state.numpad.targetParam.onChange) state.numpad.targetParam.onChange();
+                }
+                closeNumpad();
+            } else {
+                state.numpad.value += char;
+            }
+            state.navTime = Date.now();
+        }
+        
+        gpState.up = dUp; gpState.down = dDn; gpState.left = dLt; gpState.right = dRt; gpState.x = btnA;
+        renderNumpad();
+    }
+
+    function closeNumpad() {
+        state.numpad.active = false;
+        document.getElementById('numpad-overlay').style.display = 'none';
+        renderGUI(state.menuMode === 1 ? guiConfig : audioConfig, state.menuMode === 1 ? "PHYSICS" : "AUDIO");
+    }
+
+    // --- SHIP & COMBAT CONTROL ---
+    function handleShipControl(gp) {
+        // Toggle Weapon System (X / C / Right Click)
+        const btnX = gp ? gp.buttons[2].pressed : false; // Xbox X / PS Square
+        const keyC = keys['KeyC'];
+        
+        if ((btnX || keyC) && !gpState.x) {
+            state.activeWeapon = state.activeWeapon === '4.0' ? '6.1' : '4.0';
+            const name = state.activeWeapon === '4.0' ? 'KINETIC [L2]' : 'TACTICAL [R2]';
+            document.getElementById('weapon-mode').innerText = "SYSTEM: " + name;
+            
+            // Visual toggle
+            const col = state.activeWeapon === '4.0' ? '#ffaa00' : '#00ffaa';
+            document.getElementById('weapon-mode').style.color = col;
+            document.getElementById('crosshair').style.borderColor = col;
+            document.getElementById('fill-target').style.background = col;
+        }
+        gpState.x = (btnX || keyC);
+
+        // Firing Logic
+        // L2 (Index 4) -> Kinetic Charge/Release
+        const L2 = (keys['ShiftLeft'] || (gp && gp.buttons[6].value > 0.1));
+        // R2 (Index 5) -> Tactical Rapid
+        const R2 = (keys['Space'] || (gp && gp.buttons[7].value > 0.1));
+
+        // Kinetic (L2) - Charge and Release
+        if (L2) {
+            state.isChargingL = true;
+            state.chargeLevel = Math.min(1.0, state.chargeLevel + 0.02);
+        } else {
+            if (state.isChargingL) {
+                fire('4.0', state.chargeLevel);
+                state.chargeLevel = 0;
+                state.isChargingL = false;
+            }
+        }
+
+        // Tactical (R2) - Rapid Fire
+        if (R2) {
+            if (Date.now() - (state.lastShot || 0) > 150) {
+                fire('6.1', 0);
+                state.lastShot = Date.now();
+            }
+        }
+
+        document.getElementById('charge-fill').style.width = (state.chargeLevel * 100) + '%';
+
+        // Movement (Index 6.1 Logic)
         const fwd = new THREE.Vector3(0,0,-1).applyQuaternion(ship.quaternion);
         const right = new THREE.Vector3(1,0,0).applyQuaternion(ship.quaternion);
+        
+        let boost = 1.0;
+        if ((keys['ShiftRight'] || (gp && gp.buttons[4].pressed)) && state.boost > 0) {
+            boost = 3.0;
+            state.boost -= 1;
+        } else {
+            state.boost = Math.min(100, state.boost + params.dyn_boostRegen);
+        }
+        document.getElementById('fill-boost').style.width = state.boost + '%';
 
-        // Movement (6.1 style)
-        if(keys['KeyR'] || (gp && gp.buttons[3].pressed)) velocity.add(fwd.multiplyScalar(params.thrustRF));
-        if(keys['KeyF'] || (gp && gp.buttons[0].pressed)) velocity.add(fwd.multiplyScalar(-params.thrustRF));
-        if(keys['KeyA']) velocity.add(right.multiplyScalar(-0.02));
-        if(keys['KeyD']) velocity.add(right.multiplyScalar(0.02));
+        // Keyboard
+        if(keys['KeyR']) velocity.add(fwd.clone().multiplyScalar(params.dyn_thrustRF * boost));
+        if(keys['KeyF']) velocity.add(fwd.clone().multiplyScalar(-params.dyn_thrustRF));
+        if(keys['KeyA']) velocity.add(right.clone().multiplyScalar(-params.dyn_thrustAD));
+        if(keys['KeyD']) velocity.add(right.clone().multiplyScalar(params.dyn_thrustAD));
         if(keys['KeyQ']) ship.rotation.y += params.rotationQE;
         if(keys['KeyE']) ship.rotation.y -= params.rotationQE;
 
-        // Dynamic Gamepad Firing Logic
-        // System 6.1 (Tactical) defaults to R1/R2. System 4.0 (Kinetic) defaults to L1/L2.
-        // Toggle (Button X / index 2) swaps this mapping mentally.
-        const fireL = gp ? (gp.buttons[4].pressed || gp.buttons[6].value > 0.1) : false;
-        const fireR = gp ? (gp.buttons[5].pressed || gp.buttons[7].value > 0.1) : false;
-        const btnX = gp ? gp.buttons[2].pressed : false;
-
-        if(btnX && !keys['_gpX']) { toggleWeapon(); keys['_gpX'] = true; } 
-        if(!btnX) keys['_gpX'] = false;
-
-        // Determine if current triggers match current weapon system
-        const triggerActive = (params.activeSystem === '6.1') ? fireR : fireL;
-
-        if(keys['Space'] || triggerActive) {
-            isCharging = true;
-            chargeLevel = Math.min(1, chargeLevel + 0.015);
-        } else if (isCharging) {
-            fire();
-            isCharging = false;
+        // Gamepad Axes
+        if(gp) {
+            if(Math.abs(gp.axes[1]) > 0.1) velocity.add(fwd.clone().multiplyScalar(-gp.axes[1] * params.dyn_thrustRF * boost));
+            if(Math.abs(gp.axes[0]) > 0.1) velocity.add(right.clone().multiplyScalar(gp.axes[0] * params.dyn_thrustAD));
+            if(Math.abs(gp.axes[2]) > 0.1) ship.rotation.y -= gp.axes[2] * params.rotationQE;
         }
 
+        // Audio Engine (Volume by thrust)
+        const thrustAmt = velocity.length();
+        thrustVol.volume.rampTo(Math.min(audioParams.thrustVolume, -40 + (thrustAmt*500)), 0.1);
+
         ship.position.add(velocity);
-        velocity.multiplyScalar(params.friction);
+        velocity.multiplyScalar(params.dyn_friction);
+        
+        // Camera Follow
         camera.position.copy(ship.position);
         camera.quaternion.copy(ship.quaternion);
     }
 
     function update() {
         requestAnimationFrame(update);
-        if(!isActive) return;
-        handleInput();
+        handleInputs();
 
-        // Target Physics
-        target.position.add(targetVelocity);
-        target.rotation.x += targetAngularVel.x;
-        target.rotation.y += targetAngularVel.y;
-        targetVelocity.multiplyScalar(0.98);
-        targetAngularVel.multiplyScalar(0.98);
+        if (!state.isActive) return;
+
+        // Target Logic
+        if(target) {
+            target.position.add(targetVel);
+            target.rotation.x += targetRot.x;
+            target.rotation.y += targetRot.y;
+            targetVel.multiplyScalar(0.99);
+            targetRot.multiplyScalar(params.targ_damping);
+        }
 
         // Projectiles
-        for(let i=projectiles.length-1; i>=0; i--) {
+        for (let i = projectiles.length - 1; i >= 0; i--) {
             const p = projectiles[i];
             p.mesh.position.add(p.vel);
+            p.life -= 0.01;
 
-            if(p.type === '6.1') {
-                p.opacity -= 0.01;
-                p.mesh.material.opacity = p.opacity;
-                if(p.opacity <= 0) { scene.remove(p.mesh); projectiles.splice(i, 1); continue; }
+            if (p.type === 'fade') {
+                p.mesh.material.opacity = p.life;
             }
 
-            if(p.mesh.position.distanceTo(target.position) < 25) {
-                targetHealth -= p.damage;
-                score += 10;
+            // Collision
+            if (target && p.mesh.position.distanceTo(target.position) < 25) {
+                // Impact Logic
+                state.score += (p.type === 'sticky' ? 50 : 10);
+                state.targetHealth -= p.dmg;
                 
-                // 4.0 Impact Physics: Push + Torque
-                const pushDir = p.vel.clone().normalize();
-                targetVelocity.add(pushDir.multiplyScalar(params.pushPower * (p.damage/10)));
-                const hitVec = p.mesh.position.clone().sub(target.position).normalize();
-                targetAngularVel.add(new THREE.Vector3().crossVectors(hitVec, pushDir).multiplyScalar(0.05));
+                // Physics Impulse
+                const push = p.vel.clone().normalize().multiplyScalar(params.phys_pushPower);
+                targetVel.add(push);
+                
+                // Spin
+                targetRot.x += Math.random()*0.01;
+                targetRot.y += Math.random()*0.01;
 
-                if(p.type === '4.0') {
-                    // Create Sticky Particle (4.0 style)
-                    const sticky = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshBasicMaterial({color: 0xffaa00}));
-                    target.worldToLocal(p.mesh.position);
-                    sticky.position.copy(p.mesh.position);
-                    target.add(sticky);
-                    stickyParticles.push({mesh: sticky, life: 1.0});
+                if (p.type === 'sticky') {
+                    // Stick to target
+                    target.attach(p.mesh);
+                    stickyParticles.push(p.mesh);
+                    projectiles.splice(i, 1);
+                } else {
+                    scene.remove(p.mesh);
+                    projectiles.splice(i, 1);
                 }
 
-                scene.remove(p.mesh); projectiles.splice(i, 1);
-                if(targetHealth <= 0) { spawnTarget(); score += 500; }
+                if (state.targetHealth <= 0) {
+                    spawnTarget();
+                    // Clear sticky
+                    stickyParticles.forEach(sp => {
+                         if(sp.parent) sp.parent.remove(sp);
+                    });
+                    stickyParticles.length = 0;
+                }
+            } else if (p.life <= 0) {
+                scene.remove(p.mesh);
+                projectiles.splice(i, 1);
             }
         }
 
-        document.getElementById('power-fill').style.width = (chargeLevel * 100) + '%';
-        document.getElementById('target-health-fill').style.width = (targetHealth / params.targetMaxHealth * 100) + '%';
-        document.getElementById('score').innerText = score;
+        // HUD Updates
+        document.getElementById('val-vel').innerText = Math.floor(velocity.length()*100);
+        document.getElementById('val-score').innerText = state.score;
+        document.getElementById('fill-target').style.width = Math.max(0, state.targetHealth / params.targ_maxHealth * 100) + '%';
+        
+        // GUI update visual slider positions if values changed by game logic (rare here but good practice)
+        if(state.menuMode > 0) {
+            // Re-render only if values drift? No, costly. 
+            // Just let the render loop handle DOM updates if necessary, 
+            // but for now we only update on input.
+        }
 
         renderer.render(scene, camera);
     }
 
-    function resetGame() {
-        score = 0; shipHealth = 100;
-        velocity.set(0,0,0);
-        spawnTarget();
-    }
-
-    // --- GUI INTEGRATION ---
-    const gui = new GUI();
-    const fPhys = gui.addFolder('Flight & Physics');
-    fPhys.add(params, 'gravity', 0, 0.02);
-    fPhys.add(params, 'friction', 0.9, 1.0);
-    fPhys.add(params, 'thrustRF', 0.01, 0.1).name('Main Engine');
-
-    const fCombat = gui.addFolder('Weapon Systems');
-    fCombat.add(params, 'shotSpeed', 1, 10);
-    fCombat.add(params, 'shotDamage', 1, 50);
-    fCombat.add(params, 'pushPower', 0.01, 0.2).name('Impact Force');
-    
-    const fWorld = gui.addFolder('Universe');
-    fWorld.add(params, 'starCount', 500, 10000).onChange(initStars);
-    fWorld.add(params, 'targetMaxHealth', 50, 1000);
-    fWorld.add(params, 'reset');
+    // --- INIT ---
+    window.addEventListener('keydown', e => keys[e.code] = true);
+    window.addEventListener('keyup', e => keys[e.code] = false);
+    window.addEventListener('mousedown', e => {
+        if(e.button===2) { // Right Click
+            keys['KeyC'] = true; // Trigger toggle logic
+            setTimeout(()=>keys['KeyC']=false, 100);
+        }
+    });
+    window.addEventListener('contextmenu', e => e.preventDefault());
 
     document.getElementById('start-btn').onclick = async () => {
         await Tone.start();
-        isActive = true;
         document.getElementById('start-screen').style.display = 'none';
+        state.isActive = true;
         spawnTarget();
         update();
     };
 
     window.onresize = () => {
-        camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix();
+        camera.aspect = window.innerWidth/window.innerHeight; 
+        camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
     };
+
 </script>
 </body>
 </html>
