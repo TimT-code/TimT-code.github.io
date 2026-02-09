@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Orbital Singularity: Unified Command</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; user-select: none; }
+        #hud { position: absolute; inset: 0; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; z-index: 10; }
+        .row { display: flex; justify-content: space-between; width: 100%; }
+        .hud-text { color: #00ffaa; text-shadow: 0 0 5px #00ffaa; font-size: 14px; }
+        #bars-container { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 400px; text-align: center; }
+        .bar-label { font-size: 10px; color: #fff; letter-spacing: 2px; margin-bottom: 2px; display: block; }
+        .bar-track { width: 100%; height: 8px; background: rgba(255, 255, 255, 0.1); border: 1px solid #444; margin-bottom: 10px; position: relative; overflow: hidden; }
+        #target-health-fill { width: 100%; height: 100%; background: #00ffaa; transition: width 0.1s; }
+        #ship-health-fill { width: 100%; height: 100%; background: #ff3333; }
+        #boost-fill { width: 100%; height: 100%; background: #ffaa00; }
+        
+        #power-container { position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%); width: 200px; height: 10px; background: #111; border: 1px solid #00ffaa; }
+        #power-fill { height: 100%; background: #00ffaa; width: 0%; box-shadow: 0 0 15px #00ffaa; }
+
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 60px; height: 60px; transform: translate(-50%, -50%); pointer-events: none; z-index: 15; border: 1px solid #00ffaa; border-radius: 50%; }
+        #weapon-indicator { position: absolute; bottom: 140px; left: 50%; transform: translateX(-50%); color: #00ffaa; font-size: 12px; text-transform: uppercase; }
+
+        #start-screen { position: absolute; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        button { background: transparent; border: 2px solid #00ffaa; color: #00ffaa; padding: 20px 50px; cursor: pointer; font-family: inherit; font-size: 20px; transition: 0.3s; }
+        button:hover { background: #00ffaa; color: #000; box-shadow: 0 0 20px #00ffaa; }
+        .key-map { color: #888; font-size: 11px; margin-top: 20px; line-height: 1.6; }
+    </style>
+</head>
+<body>
+
+<div id="start-screen">
+    <h1 style="color: #00ffaa; letter-spacing: 5px;">SYSTEM INTEGRATION COMPLETE</h1>
+    <button id="start-btn">INITIALIZE CORE</button>
+    <div class="key-map">
+        [R/F] Fwd/Back | [A/D] Strafe | [W/S] Vertical | [Q/E] Rotate<br>
+        [C / Right-Click / Gamepad X] Toggle Weapon System<br>
+        [SPACE / Left-Click / L2-R2] Charge & Release Shot
+    </div>
+</div>
+
+<div id="hud">
+    <div class="row">
+        <div class="hud-text">VELOCITY: <span id="vel-val">0</span></div>
+        <div class="hud-text">SCORE: <span id="score">0</span></div>
+    </div>
+    <div id="bars-container">
+        <span class="bar-label">TARGET INTEGRITY</span>
+        <div class="bar-track"><div id="target-health-fill"></div></div>
+        <span class="bar-label">SHIP HULL</span>
+        <div class="bar-track"><div id="ship-health-fill"></div></div>
+    </div>
+    <div id="weapon-indicator">WEAPON: TACTICAL (6.1)</div>
+    <div id="power-container"><div id="power-fill"></div></div>
+</div>
+
+<div id="crosshair"></div>
+
+<script type="importmap">
+    { "imports": { 
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "dat.gui": "https://unpkg.com/dat.gui@0.7.9/build/dat.gui.module.js"
+    } }
+</script>
+
+<script type="module">
+    import * as THREE from 'three';
+    import * as Tone from 'https://esm.sh/tone';
+    import { GUI } from 'dat.gui';
+
+    const params = {
+        // Shared Physics
+        gravity: 0.005,
+        friction: 0.98,
+        thrustRF: 0.03,
+        rotationQE: 0.04,
+        // Combat Systems
+        activeSystem: '6.1', // '4.0' or '6.1'
+        shotSpeed: 2.5,
+        shotDamage: 15,
+        pushPower: 0.05,
+        targetMaxHealth: 250,
+        // Visuals
+        starCount: 3000,
+        reset: () => resetGame()
+    };
+
+    let score = 0, isActive = false, isCharging = false, chargeLevel = 0, shipHealth = 100;
+    let velocity = new THREE.Vector3(), targetHealth = params.targetMaxHealth;
+    let targetVelocity = new THREE.Vector3(), targetAngularVel = new THREE.Vector3();
+    const projectiles = [], particles = [], stickyParticles = [], keys = {};
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 5000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Audio
+    const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+
+    // --- STARFIELD (4.0 style) ---
+    let stars;
+    function initStars() {
+        if(stars) scene.remove(stars);
+        const starGeo = new THREE.BufferGeometry();
+        const starPos = [];
+        for(let i=0; i<params.starCount; i++) starPos.push((Math.random()-0.5)*4000, (Math.random()-0.5)*4000, (Math.random()-0.5)*4000);
+        starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
+        stars = new THREE.Points(starGeo, new THREE.PointsMaterial({color: 0xffffff, size: 1.5, transparent: true, opacity: 0.8}));
+        scene.add(stars);
+    }
+    initStars();
+
+    // --- TARGET SYSTEM (4.0 Geometry Logic) ---
+    let target;
+    function spawnTarget() {
+        if(target) {
+            stickyParticles.forEach(p => target.remove(p.mesh));
+            stickyParticles.length = 0;
+            scene.remove(target);
+        }
+        const type = Math.floor(Math.random() * 3);
+        let geo = type === 0 ? new THREE.DodecahedronGeometry(20) : type === 1 ? new THREE.IcosahedronGeometry(20) : new THREE.OctahedronGeometry(20);
+        target = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ color: 0x00ffaa, flatShading: true }));
+        target.position.set((Math.random()-0.5)*400, (Math.random()-0.5)*400, (Math.random()-0.5)*400);
+        scene.add(target);
+        targetHealth = params.targetMaxHealth;
+        targetVelocity.set(0,0,0);
+        targetAngularVel.set(0,0,0);
+    }
+
+    const ship = new THREE.Object3D();
+    ship.position.z = 300;
+    scene.add(ship);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    const dLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    dLight.position.set(10, 10, 10);
+    scene.add(dLight);
+
+    // --- WEAPON TOGGLE LOGIC ---
+    function toggleWeapon() {
+        params.activeSystem = params.activeSystem === '6.1' ? '4.0' : '6.1';
+        document.getElementById('weapon-indicator').innerText = `WEAPON: ${params.activeSystem === '6.1' ? 'TACTICAL (6.1)' : 'KINETIC (4.0)'}`;
+        // Visual Feedback
+        const col = params.activeSystem === '6.1' ? '#00ffaa' : '#ffaa00';
+        document.getElementById('weapon-indicator').style.color = col;
+        document.getElementById('power-fill').style.backgroundColor = col;
+    }
+
+    window.addEventListener('keydown', e => {
+        keys[e.code] = true;
+        if(e.code === 'KeyC') toggleWeapon();
+    });
+    window.addEventListener('keyup', e => keys[e.code] = false);
+    window.addEventListener('mousedown', e => { if(e.button === 0) isCharging = true; if(e.button === 2) toggleWeapon(); });
+    window.addEventListener('mouseup', e => { if(e.button === 0 && isCharging) { fire(); isCharging = false; }});
+    window.addEventListener('contextmenu', e => e.preventDefault());
+
+    function fire() {
+        const dir = new THREE.Vector3(0,0,-1).applyQuaternion(ship.quaternion);
+        const spawnPos = new THREE.Vector3();
+        ship.getWorldPosition(spawnPos);
+
+        let shot;
+        if(params.activeSystem === '6.1') {
+            // 6.1 Logic: Sphere with Fading
+            shot = new THREE.Mesh(new THREE.SphereGeometry(1.5 + (chargeLevel*3)), new THREE.MeshBasicMaterial({color: 0x00ffaa, transparent: true}));
+        } else {
+            // 4.0 Logic: Kinetic Heavy Shot
+            shot = new THREE.Mesh(new THREE.BoxGeometry(2 + chargeLevel*4, 2, 2), new THREE.MeshBasicMaterial({color: 0xffaa00}));
+        }
+
+        shot.position.copy(spawnPos);
+        projectiles.push({
+            mesh: shot,
+            vel: dir.multiplyScalar(params.shotSpeed + chargeLevel * 5),
+            type: params.activeSystem,
+            damage: params.shotDamage + (chargeLevel * 100),
+            opacity: 1.0,
+            life: 1.0
+        });
+        scene.add(shot);
+        synth.triggerAttackRelease(100 + (chargeLevel * 400), "8n");
+        chargeLevel = 0;
+    }
+
+    function handleInput() {
+        const gp = navigator.getGamepads()[0];
+        const fwd = new THREE.Vector3(0,0,-1).applyQuaternion(ship.quaternion);
+        const right = new THREE.Vector3(1,0,0).applyQuaternion(ship.quaternion);
+
+        // Movement (6.1 style)
+        if(keys['KeyR'] || (gp && gp.buttons[3].pressed)) velocity.add(fwd.multiplyScalar(params.thrustRF));
+        if(keys['KeyF'] || (gp && gp.buttons[0].pressed)) velocity.add(fwd.multiplyScalar(-params.thrustRF));
+        if(keys['KeyA']) velocity.add(right.multiplyScalar(-0.02));
+        if(keys['KeyD']) velocity.add(right.multiplyScalar(0.02));
+        if(keys['KeyQ']) ship.rotation.y += params.rotationQE;
+        if(keys['KeyE']) ship.rotation.y -= params.rotationQE;
+
+        // Dynamic Gamepad Firing Logic
+        // System 6.1 (Tactical) defaults to R1/R2. System 4.0 (Kinetic) defaults to L1/L2.
+        // Toggle (Button X / index 2) swaps this mapping mentally.
+        const fireL = gp ? (gp.buttons[4].pressed || gp.buttons[6].value > 0.1) : false;
+        const fireR = gp ? (gp.buttons[5].pressed || gp.buttons[7].value > 0.1) : false;
+        const btnX = gp ? gp.buttons[2].pressed : false;
+
+        if(btnX && !keys['_gpX']) { toggleWeapon(); keys['_gpX'] = true; } 
+        if(!btnX) keys['_gpX'] = false;
+
+        // Determine if current triggers match current weapon system
+        const triggerActive = (params.activeSystem === '6.1') ? fireR : fireL;
+
+        if(keys['Space'] || triggerActive) {
+            isCharging = true;
+            chargeLevel = Math.min(1, chargeLevel + 0.015);
+        } else if (isCharging) {
+            fire();
+            isCharging = false;
+        }
+
+        ship.position.add(velocity);
+        velocity.multiplyScalar(params.friction);
+        camera.position.copy(ship.position);
+        camera.quaternion.copy(ship.quaternion);
+    }
+
+    function update() {
+        requestAnimationFrame(update);
+        if(!isActive) return;
+        handleInput();
+
+        // Target Physics
+        target.position.add(targetVelocity);
+        target.rotation.x += targetAngularVel.x;
+        target.rotation.y += targetAngularVel.y;
+        targetVelocity.multiplyScalar(0.98);
+        targetAngularVel.multiplyScalar(0.98);
+
+        // Projectiles
+        for(let i=projectiles.length-1; i>=0; i--) {
+            const p = projectiles[i];
+            p.mesh.position.add(p.vel);
+
+            if(p.type === '6.1') {
+                p.opacity -= 0.01;
+                p.mesh.material.opacity = p.opacity;
+                if(p.opacity <= 0) { scene.remove(p.mesh); projectiles.splice(i, 1); continue; }
+            }
+
+            if(p.mesh.position.distanceTo(target.position) < 25) {
+                targetHealth -= p.damage;
+                score += 10;
+                
+                // 4.0 Impact Physics: Push + Torque
+                const pushDir = p.vel.clone().normalize();
+                targetVelocity.add(pushDir.multiplyScalar(params.pushPower * (p.damage/10)));
+                const hitVec = p.mesh.position.clone().sub(target.position).normalize();
+                targetAngularVel.add(new THREE.Vector3().crossVectors(hitVec, pushDir).multiplyScalar(0.05));
+
+                if(p.type === '4.0') {
+                    // Create Sticky Particle (4.0 style)
+                    const sticky = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshBasicMaterial({color: 0xffaa00}));
+                    target.worldToLocal(p.mesh.position);
+                    sticky.position.copy(p.mesh.position);
+                    target.add(sticky);
+                    stickyParticles.push({mesh: sticky, life: 1.0});
+                }
+
+                scene.remove(p.mesh); projectiles.splice(i, 1);
+                if(targetHealth <= 0) { spawnTarget(); score += 500; }
+            }
+        }
+
+        document.getElementById('power-fill').style.width = (chargeLevel * 100) + '%';
+        document.getElementById('target-health-fill').style.width = (targetHealth / params.targetMaxHealth * 100) + '%';
+        document.getElementById('score').innerText = score;
+
+        renderer.render(scene, camera);
+    }
+
+    function resetGame() {
+        score = 0; shipHealth = 100;
+        velocity.set(0,0,0);
+        spawnTarget();
+    }
+
+    // --- GUI INTEGRATION ---
+    const gui = new GUI();
+    const fPhys = gui.addFolder('Flight & Physics');
+    fPhys.add(params, 'gravity', 0, 0.02);
+    fPhys.add(params, 'friction', 0.9, 1.0);
+    fPhys.add(params, 'thrustRF', 0.01, 0.1).name('Main Engine');
+
+    const fCombat = gui.addFolder('Weapon Systems');
+    fCombat.add(params, 'shotSpeed', 1, 10);
+    fCombat.add(params, 'shotDamage', 1, 50);
+    fCombat.add(params, 'pushPower', 0.01, 0.2).name('Impact Force');
+    
+    const fWorld = gui.addFolder('Universe');
+    fWorld.add(params, 'starCount', 500, 10000).onChange(initStars);
+    fWorld.add(params, 'targetMaxHealth', 50, 1000);
+    fWorld.add(params, 'reset');
+
+    document.getElementById('start-btn').onclick = async () => {
+        await Tone.start();
+        isActive = true;
+        document.getElementById('start-screen').style.display = 'none';
+        spawnTarget();
+        update();
+    };
+
+    window.onresize = () => {
+        camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    };
+</script>
+</body>
+</html>
