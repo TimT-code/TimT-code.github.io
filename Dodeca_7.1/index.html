@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Orbital Singularity: Integrated Systems</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; user-select: none; }
+        
+        /* HUD Layout (Based on 6.1) */
+        #hud { position: absolute; inset: 0; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; z-index: 10; }
+        .row { display: flex; justify-content: space-between; width: 100%; }
+        .hud-text { color: #00ffaa; text-shadow: 0 0 5px #00ffaa; font-size: 14px; }
+        
+        #bars-container { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 400px; text-align: center; }
+        .bar-label { font-size: 10px; color: #fff; letter-spacing: 2px; margin-bottom: 2px; display: block; }
+        .bar-track { width: 100%; height: 8px; background: rgba(255, 255, 255, 0.1); border: 1px solid #444; margin-bottom: 10px; position: relative; overflow: hidden; }
+        #target-health-fill { width: 100%; height: 100%; background: #00ffaa; transition: width 0.1s; }
+        #ship-health-fill { width: 100%; height: 100%; background: #ff3333; }
+        
+        #power-container { position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%); width: 200px; height: 10px; background: #111; border: 1px solid #00ffaa; }
+        #power-fill { height: 100%; background: #00ffaa; width: 0%; box-shadow: 0 0 15px #00ffaa; }
+
+        #weapon-indicator { position: absolute; bottom: 140px; left: 50%; transform: translateX(-50%); color: #00ffaa; font-size: 12px; text-align: center; }
+
+        /* Crosshair */
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 60px; height: 60px; transform: translate(-50%, -50%); pointer-events: none; z-index: 15; border: 1px solid #00ffaa; border-radius: 50%; transition: border-color 0.2s; }
+        #crosshair::before, #crosshair::after { content: ''; position: absolute; background: #00ffaa; transition: background 0.2s; }
+        #crosshair::before { top: 50%; left: -10px; width: 80px; height: 1px; }
+        #crosshair::after { left: 50%; top: -10px; width: 1px; height: 80px; }
+
+        /* Audio GUI (From 6.1) */
+        #audio-gui { position: absolute; left: 0; top: 0; width: 280px; height: 100vh; background: rgba(10, 10, 10, 0.95); border-right: 1px solid #444; color: #eee; font-size: 11px; overflow-y: auto; z-index: 500; display: none; }
+        .audio-folder { border-bottom: 1px solid #333; }
+        .audio-folder-title { background: #000; padding: 8px; cursor: pointer; font-weight: bold; color: #00ffaa; display: flex; justify-content: space-between; border-left: 3px solid #00ffaa; text-transform: uppercase; }
+        .audio-content { padding: 5px 0; display: none; }
+        .audio-content.open { display: block; }
+        .audio-row { padding: 4px 15px; display: flex; align-items: center; justify-content: space-between; }
+        canvas#waveform { width: 100%; height: 100px; background: #000; border-bottom: 1px solid #444; }
+        
+        /* Start Screen */
+        #start-screen { position: absolute; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        button { background: transparent; border: 2px solid #00ffaa; color: #00ffaa; padding: 20px 50px; cursor: pointer; font-family: inherit; font-size: 20px; transition: 0.3s; }
+        button:hover { background: #00ffaa; color: #000; box-shadow: 0 0 20px #00ffaa; }
+        .key-map { color: #888; font-size: 11px; margin-top: 20px; line-height: 1.6; }
+    </style>
+</head>
+<body>
+
+<div id="crosshair"></div>
+<div id="start-screen">
+    <h1 style="color: #00ffaa; letter-spacing: 5px;">SYSTEM INTEGRATION COMPLETE</h1>
+    <button id="start-btn">ENGAGE SYSTEMS</button>
+    <div class="key-map">
+        [WASD] Movement | [ARROWS] Rotation | [H] Toggle Audio GUI<br>
+        [C / Right Click / Gamepad X] Toggle Weapon Mapping<br>
+        [SPACE / Left Click / Gamepad L2] Charge & Fire Primary<br>
+        [Gamepad R2] Fire Secondary
+    </div>
+</div>
+
+<div id="audio-gui">
+    <div style="padding: 10px; font-weight: bold; color: #00ffaa; border-bottom: 1px solid #333;">SIGNAL PROCESSOR</div>
+    <canvas id="waveform"></canvas>
+    <div id="audio-controls-root"></div>
+</div>
+
+<div id="hud">
+    <div class="row">
+        <div class="hud-text">VELOCITY: <span id="vel-val">0</span></div>
+        <div class="hud-text">SCORE: <span id="score">0</span></div>
+    </div>
+    <div id="bars-container">
+        <span class="bar-label">TARGET INTEGRITY</span>
+        <div class="bar-track"><div id="target-health-fill"></div></div>
+        <span class="bar-label">SHIP HULL</span>
+        <div class="bar-track"><div id="ship-health-fill"></div></div>
+    </div>
+    <div id="weapon-indicator">PRIMARY: TACTICAL (6.1) | SECONDARY: KINETIC (4.0)</div>
+    <div id="power-container"><div id="power-fill"></div></div>
+</div>
+
+<script type="importmap">
+    { "imports": { 
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "dat.gui": "https://unpkg.com/dat.gui@0.7.9/build/dat.gui.module.js"
+    } }
+</script>
+
+<script type="module">
+    import * as THREE from 'three';
+    import * as Tone from 'https://esm.sh/tone';
+    import { GUI } from 'dat.gui';
+
+    // --- CONFIGURATION ---
+    const params = {
+        // Physics (Index 4.0)
+        gravity: 0.005,
+        friction: 0.98,
+        thrustPower: 0.02, // From Index 4
+        pushPower: 0.05,
+        rotationSpeed: 0.04,
+        
+        // Visuals (Index 6.1)
+        starCount: 5000,
+        starOpacity: 0.8,
+        dodecaColor: '#00ffaa',
+        dodecaOpacity: 1.0,
+        hudOpacity: 0.9,
+        crosshairSize: 60,
+        
+        // Combat
+        firePower61: 15,
+        firePower40: 30,
+        targetMaxHealth: 250,
+        targetDamping: 0.99
+    };
+
+    let score = 0, isActive = false, shipHealth = 100, targetHealth = params.targetMaxHealth;
+    let velocity = new THREE.Vector3();
+    let targetAngularVel = new THREE.Vector3();
+    let targetVelocity = new THREE.Vector3();
+    
+    // Weapon States
+    // Mode 0: L2=6.1, R2=4.0
+    // Mode 1: L2=4.0, R2=6.1
+    let weaponMode = 0; 
+    let isChargingL = false;
+    let isChargingR = false;
+    let chargeLevel = 0;
+    
+    // Input States
+    const keys = {};
+    const mouse = { left: false, right: false };
+    let toggleDebounce = false;
+
+    const projectiles = [], particles = [], stickyParticles = [];
+
+    // --- THREE.JS SETUP ---
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x000000, 0.0002);
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 5000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // --- AUDIO SYSTEM (Index 6.1) ---
+    const analyser = new Tone.Analyser("waveform", 256);
+    const masterBus = new Tone.Gain(1.0).connect(analyser).toDestination();
+
+    const createSoundChain = (type = "synth") => {
+        const vol = new Tone.Volume(0).connect(masterBus);
+        const pan = new Tone.Panner(0).connect(vol);
+        const dist = new Tone.Distortion(0).connect(pan);
+        const verb = new Tone.Reverb(0.1).connect(dist);
+        let source, env;
+        if(type === "noise") {
+            source = new Tone.Noise("pink");
+            env = new Tone.AmplitudeEnvelope({attack:0.1, decay:0.2, sustain:0.6, release:0.5});
+            source.connect(env).connect(verb);
+            source.start();
+        } else {
+            source = new Tone.PolySynth(Tone.Synth).connect(verb);
+            env = null;
+        }
+        return { source, env, vol, pan, dist, verb };
+    };
+
+    const s_engine = createSoundChain("noise");
+    const s_shot61 = createSoundChain("synth");
+    const s_shot40 = createSoundChain("synth"); // Thud sound
+    const s_impact = createSoundChain("synth");
+
+    // --- WORLD OBJECTS ---
+    
+    // 1. Stars (Index 6.1 visual with Index 4 generation logic)
+    let stars;
+    function initStars() {
+        if(stars) scene.remove(stars);
+        const geo = new THREE.BufferGeometry();
+        const pos = [];
+        for(let i=0; i<params.starCount; i++) pos.push((Math.random()-0.5)*4000, (Math.random()-0.5)*4000, (Math.random()-0.5)*4000);
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        stars = new THREE.Points(geo, new THREE.PointsMaterial({color: 0xffffff, size: 1.5, transparent: true, opacity: params.starOpacity}));
+        scene.add(stars);
+    }
+    initStars();
+
+    // 2. Target Generation (Index 4.0 Logic)
+    let target;
+    function spawnTarget() {
+        if(target) {
+            stickyParticles.forEach(p => target.remove(p));
+            stickyParticles.length = 0;
+            scene.remove(target);
+        }
+        
+        // Random Geometry Selection (Index 4)
+        const type = Math.floor(Math.random() * 3);
+        let geo;
+        if(type === 0) geo = new THREE.DodecahedronGeometry(20, 0);
+        else if(type === 1) geo = new THREE.IcosahedronGeometry(20, 0);
+        else geo = new THREE.OctahedronGeometry(20, 0);
+
+        const mat = new THREE.MeshPhongMaterial({ 
+            color: params.dodecaColor, 
+            wireframe: false, 
+            flatShading: true,
+            transparent: true, 
+            opacity: params.dodecaOpacity,
+            emissive: 0x002200
+        });
+        
+        target = new THREE.Mesh(geo, mat);
+        // Wireframe overlay
+        const wire = new THREE.LineSegments(new THREE.WireframeGeometry(geo), new THREE.LineBasicMaterial({color: 0x00ffaa, transparent: true, opacity: 0.3}));
+        target.add(wire);
+
+        target.position.set((Math.random()-0.5)*400, (Math.random()-0.5)*400, (Math.random()-0.5)*400);
+        scene.add(target);
+        
+        targetHealth = params.targetMaxHealth;
+        targetVelocity.set(0,0,0);
+        targetAngularVel.set(0,0,0);
+    }
+    spawnTarget();
+
+    const ship = new THREE.Object3D();
+    ship.position.z = 300;
+    scene.add(ship);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    const dLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    dLight.position.set(100,100,100);
+    scene.add(dLight);
+
+    // --- GAMEPLAY LOGIC ---
+
+    function toggleWeaponSystem() {
+        weaponMode = (weaponMode === 0) ? 1 : 0;
+        
+        // Visual Feedback
+        const hudText = document.getElementById('weapon-indicator');
+        const crosshair = document.getElementById('crosshair');
+        
+        if (weaponMode === 0) {
+            hudText.innerText = "PRIMARY: TACTICAL (6.1) | SECONDARY: KINETIC (4.0)";
+            hudText.style.color = "#00ffaa";
+            crosshair.style.borderColor = "#00ffaa";
+            document.getElementById('power-fill').style.backgroundColor = "#00ffaa";
+        } else {
+            hudText.innerText = "PRIMARY: KINETIC (4.0) | SECONDARY: TACTICAL (6.1)";
+            hudText.style.color = "#ffaa00";
+            crosshair.style.borderColor = "#ffaa00";
+            document.getElementById('power-fill').style.backgroundColor = "#ffaa00";
+        }
+    }
+
+    function fireWeapon(type, chargedAmt) {
+        const shotPos = new THREE.Vector3();
+        ship.getWorldPosition(shotPos);
+        const dir = new THREE.Vector3(0,0,-1).applyQuaternion(ship.quaternion);
+
+        if (type === '6.1') {
+            // Index 6.1 Style: Fast Sphere, Fades out
+            const shot = new THREE.Mesh(new THREE.SphereGeometry(1.5 + (chargedAmt*3)), new THREE.MeshBasicMaterial({color: 0x00ffaa, transparent: true}));
+            shot.position.copy(shotPos);
+            projectiles.push({
+                mesh: shot, 
+                vel: dir.multiplyScalar(4.5), 
+                type: '6.1', 
+                damage: params.firePower61 + (chargedAmt * 50), 
+                opacity: 1.0,
+                spawn: shotPos.clone()
+            });
+            scene.add(shot);
+            s_shot61.source.triggerAttackRelease(400 + (chargedAmt*400), "8n");
+        } else {
+            // Index 4.0 Style: Kinetic Cube, Sticks to target
+            const shot = new THREE.Mesh(new THREE.BoxGeometry(2 + (chargedAmt*4), 2, 2), new THREE.MeshBasicMaterial({color: 0xffaa00}));
+            shot.position.copy(shotPos);
+            projectiles.push({
+                mesh: shot,
+                vel: dir.multiplyScalar(2.0 + (chargedAmt * 2)),
+                type: '4.0',
+                damage: params.firePower40 + (chargedAmt * 100),
+                power: chargedAmt
+            });
+            scene.add(shot);
+            s_shot40.source.triggerAttackRelease(100 - (chargedAmt*50), "8n");
+        }
+    }
+
+    // Input Handling (Index 6.1 Mappings + Index 4 Physics)
+    window.addEventListener('keydown', e => keys[e.code] = true);
+    window.addEventListener('keyup', e => keys[e.code] = false);
+    window.addEventListener('mousedown', e => {
+        if(e.button === 0) mouse.left = true;
+        if(e.button === 2) mouse.right = true;
+    });
+    window.addEventListener('mouseup', e => {
+        if(e.button === 0) mouse.left = false;
+        if(e.button === 2) mouse.right = false;
+    });
+    window.addEventListener('contextmenu', e => e.preventDefault());
+
+    function handleInput() {
+        const gp = navigator.getGamepads()[0];
+        
+        // 1. Weapon Toggle (X / C / Right Click)
+        const btnX = gp ? gp.buttons[2].pressed : false; // X button on Xbox / Square on PS
+        const keyC = keys['KeyC'];
+        const mouseR = mouse.right;
+        
+        if (btnX || keyC || mouseR) {
+            if (!toggleDebounce) {
+                toggleWeaponSystem();
+                toggleDebounce = true;
+            }
+        } else {
+            toggleDebounce = false;
+        }
+
+        // 2. Weapon Firing (Charge and Release Logic)
+        const L2 = (gp && gp.buttons[6].value > 0.1) || keys['Space'] || mouse.left;
+        const R2 = (gp && gp.buttons[7].value > 0.1);
+
+        // Determine which weapon is on which trigger based on mode
+        let activeWeaponL = (weaponMode === 0) ? '6.1' : '4.0';
+        let activeWeaponR = (weaponMode === 0) ? '4.0' : '6.1';
+
+        // L2 Logic (Primary)
+        if (L2) {
+            isChargingL = true;
+            chargeLevel = Math.min(1.0, chargeLevel + 0.015);
+        } else {
+            if (isChargingL) {
+                fireWeapon(activeWeaponL, chargeLevel);
+                chargeLevel = 0;
+                isChargingL = false;
+            }
+        }
+
+        // R2 Logic (Secondary - Also Charges now for consistency)
+        if (R2) {
+            if(!isChargingR) {
+                // Immediate fire for R2 if desired, or small charge
+                fireWeapon(activeWeaponR, 0); 
+                isChargingR = true; // Simple debounce to prevent stream
+            }
+        } else {
+            isChargingR = false;
+        }
+
+        // 3. Movement Physics (Index 4.0 Gravity Well + Thrust)
+        const fwd = new THREE.Vector3(0,0,-1).applyQuaternion(ship.quaternion);
+        const right = new THREE.Vector3(1,0,0).applyQuaternion(ship.quaternion);
+        const up = new THREE.Vector3(0,1,0).applyQuaternion(ship.quaternion);
+
+        // Thrust
+        if (keys['KeyW'] || (gp && gp.buttons[3].pressed)) { velocity.add(fwd.multiplyScalar(params.thrustPower)); s_engine.env.triggerAttack(); }
+        else if (keys['KeyS'] || (gp && gp.buttons[0].pressed)) { velocity.add(fwd.multiplyScalar(-params.thrustPower)); s_engine.env.triggerAttack(); }
+        else if (keys['KeyA'] || (gp && gp.buttons[2].pressed)) { velocity.add(right.multiplyScalar(-params.thrustPower)); s_engine.env.triggerAttack(); }
+        else if (keys['KeyD'] || (gp && gp.buttons[1].pressed)) { velocity.add(right.multiplyScalar(params.thrustPower)); s_engine.env.triggerAttack(); }
+        else { s_engine.env.triggerRelease(); }
+
+        // Rotation (Arrows / Right Stick)
+        if (keys['ArrowLeft'] || (gp && gp.axes[2] < -0.2)) ship.rotation.y += params.rotationSpeed;
+        if (keys['ArrowRight'] || (gp && gp.axes[2] > 0.2)) ship.rotation.y -= params.rotationSpeed;
+        if (keys['ArrowUp'] || (gp && gp.axes[3] < -0.2)) ship.rotation.x += params.rotationSpeed;
+        if (keys['ArrowDown'] || (gp && gp.axes[3] > 0.2)) ship.rotation.x -= params.rotationSpeed;
+
+        // Gravity (Index 4.0: Pull towards target)
+        const dist = ship.position.distanceTo(target.position);
+        if(dist > 0) {
+            const dirToCenter = new THREE.Vector3().subVectors(target.position, ship.position).normalize();
+            velocity.add(dirToCenter.multiplyScalar(params.gravity));
+        }
+
+        ship.position.add(velocity);
+        velocity.multiplyScalar(params.friction);
+        
+        // Camera Follow
+        camera.position.copy(ship.position);
+        camera.quaternion.copy(ship.quaternion);
+    }
+
+    function createExplosion(pos, color) {
+        for(let i=0; i<10; i++) {
+            const m = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshBasicMaterial({color:color}));
+            m.position.copy(pos);
+            const v = new THREE.Vector3((Math.random()-0.5)*5, (Math.random()-0.5)*5, (Math.random()-0.5)*5);
+            particles.push({mesh: m, vel: v, life: 1.0});
+            scene.add(m);
+        }
+    }
+
+    function update() {
+        requestAnimationFrame(update);
+        if(!isActive) return;
+        handleInput();
+
+        // Target Physics (Index 4: Move + Spin)
+        target.position.add(targetVelocity);
+        target.rotation.x += targetAngularVel.x;
+        target.rotation.y += targetAngularVel.y;
+        target.rotation.z += targetAngularVel.z;
+        targetVelocity.multiplyScalar(0.99);
+        targetAngularVel.multiplyScalar(params.targetDamping);
+
+        // Projectiles Loop
+        for(let i=projectiles.length-1; i>=0; i--) {
+            const p = projectiles[i];
+            
+            // If it's a sticky particle attached to parent, skip physics
+            if (p.type === 'sticky') continue;
+
+            p.mesh.position.add(p.vel);
+
+            // Index 6.1 Logic (Fading)
+            if (p.type === '6.1') {
+                const dist = p.mesh.position.distanceTo(p.spawn);
+                if (dist > 800) {
+                    p.opacity -= 0.02;
+                    p.mesh.material.opacity = p.opacity;
+                }
+            }
+
+            // Collision Check
+            if (p.mesh.position.distanceTo(target.position) < 25) {
+                targetHealth -= p.damage;
+                score += 10;
+                createExplosion(p.mesh.position, p.type==='6.1' ? 0x00ffaa : 0xffaa00);
+                s_impact.source.triggerAttackRelease("C2", "16n");
+
+                // Physics Push (Index 4 Logic)
+                const pushDir = p.vel.clone().normalize();
+                targetVelocity.add(pushDir.multiplyScalar(params.pushPower));
+                
+                // Torque Spin
+                const hitVec = p.mesh.position.clone().sub(target.position).normalize();
+                const torque = new THREE.Vector3().crossVectors(hitVec, pushDir).multiplyScalar(0.01);
+                targetAngularVel.add(torque);
+
+                if (p.type === '4.0') {
+                    // Stick Logic (Index 4)
+                    target.attach(p.mesh);
+                    stickyParticles.push(p.mesh);
+                    // Remove from projectile physics list, effectively
+                    projectiles.splice(i, 1);
+                } else {
+                    scene.remove(p.mesh);
+                    projectiles.splice(i, 1);
+                }
+
+                if(targetHealth <= 0) {
+                    score += 500;
+                    createExplosion(target.position, 0xffffff);
+                    spawnTarget();
+                }
+
+            } else if ((p.type==='6.1' && p.opacity <= 0) || p.mesh.position.distanceTo(ship.position) > 2000) {
+                scene.remove(p.mesh);
+                projectiles.splice(i, 1);
+            }
+        }
+
+        // Particle Cleanup
+        for(let i=particles.length-1; i>=0; i--) {
+            const p = particles[i];
+            p.mesh.position.add(p.vel);
+            p.life -= 0.02;
+            p.mesh.scale.multiplyScalar(0.9);
+            if(p.life <= 0) { scene.remove(p.mesh); particles.splice(i,1); }
+        }
+
+        // HUD Update
+        document.getElementById('power-fill').style.width = (chargeLevel * 100) + '%';
+        document.getElementById('target-health-fill').style.width = Math.max(0, (targetHealth / params.targetMaxHealth * 100)) + '%';
+        document.getElementById('ship-health-fill').style.width = Math.max(0, shipHealth) + '%';
+        document.getElementById('score').innerText = score;
+        document.getElementById('vel-val').innerText = Math.floor(velocity.length()*100);
+
+        // Waveform
+        const canvas = document.getElementById('waveform');
+        const ctx = canvas.getContext('2d');
+        const values = analyser.getValue();
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        ctx.beginPath(); ctx.strokeStyle = '#00ffaa';
+        for(let i=0; i<values.length; i++){
+            const x = (i/values.length)*canvas.width;
+            const y = (values[i]+1)/2*canvas.height;
+            if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        }
+        ctx.stroke();
+
+        renderer.render(scene, camera);
+    }
+
+    // --- GUI SETUP (From 6.1) ---
+    const gui = new GUI();
+    const f1 = gui.addFolder('Physics & Controls');
+    f1.add(params, 'gravity', 0, 0.02);
+    f1.add(params, 'friction', 0.9, 1.0);
+    f1.add(params, 'thrustPower', 0.01, 0.1);
+    f1.add(params, 'pushPower', 0.01, 0.2);
+    
+    const f2 = gui.addFolder('Visuals');
+    f2.add(params, 'starCount', 1000, 10000).onChange(initStars);
+    f2.add(params, 'dodecaOpacity', 0, 1).onChange(() => { if(target) target.material.opacity = params.dodecaOpacity; });
+    
+    const f3 = gui.addFolder('Weaponry');
+    f3.add(params, 'firePower61', 5, 50);
+    f3.add(params, 'firePower40', 10, 100);
+
+    function buildAudioMenu() {
+        const root = document.getElementById('audio-controls-root');
+        const sounds = [ {n: 'Thrusters', s: s_engine, type:'env'}, {n: 'Laser (6.1)', s: s_shot61, type:'poly'}, {n: 'Kinetic (4.0)', s: s_shot40, type:'poly'} ];
+        
+        sounds.forEach(item => {
+            const folder = document.createElement('div');
+            folder.className = 'audio-folder';
+            folder.innerHTML = `<div class="audio-folder-title">${item.n} <span>▼</span></div>`;
+            const content = document.createElement('div');
+            content.className = 'audio-content';
+            
+            const addS = (label, min, max, step, start, cb) => {
+                const row = document.createElement('div');
+                row.className = 'audio-row';
+                row.innerHTML = `<span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}" value="${start}">`;
+                row.querySelector('input').oninput = (e) => cb(parseFloat(e.target.value));
+                content.appendChild(row);
+            };
+
+            addS('Gain', -60, 10, 1, 0, v => item.s.vol.volume.value = v);
+            addS('Reverb', 0, 1, 0.1, 0.1, v => item.s.verb.wet.value = v);
+            folder.querySelector('.audio-folder-title').onclick = () => content.classList.toggle('open');
+            folder.appendChild(content); root.appendChild(folder);
+        });
+    }
+
+    window.addEventListener('keydown', e => {
+        if(e.key.toLowerCase() === 'h') {
+            const ag = document.getElementById('audio-gui');
+            ag.style.display = ag.style.display === 'block' ? 'none' : 'block';
+        }
+    });
+
+    document.getElementById('start-btn').onclick = async () => {
+        await Tone.start();
+        isActive = true;
+        document.getElementById('start-screen').style.display = 'none';
+        buildAudioMenu();
+        update();
+    };
+
+    window.onresize = () => {
+        camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    };
+</script>
+</body>
+</html>
