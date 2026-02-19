@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Gyroscopic Audio-Visual Synth</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tonaljs/tonal/browser/tonal.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
+
+    <style>
+        body, html { margin: 0; padding: 0; overflow: hidden; background: #111; color: white; font-family: sans-serif; }
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
+        
+        /* Initialization Overlay (Required for Audio/Sensor permissions) */
+        #init-overlay { position: absolute; z-index: 100; width: 100vw; height: 100vh; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        #init-overlay button { padding: 20px 40px; font-size: 24px; cursor: pointer; border-radius: 10px; border: none; background: #4CAF50; color: white; }
+
+        /* Left Sidebar - Audio Sources */
+        #left-sidebar { position: absolute; top: 0; left: 0; width: 250px; height: 95vh; background: rgba(30, 30, 30, 0.8); z-index: 10; padding: 10px; overflow-y: auto; border-right: 1px solid #444; }
+        
+        /* Master Waveform - Bottom 5% */
+        #master-waveform { position: absolute; bottom: 0; left: 0; width: 100vw; height: 5vh; background: #000; z-index: 10; border-top: 2px solid #333; }
+        
+        /* Readout Display & Mode Buttons */
+        #bottom-hud { position: absolute; bottom: 5vh; left: 250px; width: calc(100vw - 250px); z-index: 10; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+        #readout-display { background: rgba(0,0,0,0.7); padding: 10px; border-radius: 5px; margin-bottom: 10px; font-family: monospace; font-size: 14px; text-align: center; }
+        
+        #mode-buttons { display: flex; gap: 10px; margin-bottom: 10px; pointer-events: auto; }
+        .mode-btn { padding: 10px 15px; background: #333; color: white; border: 1px solid #555; cursor: pointer; border-radius: 5px; transition: 0.2s; }
+        .mode-btn.active { background: #4CAF50; border-color: #81c784; }
+
+        /* Custom Audio GUI (Right Side, opposing dat.GUI which defaults top-right) */
+        #audio-gui { position: absolute; top: 0; right: 300px; width: 300px; max-height: 95vh; background: rgba(20,20,20,0.9); z-index: 10; border-left: 1px solid #444; overflow-y: auto; }
+        
+        /* Config Accordion Menu (Middle/Draggable concept) */
+        #config-accordion { position: absolute; top: 20px; left: 270px; z-index: 10; background: rgba(0,0,0,0.8); width: 300px; border: 1px solid #555; }
+        details { padding: 10px; border-bottom: 1px solid #333; transition: all 0.3s ease; }
+        summary { cursor: pointer; font-weight: bold; outline: none; }
+        .config-content { padding-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="init-overlay">
+        <h2>Gyroscopic Audio Synth</h2>
+        <p>Requires Device Motion & Audio Permissions</p>
+        <button id="btn-start">Start / Allow Sensors</button>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <div id="left-sidebar">
+        <h3>Sources & Layers</h3>
+        <input type="file" id="file-upload" accept="audio/*" />
+        <div id="source-list">
+            </div>
+    </div>
+
+    <div id="config-accordion">
+        <details>
+            <summary>Global Settings (JSON)</summary>
+            <div class="config-content">
+                <button id="btn-save-json">Save Config</button>
+                <button id="btn-load-json">Load Config</button>
+            </div>
+        </details>
+        <details>
+            <summary>Speech API Settings</summary>
+            <div class="config-content">
+                <input type="text" id="speech-text" value="Hello World" />
+                <button id="btn-speak">Speak</button>
+            </div>
+        </details>
+    </div>
+
+    <div id="bottom-hud">
+        <div id="readout-display">
+            Freq: <span id="out-freq">0</span>Hz | Note: <span id="out-note">-</span> | Scale: <span id="out-scale">-</span><br>
+            Accel: <span id="out-accel">0</span> | Mode: <span id="out-mode">1 (Theremin)</span>
+        </div>
+        <div id="mode-buttons">
+            <button class="mode-btn active" data-mode="1">1: Theremin</button>
+            <button class="mode-btn" data-mode="2">2: Accel Only</button>
+            <button class="mode-btn" data-mode="3">3: Gyro+Accel</button>
+            <button class="mode-btn" data-mode="4">4: Gyro Only</button>
+            <button class="mode-btn" data-mode="5">5: Visual Compose</button>
+        </div>
+    </div>
+
+    <canvas id="master-waveform"></canvas>
+
+<script>
+/**
+ * STATE & CONFIGURATION (JSON Master)
+ */
+let AppState = {
+    mode: 1, // 1: Theremin, 2: Accel, 3: Gyro+Accel, 4: Gyro, 5: Visual
+    gyro: { x: 0, y: 0, z: 0 },
+    accel: { force: 0, threshold: 15 },
+    colors: { cursor: 0xff0000, background: 0x111111 },
+    audio: { masterVolume: -10, currentScale: 'C major' }
+};
+
+/**
+ * VISUAL ENGINE (Three.js)
+ */
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+// Gyro Cursor
+const cursorGeo = new THREE.OctahedronGeometry(1);
+const cursorMat = new THREE.MeshBasicMaterial({ color: AppState.colors.cursor, wireframe: true });
+const cursor = new THREE.Mesh(cursorGeo, cursorMat);
+scene.add(cursor);
+
+// Grid Field
+const gridHelper = new THREE.GridHelper(50, 50, 0x444444, 0x222222);
+gridHelper.rotation.x = Math.PI / 2;
+gridHelper.position.z = -10;
+scene.add(gridHelper);
+
+camera.position.z = 15;
+
+function animateVisuals() {
+    requestAnimationFrame(animateVisuals);
+    
+    // Map Gyro to cursor position (Smooth interpolation can be added here)
+    cursor.position.x = (AppState.gyro.y / 90) * 15; // Gamma mapping
+    cursor.position.y = (AppState.gyro.x / 90) * 10; // Beta mapping
+    
+    // Rotate cursor for effect
+    cursor.rotation.x += 0.01;
+    cursor.rotation.y += 0.02;
+
+    renderer.render(scene, camera);
+}
+
+/**
+ * AUDIO ENGINE (Tone.js & Tonal.js)
+ */
+let masterAnalyser, masterWaveformCtx;
+let synths = {};
+let effects = {};
+let drumKit = {};
+
+function initAudioEngine() {
+    // 1. Master Bus & Analyser
+    masterAnalyser = new Tone.Analyser("waveform", 1024);
+    Tone.Destination.chain(masterAnalyser);
+    Tone.Destination.volume.value = AppState.audio.masterVolume;
+
+    // 2. Effects Chain Setup
+    effects.reverb = new Tone.Reverb(2.5).toDestination();
+    effects.distortion = new Tone.Distortion(0.4).connect(effects.reverb);
+    effects.delay = new Tone.FeedbackDelay("8n", 0.5).connect(effects.reverb);
+
+    // 3. Synth Library (Expanding up to 10 as requested)
+    synths.basic = new Tone.PolySynth(Tone.Synth).connect(effects.reverb);
+    synths.fm = new Tone.FMSynth().connect(effects.distortion);
+    synths.am = new Tone.AMSynth().connect(effects.delay);
+    synths.theremin = new Tone.Oscillator(440, "sine").toDestination(); // Manual start/stop
+
+    // 4. Drum Kit (Simulated)
+    drumKit.kick = new Tone.MembraneSynth().toDestination();
+    drumKit.snare = new Tone.NoiseSynth({ noise: { type: 'white' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0 } }).toDestination();
+
+    // 5. Setup Master Waveform Canvas
+    const canvas = document.getElementById('master-waveform');
+    masterWaveformCtx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight * 0.05;
+    
+    drawWaveform();
+}
+
+function drawWaveform() {
+    requestAnimationFrame(drawWaveform);
+    if (!masterAnalyser) return;
+    
+    const values = masterAnalyser.getValue();
+    const width = masterWaveformCtx.canvas.width;
+    const height = masterWaveformCtx.canvas.height;
+    
+    masterWaveformCtx.clearRect(0, 0, width, height);
+    masterWaveformCtx.beginPath();
+    masterWaveformCtx.lineJoin = "round";
+    masterWaveformCtx.lineWidth = 2;
+    masterWaveformCtx.strokeStyle = "#4CAF50";
+
+    for (let i = 0; i < values.length; i++) {
+        const x = (i / values.length) * width;
+        const y = ((values[i] + 1) / 2) * height;
+        if (i === 0) masterWaveformCtx.moveTo(x, y);
+        else masterWaveformCtx.lineTo(x, y);
+    }
+    masterWaveformCtx.stroke();
+}
+
+/**
+ * SENSOR & INPUT HANDLING
+ */
+function requestPermissions() {
+    if (typeof DeviceMotionEvent.requestPermission === 'function') {
+        DeviceMotionEvent.requestPermission().then(permissionState => {
+            if (permissionState === 'granted') {
+                startSensors();
+            }
+        }).catch(console.error);
+    } else {
+        startSensors(); // Non-iOS 13+ devices
+    }
+}
+
+function startSensors() {
+    window.addEventListener("deviceorientation", handleOrientation);
+    window.addEventListener("devicemotion", handleMotion);
+    document.getElementById('init-overlay').style.display = 'none';
+    
+    Tone.start();
+    initAudioEngine();
+    animateVisuals();
+}
+
+function handleOrientation(event) {
+    // x = beta (front/back), y = gamma (left/right), z = alpha (compass)
+    AppState.gyro.x = event.beta || 0;
+    AppState.gyro.y = event.gamma || 0;
+    AppState.gyro.z = event.alpha || 0;
+    
+    processModeLogic();
+    updateHUD();
+}
+
+let lastThrustTime = 0;
+function handleMotion(event) {
+    const acc = event.acceleration;
+    if (!acc) return;
+
+    // Calculate overall force vector
+    const force = Math.sqrt(acc.x*acc.x + acc.y*acc.y + acc.z*acc.z);
+    AppState.accel.force = force;
+
+    // Trigger Thrust threshold
+    if (force > AppState.accel.threshold) {
+        let now = Date.now();
+        if (now - lastThrustTime > 200) { // Debounce 200ms
+            handleThrustTrigger();
+            lastThrustTime = now;
+        }
+    }
+}
+
+/**
+ * MODE LOGIC & ROUTING
+ */
+function processModeLogic() {
+    let freq = 0;
+    
+    switch (AppState.mode) {
+        case 1: // Theremin
+            // Map X axis (-90 to 90) to Frequency (100Hz to 2000Hz)
+            freq = Math.max(100, Math.min(2000, ((AppState.gyro.x + 90) / 180) * 1900 + 100));
+            
+            // Map Y axis (-90 to 90) to Volume (-60db to 0db)
+            let vol = ((Math.abs(AppState.gyro.y) / 90) * 60) - 60;
+            
+            if (synths.theremin.state !== "started") synths.theremin.start();
+            synths.theremin.frequency.rampTo(freq, 0.1);
+            synths.theremin.volume.rampTo(vol, 0.1);
+            break;
+            
+        case 2: // Accel Only
+            if (synths.theremin.state === "started") synths.theremin.stop();
+            // Gyro does nothing, handled in handleThrustTrigger
+            break;
+            
+        case 3: // Gyro + Accel
+            if (synths.theremin.state === "started") synths.theremin.stop();
+            // Cursor picks the "note", accel plays it.
+            break;
+            
+        case 4: // Gyro Only
+            // Similar to 1 but triggers discrete notes instead of continuous sine
+            break;
+            
+        case 5: // Visual Compose
+            // Mapping mode
+            break;
+    }
+
+    // Update Tonal.js readout
+    if (freq > 0) {
+        document.getElementById('out-freq').innerText = Math.round(freq);
+        document.getElementById('out-note').innerText = Tonal.Note.fromFreq(freq);
+    }
+}
+
+function handleThrustTrigger() {
+    // Pulse Cursor
+    cursor.scale.set(1.5, 1.5, 1.5);
+    setTimeout(() => cursor.scale.set(1, 1, 1), 150);
+
+    // Vibration API
+    if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
+
+    // Mode specific thrust logic
+    if (AppState.mode === 2) {
+        // Kick drum on thrust
+        drumKit.kick.triggerAttackRelease("C1", "8n");
+    } else if (AppState.mode === 3) {
+        // Play note based on Gyro X position using Tonal.js
+        const scaleNotes = Tonal.Scale.get("C major").notes;
+        let noteIndex = Math.floor(((AppState.gyro.x + 90) / 180) * scaleNotes.length);
+        noteIndex = Math.max(0, Math.min(scaleNotes.length - 1, noteIndex));
+        let note = scaleNotes[noteIndex] + "4";
+        synths.basic.triggerAttackRelease(note, "8n");
+    }
+}
+
+/**
+ * UI & HUD UPDATES
+ */
+function updateHUD() {
+    document.getElementById('out-accel').innerText = AppState.accel.force.toFixed(1);
+    document.getElementById('out-scale').innerText = AppState.audio.currentScale;
+}
+
+// Mode Button Listeners
+document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        AppState.mode = parseInt(e.target.dataset.mode);
+        document.getElementById('out-mode').innerText = `${AppState.mode}`;
+        
+        // Stop theremin if switching away
+        if (AppState.mode !== 1 && synths.theremin.state === "started") {
+            synths.theremin.stop();
+        }
+    });
+});
+
+/**
+ * DAT.GUI (Visual Settings)
+ */
+const gui = new dat.GUI({ autoPlace: true });
+const visualFolder = gui.addFolder('Visual Settings');
+visualFolder.addColor(AppState.colors, 'cursor').onChange(color => {
+    cursorMat.color.setHex(color);
+});
+visualFolder.addColor(AppState.colors, 'background').onChange(color => {
+    scene.background = new THREE.Color(color);
+});
+const sensorFolder = gui.addFolder('Sensor Thresholds');
+sensorFolder.add(AppState.accel, 'threshold', 5, 50);
+
+/**
+ * SPEECH API
+ */
+document.getElementById('btn-speak').addEventListener('click', () => {
+    const text = document.getElementById('speech-text').value;
+    const utterance = new SpeechSynthesisUtterance(text);
+    // Pitch mapped to gyro
+    utterance.pitch = Math.max(0, Math.min(2, (AppState.gyro.x + 90) / 90)); 
+    window.speechSynthesis.speak(utterance);
+});
+
+// Initialization
+document.getElementById('btn-start').addEventListener('click', requestPermissions);
+
+// Resize handler
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    
+    const canvas = document.getElementById('master-waveform');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight * 0.05;
+});
+</script>
+</body>
+</html>
