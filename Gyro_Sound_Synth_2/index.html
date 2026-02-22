@@ -43,14 +43,14 @@
         #init-overlay { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
         #btn-start { padding: 20px 40px; font-size: 1.5rem; background: var(--accent-neon); border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
         #btn-start:hover { background: #00ccaa; }
-        #error-msg { color: var(--error-red); margin-top: 20px; font-family: monospace; font-size: 1.2rem; min-height: 1.5rem; }
+        #error-msg { color: var(--error-red); margin-top: 20px; font-family: monospace; font-size: 1.2rem; min-height: 1.5rem; padding: 0 20px;}
     </style>
 </head>
 <body>
 
 <div id="init-overlay">
     <h1 style="color: var(--accent-neon); letter-spacing: 8px;">GYR-OS</h1>
-    <p style="color: #666; margin-bottom: 20px;">SPATIAL AUDIO UTILITY V1.1</p>
+    <p style="color: #666; margin-bottom: 20px;">SPATIAL AUDIO UTILITY V1.2</p>
     <button id="btn-start">INITIALIZE ENGINE</button>
     <div id="error-msg"></div>
 </div>
@@ -79,12 +79,17 @@
     import * as THREE from 'three';
     import * as Tone from 'https://esm.sh/tone';
 
+// Simple math map function (replaces deprecated Tone.map)
+const mapRange = (value, inMin, inMax, outMin, outMax) => {
+    return ((value - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
+};
+
 /**
  * THE GYR-OS MASTER OBJECT
  */
 const GyrOS = {
     state: {
-        mode: 1, sensitivity: 25, threshold: 25, 
+        mode: 1, sensitivity: 25, threshold: 15, 
         gyro: { x: 0, y: 0, z: 0 },
         osc: { sine: true, sawtooth: false, square: false, triangle: false },
         isRecording: false
@@ -100,7 +105,7 @@ const GyrOS = {
 
             // 1. Audio and Permissions
             await Tone.start();
-            await this.detectGyroscope();
+            await this.detectSensors();
 
             if ('wakeLock' in navigator) {
                 try { await navigator.wakeLock.request('screen'); } catch(e) { console.warn("Wake lock denied."); }
@@ -126,17 +131,21 @@ const GyrOS = {
         }
     },
 
-    async detectGyroscope() {
+    async detectSensors() {
         if (!window.DeviceOrientationEvent) {
             throw new Error("No Gyroscope detected on system");
         }
 
-        // Request permission on modern iOS
-        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+        // Request permission on modern iOS for Orientation
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
             const permissionState = await DeviceOrientationEvent.requestPermission();
-            if (permissionState !== 'granted') {
-                throw new Error("Gyroscope permission denied by user.");
-            }
+            if (permissionState !== 'granted') throw new Error("Gyroscope permission denied.");
+        }
+        
+        // Request permission on modern iOS for Motion
+        if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+            const motionState = await DeviceMotionEvent.requestPermission();
+            if (motionState !== 'granted') throw new Error("Motion permission denied.");
         }
 
         // Validate actual sensor hardware presence using a timeout logic
@@ -147,30 +156,40 @@ const GyrOS = {
             }, 2000);
 
             const checkGyro = (event) => {
-                // If the hardware sends valid angular tracking properties
                 if (event.alpha !== null && event.beta !== null && event.gamma !== null) {
                     clearTimeout(timeout);
                     window.removeEventListener('deviceorientation', checkGyro);
                     resolve();
                 }
             };
-
             window.addEventListener('deviceorientation', checkGyro);
         });
     },
 
     initAudio() {
         this.analyser = new Tone.Analyser("waveform", 1024);
+        
+        // Master Volume Bus
+        this.masterBus = new Tone.Volume(0).toDestination();
+        this.masterBus.connect(this.analyser);
+
+        // Rack Effects (Freeverb is lighter for mobile than Reverb)
         this.rack = {
-            reverb: new Tone.Reverb(3).toDestination(),
-            delay: new Tone.FeedbackDelay("8n", 0.4).connect(Tone.Destination)
+            reverb: new Tone.Freeverb({ roomSize: 0.8, dampening: 2000 }).connect(this.masterBus),
+            delay: new Tone.FeedbackDelay("8n", 0.3).connect(this.masterBus)
         };
+        this.rack.reverb.wet.value = 0.3;
+        this.rack.delay.wet.value = 0.2;
+
         this.synths = {
-            poly: new Tone.PolySynth().connect(this.rack.delay),
-            theremin: new Tone.Oscillator(440, "sine").toDestination()
+            poly: new Tone.PolySynth(Tone.Synth, {
+                oscillator: { type: "sine" },
+                envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 1 }
+            }).connect(this.rack.delay).connect(this.masterBus),
+            
+            theremin: new Tone.Oscillator(440, "sine").connect(this.rack.reverb).connect(this.masterBus)
         };
-        this.drums = { kick: new Tone.MembraneSynth().toDestination() };
-        Tone.Destination.connect(this.analyser);
+        this.drums = { kick: new Tone.MembraneSynth().connect(this.masterBus) };
     },
 
     initVisuals() {
@@ -196,27 +215,46 @@ const GyrOS = {
 
     initSensors() {
         window.addEventListener("deviceorientation", e => {
-            // Null fallback is handled, mapping beta/gamma natively
             this.state.gyro = { x: e.beta || 0, y: e.gamma || 0, z: e.alpha || 0 };
         });
         
         window.addEventListener("devicemotion", e => {
-            if (!e.acceleration || e.acceleration.x === null) return;
-            const a = e.acceleration;
+            let a = e.acceleration;
+            // Fallback for some Android versions
+            if (!a || a.x === null) a = e.accelerationIncludingGravity;
+            if (!a || a.x === null) return;
+            
             const force = Math.sqrt(a.x**2 + a.y**2 + a.z**2);
-            if (force > this.state.threshold) this.handleThrust();
+            // Ignore resting gravity if using fallback (~9.8)
+            if (force > this.state.threshold && force > 10) {
+                this.handleThrust(force);
+            }
         });
     },
 
-    handleThrust() {
-        if (navigator.vibrate) navigator.vibrate(30);
-        this.cursor.scale.set(2, 2, 2);
-        
-        // Reset scale gracefully
-        setTimeout(() => this.cursor.scale.set(1, 1, 1), 100);
+    handleThrust(force) {
+        const now = Tone.now();
+        // Debounce to prevent multiple triggers per single natural swing
+        if (this.lastThrust && (now - this.lastThrust) < 0.15) return;
+        this.lastThrust = now;
 
+        if (navigator.vibrate) navigator.vibrate(30);
+        
+        // Visual Pop based on force
+        const scaleBump = 1 + Math.min(force / 15, 3);
+        this.cursor.scale.set(scaleBump, scaleBump, scaleBump);
+        setTimeout(() => this.cursor.scale.set(1, 1, 1), 150);
+
+        // IMPACT & HYBRID MODE: Play notes based on swing force & phone angle
         if (this.state.mode === 2 || this.state.mode === 3) {
-            this.drums.kick.triggerAttackRelease("C1", "8n");
+            const scale = ["C3", "D3", "E3", "G3", "A3", "C4", "D4", "E4", "G4", "A4", "C5", "D5", "E5", "G5", "A5"];
+            let index = Math.floor(mapRange(this.state.gyro.x, -90, 90, 0, scale.length - 1));
+            index = Math.max(0, Math.min(scale.length - 1, index));
+            
+            const velocity = Math.min(1, force / 40);
+            
+            this.synths.poly.triggerAttackRelease(scale[index], "8n", now, velocity);
+            this.drums.kick.triggerAttackRelease("C1", "16n", now, velocity * 0.8);
         }
     },
 
@@ -232,10 +270,8 @@ const GyrOS = {
                 };
                 this.recognition.start();
             } catch (err) {
-                console.warn("Speech engine initialization failed (may require permissions).", err);
+                console.warn("Speech engine initialization failed.", err);
             }
-        } else {
-            console.warn("Speech Recognition API not supported in this browser.");
         }
     },
 
@@ -250,7 +286,7 @@ const GyrOS = {
 
     initRecorder() {
         this.streamDest = Tone.context.createMediaStreamDestination();
-        Tone.Destination.connect(this.streamDest);
+        this.masterBus.connect(this.streamDest);
         
         let mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
         this.recorder = new MediaRecorder(this.streamDest.stream, { mimeType });
@@ -259,7 +295,7 @@ const GyrOS = {
         this.recorder.ondataavailable = e => { if (e.data.size > 0) this.chunks.push(e.data); };
         this.recorder.onstop = () => {
             const blob = new Blob(this.chunks, { type: mimeType });
-            this.chunks = []; // Clear for next recording
+            this.chunks = [];
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
             a.download = `GyrOS_Rec_${Date.now()}.${mimeType.split('/')[1]}`;
@@ -269,8 +305,8 @@ const GyrOS = {
 
     initGUI() {
         const gui = new dat.GUI();
-        gui.add(this.state, 'threshold', 10, 100).name("Impact Thresh");
-        gui.add(this.state, 'sensitivity', 1, 50).name("Gyro Scale");
+        gui.add(this.state, 'threshold', 5, 50).name("Impact Thresh");
+        gui.add(this.state, 'sensitivity', 1, 50).name("Visual Scale");
         const osc = gui.addFolder('Oscillators');
         ['sine', 'sawtooth', 'square', 'triangle'].forEach(t => {
             osc.add(this.state.osc, t).listen().onChange(() => this.updateOsc(t));
@@ -284,14 +320,12 @@ const GyrOS = {
     },
 
     bindEvents() {
-        // Handle window resizing seamlessly
         window.addEventListener('resize', () => {
             this.cam.aspect = window.innerWidth / window.innerHeight;
             this.cam.updateProjectionMatrix();
             this.renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        // Mode Switching mechanism
         document.querySelectorAll('.mode-btn[data-mode]').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 document.querySelectorAll('.mode-btn[data-mode]').forEach(b => b.classList.remove('active'));
@@ -304,23 +338,46 @@ const GyrOS = {
     loop() {
         requestAnimationFrame(() => this.loop());
         const { gyro, sensitivity, mode } = this.state;
+        const now = Tone.now();
 
-        // Visuals Interaction
-        this.cursor.position.x = (gyro.y / 90) * sensitivity;
-        this.cursor.position.y = (gyro.x / 90) * (sensitivity * 0.75);
+        // 1. Visuals Interaction Interpolation
+        const targetX = mapRange(gyro.y, -90, 90, -10 * (sensitivity/25), 10 * (sensitivity/25));
+        const targetY = mapRange(gyro.x, -90, 90, -10 * (sensitivity/25), 10 * (sensitivity/25));
+        this.cursor.position.x += (targetX - this.cursor.position.x) * 0.1;
+        this.cursor.position.y += (targetY - this.cursor.position.y) * 0.1;
         this.cursor.rotation.x += 0.01;
         this.cursor.rotation.y += 0.02;
 
-        // Audio Theremin logic (Modes 1 and 3)
+        // 2. Audio Theremin Logic (Modes 1 and 3)
         if (mode === 1 || mode === 3) {
-            // Mapping Beta angle to a healthy frequency range
-            let freq = Tone.map(gyro.x, -90, 90, 100, 1000);
-            freq = Math.max(20, Math.min(2000, freq)); // Safety limits
+            // Pitch mapped to Beta (Tilt Forward/Back)
+            let freq = mapRange(gyro.x, -90, 90, 100, 1500);
+            freq = Math.max(50, Math.min(2000, freq)); // Safety clamp
             
-            this.synths.theremin.frequency.rampTo(freq, 0.1);
-            if (this.synths.theremin.state !== 'started') this.synths.theremin.start();
+            // Volume mapped to Gamma (Tilt Left/Right)
+            let vol = mapRange(gyro.y, -90, 90, -40, 0);
+            vol = Math.max(-60, Math.min(0, vol));
+
+            // setTargetAtTime sweeps perfectly without clicks!
+            this.synths.theremin.frequency.setTargetAtTime(freq, now, 0.05);
+            this.synths.theremin.volume.setTargetAtTime(vol, now, 0.05);
+
+            if (this.synths.theremin.state !== 'started') {
+                this.synths.theremin.start();
+            }
         } else {
             this.synths.theremin.stop();
+        }
+
+        // 3. Composer Mode (Mode 5) Arpeggiator
+        if (mode === 5) {
+            if (!this.lastArp || now - this.lastArp > 0.15) { // Roughly 16th notes
+                this.lastArp = now;
+                const scale = ["C3", "E3", "G3", "B3", "C4", "E4", "G4", "B4", "C5"];
+                let index = Math.floor(mapRange(gyro.x, -90, 90, 0, scale.length - 1));
+                index = Math.max(0, Math.min(scale.length - 1, index));
+                this.synths.poly.triggerAttackRelease(scale[index], "16n");
+            }
         }
 
         this.renderWaveform();
@@ -330,10 +387,9 @@ const GyrOS = {
     renderWaveform() {
         const canvas = document.getElementById('master-waveform');
         const ctx = canvas.getContext('2d');
-        
-        // Match Internal resolution to Display CSS Size properly
         const width = canvas.clientWidth;
         const height = canvas.clientHeight;
+        
         if (canvas.width !== width || canvas.height !== height) {
             canvas.width = width;
             canvas.height = height;
