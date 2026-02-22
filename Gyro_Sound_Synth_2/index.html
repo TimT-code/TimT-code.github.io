@@ -4,103 +4,74 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <link rel="manifest" href="manifest.json">
-    <title>Gyr-OS | Master Utility V2.0</title>
+    <title>Gyr-OS | Master Workstation V3.0</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tonaljs/tonal/browser/tonal.min.js"></script>
 
     <style>
-        :root {
-            --glass-bg: rgba(10, 10, 15, 0.85);
-            --glass-border: rgba(255, 255, 255, 0.15);
-            --accent-neon: #00ffcc;
-            --error-red: #ff4444;
-            --warning-orange: #ffaa00;
-        }
-
-        body, html { margin: 0; padding: 0; overflow: hidden; background: #020202; font-family: sans-serif; color: white; }
+        :root { --accent-neon: #00ffcc; --glass-bg: rgba(10, 10, 15, 0.85); }
+        body, html { margin: 0; padding: 0; overflow: hidden; background: #020202; font-family: sans-serif; color: white; user-select: none; }
         
-        /* ThreeJS Canvas */
-        #canvas-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; pointer-events: none; }
 
-        /* Grid Playfield Overlay */
+        /* 3D Grid Overlay */
         #grid-overlay {
             position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
-            display: grid; z-index: 2; pointer-events: none;
-            border: 1px solid transparent;
+            display: grid; z-index: 2; border: 1px solid transparent;
+            perspective: 1000px; transition: transform 0.1s ease-out;
         }
         .grid-cell {
-            border: 1px solid rgba(255,255,255,0.05); transition: background 0.1s;
+            border: 1px solid rgba(255,255,255,0.1); transition: all 0.2s;
+            background-size: cover; background-position: center;
+            display: flex; align-items: flex-end; justify-content: flex-end; padding: 5px;
+            box-sizing: border-box; font-family: monospace; font-size: 10px; color: rgba(255,255,255,0.5);
         }
-        .grid-cell.active { background: rgba(0, 255, 204, 0.3); border-color: var(--accent-neon); }
+        .grid-cell.active { border-color: var(--accent-neon); box-shadow: inset 0 0 20px var(--accent-neon); transform: translateZ(20px); z-index: 3; color: white; background-color: rgba(0,255,204,0.2); }
+        .grid-cell.has-audio::before { content: '🎵'; position: absolute; top: 5px; left: 5px; font-size: 12px; }
 
-        /* GUI Wrappers (3 Zones) */
-        .gui-wrap { position: absolute; top: 10px; z-index: 100; pointer-events: auto; }
-        #gui-left { left: 10px; }
-        #gui-center { left: 50%; transform: translateX(-50%); }
-        #gui-right { right: 10px; }
+        /* Draggable GUIs */
+        .gui-window { position: absolute; z-index: 100; background: rgba(0,0,0,0.8); border: 1px solid var(--accent-neon); border-radius: 6px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .gui-header { background: var(--accent-neon); color: black; padding: 4px 10px; font-size: 12px; font-weight: bold; cursor: move; display: flex; justify-content: space-between; }
+        
+        #gui-left { top: 20px; left: 20px; }
+        #gui-center { top: 20px; left: 50%; transform: translateX(-50%); }
+        #gui-right { top: 20px; right: 20px; }
 
-        /* Live Data Dashboard */
-        #live-dashboard {
-            position: absolute; top: 10px; left: 10px; margin-top: 300px;
-            background: var(--glass-bg); padding: 10px; border: 1px solid var(--glass-border);
-            border-radius: 8px; font-family: monospace; font-size: 11px; z-index: 50;
-            pointer-events: none; color: var(--accent-neon);
-        }
+        /* Dashboard */
+        #live-dashboard { position: absolute; bottom: 18vh; left: 20px; background: var(--glass-bg); padding: 10px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; font-family: monospace; font-size: 11px; z-index: 50; pointer-events: none; color: var(--accent-neon); }
 
-        /* Bottom HUD */
-        #bottom-hud {
-            position: absolute; bottom: 0; left: 0; width: 100vw; height: 15vh;
-            background: var(--glass-bg); backdrop-filter: blur(10px);
-            border-top: 1px solid var(--glass-border); z-index: 50;
-            display: flex; flex-direction: column; align-items: center; justify-content: space-between;
-        }
-
-        .hud-controls { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; justify-content: center; }
-        .mode-btn {
-            padding: 6px 14px; background: rgba(0,0,0,0.5); border: 1px solid var(--accent-neon);
-            color: var(--accent-neon); border-radius: 4px; cursor: pointer; font-size: 10px; font-weight: bold;
-        }
+        /* HUD */
+        #bottom-hud { position: absolute; bottom: 0; left: 0; width: 100vw; height: 15vh; background: var(--glass-bg); backdrop-filter: blur(10px); border-top: 1px solid rgba(255,255,255,0.2); z-index: 50; display: flex; flex-direction: column; }
+        .hud-controls { display: flex; gap: 5px; justify-content: center; padding: 10px; }
+        .mode-btn { padding: 6px 10px; background: #111; border: 1px solid var(--accent-neon); color: var(--accent-neon); border-radius: 4px; cursor: pointer; font-size: 10px; font-weight: bold; }
         .mode-btn.active { background: var(--accent-neon); color: #000; box-shadow: 0 0 10px var(--accent-neon); }
-        #master-waveform { width: 100vw; height: 50%; background: rgba(0,0,0,0.3); }
+        #master-waveform { width: 100%; height: 100%; }
 
-        /* Drop Zone */
-        #drop-zone-indicator {
-            position: fixed; inset: 0; background: rgba(0, 255, 204, 0.2); border: 5px dashed var(--accent-neon);
-            z-index: 999; display: none; justify-content: center; align-items: center; pointer-events: none;
-        }
-
-        /* Initializer */
-        #init-overlay {
-            position: fixed; inset: 0; background: #000; z-index: 1000;
-            display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
-        }
+        /* Init */
+        #init-overlay { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
         #btn-start { padding: 20px 40px; font-size: 1.5rem; background: var(--accent-neon); border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div id="init-overlay">
-    <h1 style="color: var(--accent-neon); letter-spacing: 5px;">GYR-OS V2.0</h1>
-    <p>SPATIAL AUDIO & MULTI-OSC UTILITY</p>
+    <h1 style="color: var(--accent-neon); letter-spacing: 5px;">GYR-OS V3.0</h1>
+    <p>WORKSTATION MATRIX ENGINE</p>
     <button id="btn-start">INITIALIZE ENGINE</button>
-    <div id="error-msg" style="color: var(--error-red); margin-top: 15px;"></div>
+    <div id="error-msg" style="color: #ff4444; margin-top: 15px;"></div>
 </div>
 
-<div id="drop-zone-indicator"><h2>DROP AUDIO FILE HERE</h2></div>
+<!-- Draggable GUI Containers -->
+<div class="gui-window" id="gui-left" style="transform: none;"><div class="gui-header"><span>SENSORS & SYSTEM</span><span class="gui-toggle">▼</span></div><div class="gui-content" id="gui-left-content"></div></div>
+<div class="gui-window" id="gui-center" style="transform: none;"><div class="gui-header"><span>GRID & PRESETS (Keys 1-9)</span><span class="gui-toggle">▼</span></div><div class="gui-content" id="gui-center-content"></div></div>
+<div class="gui-window" id="gui-right" style="transform: none;"><div class="gui-header"><span>AUDIO & MASTER FX</span><span class="gui-toggle">▼</span></div><div class="gui-content" id="gui-right-content"></div></div>
 
-<!-- 3 GUI Containers -->
-<div class="gui-wrap" id="gui-left"></div>
-<div class="gui-wrap" id="gui-center"></div>
-<div class="gui-wrap" id="gui-right"></div>
-
-<!-- Data Dashboard -->
 <div id="live-dashboard">
-    <div>X (Gamma): <span id="rd-x">0</span></div>
-    <div>Y (Beta) : <span id="rd-y">0</span></div>
-    <div>Freq     : <span id="rd-f">0</span> Hz</div>
-    <div>Vol      : <span id="rd-v">0</span> dB</div>
-    <div>Cell Aim : <span id="rd-c">None</span></div>
+    <div>POS: <span id="rd-pos">0, 0</span></div>
+    <div>ACC: <span id="rd-acc">0</span></div>
+    <div>VIB: <span id="rd-vib">Ready</span></div>
+    <div>AIM: <span id="rd-cell">None</span></div>
 </div>
 
 <div id="canvas-container"></div>
@@ -109,10 +80,12 @@
 <div id="bottom-hud">
     <div class="hud-controls">
         <button class="mode-btn active" data-mode="1">1: THEREMIN</button>
-        <button class="mode-btn" data-mode="2">2: IMPACT GRID</button>
-        <button class="mode-btn" data-mode="5">5: ARPEGGIATOR</button>
-        <button id="btn-panic" class="mode-btn" style="border-color: var(--warning-orange); color: var(--warning-orange);">■ MUTE/PANIC</button>
-        <button id="btn-record" class="mode-btn" style="border-color: var(--error-red); color: var(--error-red);">● REC</button>
+        <button class="mode-btn" data-mode="2">2: IMPACT</button>
+        <button class="mode-btn" data-mode="3">3: HYBRID</button>
+        <button class="mode-btn" data-mode="4">4: HOVER-SYNTH</button>
+        <button class="mode-btn" data-mode="5">5: ARP</button>
+        <button id="btn-panic" class="mode-btn" style="border-color: #ffaa00; color: #ffaa00;">■ PANIC</button>
+        <button id="btn-reset-gui" class="mode-btn">⟳ RESET GUIs</button>
     </div>
     <canvas id="master-waveform"></canvas>
 </div>
@@ -130,49 +103,47 @@ const mapRange = (val, inMin, inMax, outMin, outMax) => ((val - inMin) * (outMax
 const GyrOS = {
     state: {
         mode: 1, hasGyro: false,
-        gyro: { x: 0, y: 0, z: 0 },
-        touchOffset: { freq: 1, vol: 0 }, // Touch interaction offsets
+        rawSensors: { x: 0, y: 0, z: 0, acc: 0 },
+        pointer: { x: 0, y: 0 },
+        activeCellIdx: -1, prevCellIdx: -1,
         
-        // System / Left GUI
-        sys: { threshold: 15, sensitivity: 30, fineControl: false },
-        
-        // Config / Center GUI
-        cfg: { gridCols: 4, gridRows: 3, showGrid: true, decimals: 1, uiColor: '#00ffcc' },
-        
-        // Sound / Right GUI
-        snd: { 
-            scale: 'major', root: 'C', octave: 3, pitchBend: 0,
-            osc1: 'sine', osc2: 'sawtooth', oscMix: 0.5,
-            eqHigh: 0, eqMid: 0, eqLow: 0,
-            reverb: 0.3, delay: 0.2, masterVol: -5,
-            speechText: "Gyro Spatial System Active", speechRate: 1.0, speechPitch: 1.0
-        },
-        
-        scaleNotes: [], activeCellIdx: -1, isRecording: false
+        // Mapped Config State (Saved to LocalStorage)
+        cfg: {
+            // Sensors
+            sensInvertX: false, sensInvertY: false, sensSwapXY: false,
+            gyroScale: 30, mouseScale: 1.5, mouseSmooth: 0.2, impactThresh: 15,
+            vibActive: 30, vibRest: 10,
+            
+            // Grid
+            gridCols: 4, gridRows: 3, showGrid: true, perspective: false,
+            
+            // Audio Engine
+            masterVol: -5, eqLow: 0, eqMid: 0, eqHigh: 0, reverbMix: 0.3, delayMix: 0.2,
+            synthType: 'AMSynth', scale: 'pentatonic', root: 'C', octave: 3,
+            atk: 0.05, dec: 0.2, sus: 0.5, rel: 1.5,
+            
+            // Grid Cells Data Array
+            cells: [] 
+        }
     },
 
     async init() {
         try {
             document.getElementById('error-msg').innerText = "Requesting permissions...";
             await Tone.start();
-            
-            try { await this.detectSensors(); this.state.hasGyro = true; } 
-            catch(e) { console.warn(e); this.state.hasGyro = false; }
+            try { await this.detectSensors(); this.state.hasGyro = true; } catch(e) { this.state.hasGyro = false; }
 
             this.initAudio();
             this.initVisuals();
-            this.initSensors();
+            this.loadPreset('default'); // Load base or saved state
             this.initGrid();
             this.initGUIs();
-            this.initDragAndDrop();
+            this.makeGUIsDraggable();
             this.bindEvents();
-            this.updateScale();
-
+            
             document.getElementById('init-overlay').style.display = 'none';
             this.loop();
-        } catch(err) {
-            document.getElementById('error-msg').innerText = "Failed: " + err.message;
-        }
+        } catch(err) { document.getElementById('error-msg').innerText = "Failed: " + err.message; }
     },
 
     async detectSensors() {
@@ -191,39 +162,24 @@ const GyrOS = {
     initAudio() {
         this.analyser = new Tone.Analyser("waveform", 1024);
         
-        // Master Bus + EQ
-        this.eq = new Tone.EQ3(this.state.snd.eqLow, this.state.snd.eqMid, this.state.snd.eqHigh);
-        this.masterVol = new Tone.Volume(this.state.snd.masterVol).toDestination();
+        this.eq = new Tone.EQ3(this.state.cfg.eqLow, this.state.cfg.eqMid, this.state.cfg.eqHigh);
+        this.masterVol = new Tone.Volume(this.state.cfg.masterVol).toDestination();
         this.eq.connect(this.masterVol);
         this.masterVol.connect(this.analyser);
 
-        // Effects Rack
         this.rack = {
             reverb: new Tone.Freeverb({ roomSize: 0.8 }).connect(this.eq),
             delay: new Tone.FeedbackDelay("8n", 0.3).connect(this.eq)
         };
-        this.rack.reverb.wet.value = this.state.snd.reverb;
-        this.rack.delay.wet.value = this.state.snd.delay;
 
-        // Multi-Oscillator Synths for Playfield/Grid
-        this.synths = {
-            osc1: new Tone.PolySynth(Tone.Synth).connect(this.rack.delay),
-            osc2: new Tone.PolySynth(Tone.Synth).connect(this.rack.delay),
-            theremin: new Tone.Oscillator(440, "sine").start()
-        };
-        
-        this.synths.osc1.set({ oscillator: { type: this.state.snd.osc1 }});
-        this.synths.osc2.set({ oscillator: { type: this.state.snd.osc2 }, volume: -6 });
-
-        // Theremin Volume Gate
+        // Voice Pool for Grid
+        this.polySynth = new Tone.PolySynth(Tone[this.state.cfg.synthType]).connect(this.rack.delay);
+        this.theremin = new Tone.Oscillator(440, "sine").start();
         this.thereminVol = new Tone.Volume(-Infinity).connect(this.rack.reverb);
-        this.synths.theremin.connect(this.thereminVol);
+        this.theremin.connect(this.thereminVol);
 
-        // Custom File Sampler
-        this.customPlayer = new Tone.Player().connect(this.rack.reverb);
-        
-        // Speech Synth
-        this.synthSpeech = window.speechSynthesis;
+        // Map for cell-specific audio players
+        this.cellPlayers = new Map();
     },
 
     initVisuals() {
@@ -233,18 +189,13 @@ const GyrOS = {
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         document.getElementById('canvas-container').appendChild(this.renderer.domElement);
 
-        // The Original Gyro Pointer Style
-        this.pointer = new THREE.Mesh(
-            new THREE.SphereGeometry(0.8, 16, 16),
-            new THREE.MeshBasicMaterial({ color: 0x00ffcc, wireframe: true })
-        );
+        this.pointer = new THREE.Mesh(new THREE.SphereGeometry(0.8, 16, 16), new THREE.MeshBasicMaterial({ color: 0x00ffcc, wireframe: true }));
         this.scene.add(this.pointer);
         
-        const grid = new THREE.GridHelper(100, 50, 0x222222, 0x111111);
-        grid.rotation.x = Math.PI / 2;
-        grid.position.z = -5;
-        this.scene.add(grid);
-
+        this.gridHelper = new THREE.GridHelper(100, 50, 0x222222, 0x111111);
+        this.gridHelper.rotation.x = Math.PI / 2;
+        this.gridHelper.position.z = -5;
+        this.scene.add(this.gridHelper);
         this.cam.position.z = 10;
     },
 
@@ -256,137 +207,180 @@ const GyrOS = {
         overlay.style.opacity = this.state.cfg.showGrid ? "1" : "0";
 
         const total = this.state.cfg.gridCols * this.state.cfg.gridRows;
+        
+        // Ensure cells state array matches
+        if (this.state.cfg.cells.length !== total) {
+            this.state.cfg.cells = Array.from({length: total}, (_, i) => ({
+                id: i, audioSrc: null, imageSrc: null, customNote: null
+            }));
+        }
+
+        const s = Tonal.Scale.get(`${this.state.cfg.root} ${this.state.cfg.scale}`).notes;
+        let currOct = parseInt(this.state.cfg.octave);
+
         for(let i=0; i<total; i++) {
             const cell = document.createElement('div');
             cell.className = 'grid-cell';
             cell.id = `cell-${i}`;
+            
+            // Assign default scale note
+            let note = s[i % s.length] + currOct;
+            if ((i + 1) % s.length === 0) currOct++;
+            this.state.cfg.cells[i].defaultNote = note;
+            
+            cell.innerText = note;
+
+            // Apply saved cell data (Images/Audio icons)
+            const cData = this.state.cfg.cells[i];
+            if (cData.imageSrc) cell.style.backgroundImage = `url(${cData.imageSrc})`;
+            if (cData.audioSrc) cell.classList.add('has-audio');
+
+            // Drag and Drop per cell
+            cell.addEventListener('dragover', e => { e.preventDefault(); cell.style.background = 'rgba(0,255,204,0.5)'; });
+            cell.addEventListener('dragleave', () => cell.style.background = '');
+            cell.addEventListener('drop', async e => {
+                e.preventDefault(); cell.style.background = '';
+                const file = e.dataTransfer.files[0];
+                if (!file) return;
+                
+                const url = URL.createObjectURL(file);
+                if (file.type.startsWith('image/')) {
+                    cData.imageSrc = url;
+                    cell.style.backgroundImage = `url(${url})`;
+                } else if (file.type.startsWith('audio/')) {
+                    cData.audioSrc = url;
+                    const player = new Tone.Player(url).connect(this.rack.delay);
+                    await Tone.loaded();
+                    this.cellPlayers.set(i, player);
+                    cell.classList.add('has-audio');
+                }
+            });
+
             overlay.appendChild(cell);
         }
-        this.updateScale();
     },
 
-    updateScale() {
-        const { root, octave, scale, gridCols, gridRows } = this.state.snd;
-        const total = gridCols * gridRows;
-        // Generate Tonal.js scale
-        const s = Tonal.Scale.get(`${root} ${scale}`).notes;
-        let notes = [];
-        let currOct = parseInt(octave);
-        
-        for (let i = 0; i < total; i++) {
-            let noteStr = s[i % s.length] + currOct;
-            notes.push(noteStr);
-            if ((i + 1) % s.length === 0) currOct++;
-        }
-        this.state.scaleNotes = notes;
-    },
-
-    initSensors() {
-        if(this.state.hasGyro) {
-            window.addEventListener("deviceorientation", e => {
-                this.state.gyro = { x: e.gamma || 0, y: e.beta || 0 }; // Gamma is X (Left/Right), Beta is Y (Front/Back)
-            });
-            window.addEventListener("devicemotion", e => {
-                let a = e.acceleration || e.accelerationIncludingGravity;
-                if (!a || a.x === null) return;
-                const force = Math.sqrt(a.x**2 + a.y**2 + a.z**2);
-                if (force > this.state.sys.threshold && force > 10) this.triggerImpact(force);
-            });
-        }
-    },
-
-    initDragAndDrop() {
-        const dropZone = document.getElementById('drop-zone-indicator');
-        window.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.display = 'flex'; });
-        window.addEventListener('dragleave', e => { e.preventDefault(); dropZone.style.display = 'none'; });
-        window.addEventListener('drop', async e => {
-            e.preventDefault();
-            dropZone.style.display = 'none';
-            const file = e.dataTransfer.files[0];
-            if(file && file.type.includes('audio')) {
-                const url = URL.createObjectURL(file);
-                await this.customPlayer.load(url);
-                document.getElementById('rd-c').innerText = `Loaded: ${file.name}`;
-            }
-        });
-    },
-
-    triggerImpact(force = 30) {
-        if(this.state.mode !== 2 && this.state.mode !== 5) return;
+    triggerCell(idx, force = 30) {
+        if (idx < 0 || idx >= this.state.cfg.cells.length) return;
         const now = Tone.now();
-        if (this.lastHit && (now - this.lastHit) < 0.1) return;
-        this.lastHit = now;
-
         const vol = Math.min(1, force / 40);
-        const idx = this.state.activeCellIdx;
         
-        // Play Audio file if loaded
-        if (this.customPlayer.loaded) this.customPlayer.start(now);
-        
-        // Play mapped Synth Note
-        if (idx >= 0 && idx < this.state.scaleNotes.length) {
-            const note = this.state.scaleNotes[idx];
-            this.synths.osc1.triggerAttackRelease(note, "8n", now, vol);
-            this.synths.osc2.triggerAttackRelease(note, "8n", now, vol * this.state.snd.oscMix);
+        // Vibrate
+        if(navigator.vibrate) {
+            navigator.vibrate([this.state.cfg.vibActive, this.state.cfg.vibRest]);
+            document.getElementById('rd-vib').innerText = `HIT (${force.toFixed(0)})`;
+            setTimeout(() => document.getElementById('rd-vib').innerText = "Ready", 100);
         }
 
-        // Visual feedback
+        // Play Custom Audio if loaded
+        if (this.cellPlayers.has(idx)) {
+            const p = this.cellPlayers.get(idx);
+            if(p.loaded) {
+                p.volume.value = Tone.gainToDb(vol);
+                p.start(now);
+            }
+        } 
+        // Else play Synth Note
+        else {
+            const note = this.state.cfg.cells[idx].customNote || this.state.cfg.cells[idx].defaultNote;
+            this.polySynth.triggerAttackRelease(note, "8n", now, vol);
+        }
+
+        // Visual
         this.pointer.scale.set(1.5, 1.5, 1.5);
         setTimeout(() => this.pointer.scale.set(1, 1, 1), 100);
     },
 
-    triggerSpeech() {
-        const u = new SpeechSynthesisUtterance(this.state.snd.speechText);
-        u.rate = this.state.snd.speechRate;
-        u.pitch = this.state.snd.speechPitch;
-        this.synthSpeech.speak(u);
+    initGUIs() {
+        // Clear old
+        document.getElementById('gui-left-content').innerHTML = '';
+        document.getElementById('gui-center-content').innerHTML = '';
+        document.getElementById('gui-right-content').innerHTML = '';
+
+        const guiOpts = { autoPlace: false, closed: false };
+
+        // 1. LEFT: SENSORS
+        this.guiSys = new dat.GUI(guiOpts);
+        document.getElementById('gui-left-content').appendChild(this.guiSys.domElement);
+        const gMap = this.guiSys.addFolder('Axis Mapping');
+        gMap.add(this.state.cfg, 'sensSwapXY').name('Swap X/Y');
+        gMap.add(this.state.cfg, 'sensInvertX').name('Invert X');
+        gMap.add(this.state.cfg, 'sensInvertY').name('Invert Y');
+        const gDyn = this.guiSys.addFolder('Dynamics');
+        gDyn.add(this.state.cfg, 'gyroScale', 10, 90).name('Gyro Scale');
+        gDyn.add(this.state.cfg, 'mouseScale', 0.1, 5).name('Mouse Scale');
+        gDyn.add(this.state.cfg, 'mouseSmooth', 0.01, 1).name('Smoothing');
+        gDyn.add(this.state.cfg, 'impactThresh', 5, 50).name('Shake Thresh');
+        const gVib = this.guiSys.addFolder('Haptics');
+        gVib.add(this.state.cfg, 'vibActive', 0, 100).name('Vib Time (ms)');
+        gVib.add(this.state.cfg, 'vibRest', 0, 100).name('Rest Time (ms)');
+
+        // 2. CENTER: GRID & PRESETS
+        this.guiCfg = new dat.GUI(guiOpts);
+        document.getElementById('gui-center-content').appendChild(this.guiCfg.domElement);
+        this.guiCfg.add(this.state.cfg, 'gridCols', 1, 12).step(1).name('Cols').onChange(()=>this.initGrid());
+        this.guiCfg.add(this.state.cfg, 'gridRows', 1, 12).step(1).name('Rows').onChange(()=>this.initGrid());
+        this.guiCfg.add(this.state.cfg, 'showGrid').name('Show Grid').onChange(()=>this.initGrid());
+        this.guiCfg.add(this.state.cfg, 'perspective').name('3D Perspective');
+        
+        // 3. RIGHT: AUDIO
+        this.guiSnd = new dat.GUI(guiOpts);
+        document.getElementById('gui-right-content').appendChild(this.guiSnd.domElement);
+        const sMix = this.guiSnd.addFolder('Master Mixer');
+        sMix.add(this.state.cfg, 'masterVol', -60, 10).name('Master Vol').onChange(v => this.masterVol.volume.value = v);
+        sMix.add(this.state.cfg, 'eqLow', -10, 10).onChange(v => this.eq.low.value = v);
+        sMix.add(this.state.cfg, 'eqMid', -10, 10).onChange(v => this.eq.mid.value = v);
+        sMix.add(this.state.cfg, 'eqHigh', -10, 10).onChange(v => this.eq.high.value = v);
+        sMix.add(this.state.cfg, 'reverbMix', 0, 1).onChange(v => this.rack.reverb.wet.value = v);
+        sMix.add(this.state.cfg, 'delayMix', 0, 1).onChange(v => this.rack.delay.wet.value = v);
+        
+        const sSyn = this.guiSnd.addFolder('Synth Engine');
+        sSyn.add(this.state.cfg, 'synthType', ['Synth', 'AMSynth', 'FMSynth', 'MembraneSynth']).onChange(v => {
+            this.polySynth.dispose();
+            this.polySynth = new Tone.PolySynth(Tone[v]).connect(this.rack.delay);
+            this.updateADSR();
+        });
+        sSyn.add(this.state.cfg, 'scale', ['major', 'minor', 'pentatonic', 'chromatic']).onChange(()=>this.initGrid());
+        sSyn.add(this.state.cfg, 'root', ['C','D','E','F','G','A','B']).onChange(()=>this.initGrid());
+        sSyn.add(this.state.cfg, 'octave', 1, 6).step(1).onChange(()=>this.initGrid());
+        
+        const sEnv = this.guiSnd.addFolder('Envelope');
+        sEnv.add(this.state.cfg, 'atk', 0.01, 2).onChange(()=>this.updateADSR());
+        sEnv.add(this.state.cfg, 'dec', 0.01, 2).onChange(()=>this.updateADSR());
+        sEnv.add(this.state.cfg, 'sus', 0, 1).onChange(()=>this.updateADSR());
+        sEnv.add(this.state.cfg, 'rel', 0.1, 5).onChange(()=>this.updateADSR());
     },
 
-    initGUIs() {
-        // 1. SYSTEM GUI (Left)
-        this.guiSys = new dat.GUI({ autoPlace: false, width: 220 });
-        document.getElementById('gui-left').appendChild(this.guiSys.domElement);
-        const fSys = this.guiSys.addFolder('System Settings');
-        fSys.add(this.state.sys, 'threshold', 5, 50).name('Hit Thresh');
-        fSys.add(this.state.sys, 'sensitivity', 10, 90).name('Gyro Scale');
-        fSys.add(this.state.sys, 'fineControl').name('Fine Tuning');
-        fSys.open();
+    updateADSR() {
+        this.polySynth.set({ envelope: { attack: this.state.cfg.atk, decay: this.state.cfg.dec, sustain: this.state.cfg.sus, release: this.state.cfg.rel } });
+    },
 
-        // 2. CONFIG GUI (Center)
-        this.guiCfg = new dat.GUI({ autoPlace: false, width: 220 });
-        document.getElementById('gui-center').appendChild(this.guiCfg.domElement);
-        const fCfg = this.guiCfg.addFolder('Playfield & HUD');
-        fCfg.add(this.state.cfg, 'gridCols', 1, 16).step(1).name('Grid Columns').onChange(() => this.initGrid());
-        fCfg.add(this.state.cfg, 'gridRows', 1, 16).step(1).name('Grid Rows').onChange(() => this.initGrid());
-        fCfg.add(this.state.cfg, 'showGrid').name('Visible Grid').onChange(() => this.initGrid());
-        fCfg.add(this.state.cfg, 'decimals', 0, 4).step(1).name('Data Precision');
-        fCfg.addColor(this.state.cfg, 'uiColor').name('UI Accent').onChange(c => document.documentElement.style.setProperty('--accent-neon', c));
-        
-        // 3. SOUND GUI (Right)
-        this.guiSnd = new dat.GUI({ autoPlace: false, width: 260 });
-        document.getElementById('gui-right').appendChild(this.guiSnd.domElement);
-        
-        const fMix = this.guiSnd.addFolder('Master Mixer');
-        fMix.add(this.state.snd, 'masterVol', -60, 10).name('Master Vol').onChange(v => this.masterVol.volume.value = v);
-        fMix.add(this.state.snd, 'eqLow', -10, 10).name('EQ Low').onChange(v => this.eq.low.value = v);
-        fMix.add(this.state.snd, 'eqMid', -10, 10).name('EQ Mid').onChange(v => this.eq.mid.value = v);
-        fMix.add(this.state.snd, 'eqHigh', -10, 10).name('EQ High').onChange(v => this.eq.high.value = v);
-        fMix.add(this.state.snd, 'reverb', 0, 1).name('Reverb Mix').onChange(v => this.rack.reverb.wet.value = v);
-        fMix.add(this.state.snd, 'delay', 0, 1).name('Delay Mix').onChange(v => this.rack.delay.wet.value = v);
+    makeGUIsDraggable() {
+        document.querySelectorAll('.gui-window').forEach(el => {
+            const header = el.querySelector('.gui-header');
+            const toggle = el.querySelector('.gui-toggle');
+            const content = el.querySelector('.gui-content');
+            
+            toggle.onclick = () => {
+                content.style.display = content.style.display === 'none' ? 'block' : 'none';
+                toggle.innerText = content.style.display === 'none' ? '▲' : '▼';
+            };
 
-        const fMsc = this.guiSnd.addFolder('Oscillators & Scale');
-        fMsc.add(this.state.snd, 'osc1', ['sine', 'sawtooth', 'square', 'triangle']).onChange(v => this.synths.osc1.set({ oscillator: { type: v }}));
-        fMsc.add(this.state.snd, 'osc2', ['sine', 'sawtooth', 'square', 'triangle']).onChange(v => this.synths.osc2.set({ oscillator: { type: v }}));
-        fMsc.add(this.state.snd, 'scale', ['major', 'minor', 'pentatonic', 'chromatic', 'blues']).onChange(() => this.updateScale());
-        fMsc.add(this.state.snd, 'root', ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']).onChange(() => this.updateScale());
-        fMsc.add(this.state.snd, 'octave', 1, 6).step(1).onChange(() => this.updateScale());
-        fMsc.add(this.state.snd, 'pitchBend', -1200, 1200).name('Pitch Bend(c)').onChange(v => this.synths.theremin.detune.value = v);
-
-        const fSpk = this.guiSnd.addFolder('Web Speech API');
-        fSpk.add(this.state.snd, 'speechText').name('Text');
-        fSpk.add(this.state.snd, 'speechRate', 0.1, 3).name('Rate');
-        fSpk.add(this.state.snd, 'speechPitch', 0.1, 2).name('Pitch');
-        fSpk.add(this, 'triggerSpeech').name('► Speak Text');
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            header.onmousedown = (e) => {
+                if(e.target === toggle) return;
+                e.preventDefault();
+                pos3 = e.clientX; pos4 = e.clientY;
+                document.onmouseup = () => { document.onmouseup = null; document.onmousemove = null; };
+                document.onmousemove = (e) => {
+                    e.preventDefault();
+                    pos1 = pos3 - e.clientX; pos2 = pos4 - e.clientY;
+                    pos3 = e.clientX; pos4 = e.clientY;
+                    el.style.top = (el.offsetTop - pos2) + "px";
+                    el.style.left = (el.offsetLeft - pos1) + "px";
+                };
+            };
+        });
     },
 
     bindEvents() {
@@ -396,101 +390,153 @@ const GyrOS = {
                 document.querySelectorAll('.mode-btn[data-mode]').forEach(b => b.classList.remove('active'));
                 e.target.classList.add('active');
                 this.state.mode = parseInt(e.target.getAttribute('data-mode'));
+                if(this.state.mode !== 4) this.polySynth.releaseAll(); // Stop hovers
             });
         });
 
-        // Touch for Theremin Offset & Desktop Mouse fallback
-        const updateTouch = (e) => {
-            const x = e.touches ? e.touches[0].clientX : e.clientX;
-            const y = e.touches ? e.touches[0].clientY : e.clientY;
-            
-            // Map touch to frequency multiplier (0.5x to 2.0x) and Volume Offset
-            this.state.touchOffset.freq = mapRange(y, window.innerHeight, 0, 0.5, 2.0);
-            this.state.touchOffset.vol = mapRange(x, 0, window.innerWidth, -10, 10);
-            
-            // Manual Trigger for Desktop
-            if(!this.state.hasGyro && e.type === 'mousedown') this.triggerImpact(30);
+        // GUI Reset
+        document.getElementById('btn-reset-gui').onclick = () => {
+            document.getElementById('gui-left').style = "top: 20px; left: 20px;";
+            document.getElementById('gui-center').style = "top: 20px; left: 50%; transform: translateX(-50%);";
+            document.getElementById('gui-right').style = "top: 20px; right: 20px;";
         };
-        const resetTouch = () => { this.state.touchOffset = { freq: 1, vol: 0 }; };
-
-        window.addEventListener('mousemove', updateTouch);
-        window.addEventListener('touchmove', updateTouch);
-        window.addEventListener('mousedown', updateTouch);
-        window.addEventListener('touchstart', updateTouch);
-        window.addEventListener('touchend', resetTouch);
-        window.addEventListener('mouseup', resetTouch);
 
         // Panic
         document.getElementById('btn-panic').onclick = () => {
-            Tone.Transport.stop();
-            this.synths.osc1.releaseAll();
-            this.synths.osc2.releaseAll();
+            Tone.Transport.stop(); this.polySynth.releaseAll();
+            this.cellPlayers.forEach(p => p.stop());
             this.thereminVol.volume.rampTo(-Infinity, 0.05);
-            this.state.mode = 0;
-            document.querySelectorAll('.mode-btn[data-mode]').forEach(b => b.classList.remove('active'));
         };
+
+        // Hot-Swap Presets via Keys 1-9
+        window.addEventListener('keydown', e => {
+            if(e.key >= '1' && e.key <= '9') {
+                if(e.shiftKey) this.savePreset(`preset_${e.key}`);
+                else this.loadPreset(`preset_${e.key}`);
+            }
+        });
+
+        // Sensors
+        if(this.state.hasGyro) {
+            window.addEventListener("deviceorientation", e => { this.state.rawSensors = { x: e.gamma||0, y: e.beta||0, z: e.alpha||0 }; });
+            window.addEventListener("devicemotion", e => {
+                let a = e.acceleration || e.accelerationIncludingGravity;
+                if (!a || a.x === null) return;
+                const force = Math.sqrt(a.x**2 + a.y**2 + a.z**2);
+                this.state.rawSensors.acc = force;
+                if (force > this.state.cfg.impactThresh && force > 10) {
+                    if (this.state.mode === 2 || this.state.mode === 3) this.triggerCell(this.state.activeCellIdx, force);
+                }
+            });
+        }
+
+        // Mouse Fallback
+        window.addEventListener('mousemove', e => {
+            if(this.state.hasGyro) return;
+            // Map mouse to -90 to 90 like gyro
+            this.state.rawSensors.x = mapRange(e.clientX, 0, window.innerWidth, -90, 90);
+            this.state.rawSensors.y = mapRange(e.clientY, 0, window.innerHeight, 90, -90);
+        });
+        window.addEventListener('mousedown', () => {
+            if(!this.state.hasGyro && (this.state.mode === 2 || this.state.mode === 3)) this.triggerCell(this.state.activeCellIdx, 40);
+        });
+    },
+
+    savePreset(name) {
+        localStorage.setItem(`gyros_${name}`, JSON.stringify(this.state.cfg));
+        console.log("Saved preset:", name);
+        document.getElementById('rd-cell').innerText = `SAVED ${name}`;
+    },
+
+    loadPreset(name) {
+        const data = localStorage.getItem(`gyros_${name}`);
+        if(data) {
+            Object.assign(this.state.cfg, JSON.parse(data));
+            this.initGrid();
+            this.initGUIs(); // Rebuild GUIs to reflect new state
+            console.log("Loaded preset:", name);
+            document.getElementById('rd-cell').innerText = `LOADED ${name}`;
+        }
     },
 
     loop() {
         requestAnimationFrame(() => this.loop());
-        const { gyro, sys, cfg, mode, touchOffset } = this.state;
+        const { rawSensors, cfg, mode, pointer } = this.state;
         const now = Tone.now();
-        const dec = cfg.decimals;
 
-        // Visual Pointer Calculation (Mapped to screen bounds)
-        // Gamma (X) goes roughly -90 to 90. Beta (Y) goes -90 to 90.
-        let normX = Math.max(-1, Math.min(1, gyro.x / sys.sensitivity));
-        let normY = Math.max(-1, Math.min(1, gyro.y / sys.sensitivity));
+        // 1. Process Input Vector
+        let inX = rawSensors.x; let inY = rawSensors.y;
+        if(cfg.sensSwapXY) { let t = inX; inX = inY; inY = t; }
+        if(cfg.sensInvertX) inX *= -1;
+        if(cfg.sensInvertY) inY *= -1;
 
-        // Coarse/Fine tuning
-        if (sys.fineControl) { normX *= 0.2; normY *= 0.2; }
+        // 2. Map to Screen Normalized Coordinates (-1 to 1)
+        let targetX = Math.max(-1, Math.min(1, inX / cfg.gyroScale));
+        let targetY = Math.max(-1, Math.min(1, inY / cfg.gyroScale));
+        if(!this.state.hasGyro) { targetX *= cfg.mouseScale; targetY *= cfg.mouseScale; }
 
-        this.pointer.position.x = normX * 8; // Screen spread
-        this.pointer.position.y = normY * 5;
+        // 3. Apply Smoothing
+        pointer.x += (targetX - pointer.x) * cfg.mouseSmooth;
+        pointer.y += (targetY - pointer.y) * cfg.mouseSmooth;
 
-        // Grid Cell Collision Logic
-        let gridX = Math.floor(mapRange(normX, -1, 1, 0, cfg.gridCols));
-        let gridY = Math.floor(mapRange(normY, 1, -1, 0, cfg.gridRows)); // Invert Y for screen space
+        this.pointer.position.x = pointer.x * 8;
+        this.pointer.position.y = pointer.y * 5;
+
+        // 4. Grid Collision
+        let gridX = Math.floor(mapRange(pointer.x, -1, 1, 0, cfg.gridCols));
+        let gridY = Math.floor(mapRange(pointer.y, 1, -1, 0, cfg.gridRows)); 
         gridX = Math.max(0, Math.min(cfg.gridCols - 1, gridX));
         gridY = Math.max(0, Math.min(cfg.gridRows - 1, gridY));
-        
-        let newActiveCell = gridY * cfg.gridCols + gridX;
+        let newCell = gridY * cfg.gridCols + gridX;
 
-        // Update Grid Visuals
-        if (newActiveCell !== this.state.activeCellIdx) {
+        // 5. 3D Perspective CSS effect
+        if(cfg.perspective) {
+            document.getElementById('grid-overlay').style.transform = `rotateX(${pointer.y * -20}deg) rotateY(${pointer.x * 20}deg)`;
+        } else {
+            document.getElementById('grid-overlay').style.transform = `none`;
+        }
+
+        // Cell Change Logic
+        if (newCell !== this.state.activeCellIdx) {
             if (this.state.activeCellIdx !== -1) {
                 const old = document.getElementById(`cell-${this.state.activeCellIdx}`);
                 if (old) old.classList.remove('active');
+                
+                // Stop Hover-Synth (Mode 4) when leaving cell
+                if (mode === 4) {
+                    if (this.cellPlayers.has(this.state.activeCellIdx)) this.cellPlayers.get(this.state.activeCellIdx).stop();
+                    else this.polySynth.releaseAll();
+                }
             }
-            const cur = document.getElementById(`cell-${newActiveCell}`);
+            
+            const cur = document.getElementById(`cell-${newCell}`);
             if (cur) cur.classList.add('active');
-            this.state.activeCellIdx = newActiveCell;
+            
+            this.state.prevCellIdx = this.state.activeCellIdx;
+            this.state.activeCellIdx = newCell;
 
-            // Arpeggiator Trigger (Mode 5)
-            if (mode === 5) this.triggerImpact(20); 
+            // Trigger Arp (Mode 5) or Hover (Mode 4)
+            if (mode === 5 || mode === 4) this.triggerCell(newCell, mode === 4 ? 40 : 20); 
         }
 
-        // Theremin Logic
-        let tFreq = 0, tVol = -Infinity;
-        if (mode === 1) {
-            tFreq = mapRange(normY, -1, 1, 100, 1500) * touchOffset.freq;
+        // Theremin Update (Modes 1 & 3)
+        if (mode === 1 || mode === 3) {
+            let tFreq = mapRange(pointer.y, -1, 1, 100, 1500);
             tFreq = Math.max(20, Math.min(3000, tFreq));
-            
-            tVol = mapRange(normX, -1, 1, -40, 0) + touchOffset.vol;
-            tVol = Math.max(-60, Math.min(10, tVol));
-
-            this.synths.theremin.frequency.setTargetAtTime(tFreq, now, 0.05);
+            let tVol = mapRange(pointer.x, -1, 1, -40, 0);
+            this.theremin.frequency.setTargetAtTime(tFreq, now, 0.05);
             this.thereminVol.volume.setTargetAtTime(tVol, now, 0.05);
         } else {
             this.thereminVol.volume.setTargetAtTime(-Infinity, now, 0.1);
         }
 
-        // Live Dashboard Update
-        document.getElementById('rd-x').innerText = gyro.x.toFixed(dec);
-        document.getElementById('rd-y').innerText = gyro.y.toFixed(dec);
-        document.getElementById('rd-f').innerText = mode === 1 ? tFreq.toFixed(dec) : "---";
-        document.getElementById('rd-v').innerText = mode === 1 ? tVol.toFixed(dec) : "---";
-        document.getElementById('rd-c').innerText = this.state.scaleNotes[this.state.activeCellIdx] || "None";
+        // Dashboard
+        document.getElementById('rd-pos').innerText = `${pointer.x.toFixed(2)}, ${pointer.y.toFixed(2)}`;
+        document.getElementById('rd-acc').innerText = rawSensors.acc.toFixed(1);
+        if(cfg.cells[this.state.activeCellIdx]) {
+            const cellInfo = cfg.cells[this.state.activeCellIdx];
+            document.getElementById('rd-cell').innerText = cellInfo.audioSrc ? "[SAMPLE]" : cellInfo.defaultNote;
+        }
 
         this.renderWaveform();
         this.renderer.render(this.scene, this.cam);
@@ -503,9 +549,7 @@ const GyrOS = {
         
         const data = this.analyser.getValue();
         ctx.clearRect(0, 0, cvs.width, cvs.height);
-        ctx.beginPath();
-        ctx.strokeStyle = this.state.cfg.uiColor;
-        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.strokeStyle = '#00ffcc'; ctx.lineWidth = 2;
         for(let i=0; i<data.length; i++) {
             const x = (i/data.length) * cvs.width;
             const y = ((data[i]+1)/2) * cvs.height;
