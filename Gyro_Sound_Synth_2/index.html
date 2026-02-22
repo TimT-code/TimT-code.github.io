@@ -195,7 +195,7 @@ const GyrOS = {
     },
 
     initGUI() {
-        const gui = new dat.GUI();
+        const gui = new DAT.GUI();
         gui.add(this.state, 'threshold', 10, 100).name("Impact Thresh");
         gui.add(this.state, 'sensitivity', 1, 50).name("Gyro Scale");
         const osc = gui.addFolder('Oscillators');
