@@ -4,201 +4,226 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <link rel="manifest" href="manifest.json">
-    <title>Gyr-OS | Master Utility</title>
+    <title>Gyr-OS | Master Utility V2.0</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tonaljs/tonal/browser/tonal.min.js"></script>
 
     <style>
         :root {
-            --glass-bg: rgba(15, 15, 20, 0.9);
-            --glass-border: rgba(255, 255, 255, 0.1);
+            --glass-bg: rgba(10, 10, 15, 0.85);
+            --glass-border: rgba(255, 255, 255, 0.15);
             --accent-neon: #00ffcc;
             --error-red: #ff4444;
             --warning-orange: #ffaa00;
-            --text-main: #e0e0e0;
         }
 
-        body, html { margin: 0; padding: 0; overflow: hidden; background: #050505; font-family: sans-serif; }
+        body, html { margin: 0; padding: 0; overflow: hidden; background: #020202; font-family: sans-serif; color: white; }
+        
+        /* ThreeJS Canvas */
         #canvas-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
 
-        /* Force dat.gui to be visible on top */
-        .dg.ac { z-index: 99 !important; }
+        /* Grid Playfield Overlay */
+        #grid-overlay {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            display: grid; z-index: 2; pointer-events: none;
+            border: 1px solid transparent;
+        }
+        .grid-cell {
+            border: 1px solid rgba(255,255,255,0.05); transition: background 0.1s;
+        }
+        .grid-cell.active { background: rgba(0, 255, 204, 0.3); border-color: var(--accent-neon); }
 
-        /* UI Overlay */
-        .glass-panel {
-            background: var(--glass-bg);
-            backdrop-filter: blur(15px);
-            border: 1px solid var(--glass-border);
-            border-radius: 12px;
-            z-index: 10;
-            position: absolute;
+        /* GUI Wrappers (3 Zones) */
+        .gui-wrap { position: absolute; top: 10px; z-index: 100; pointer-events: auto; }
+        #gui-left { left: 10px; }
+        #gui-center { left: 50%; transform: translateX(-50%); }
+        #gui-right { right: 10px; }
+
+        /* Live Data Dashboard */
+        #live-dashboard {
+            position: absolute; top: 10px; left: 10px; margin-top: 300px;
+            background: var(--glass-bg); padding: 10px; border: 1px solid var(--glass-border);
+            border-radius: 8px; font-family: monospace; font-size: 11px; z-index: 50;
+            pointer-events: none; color: var(--accent-neon);
         }
 
-        #bottom-hud { bottom: 0; left: 0; width: 100vw; height: 20vh; display: flex; flex-direction: column; align-items: center; justify-content: space-around; padding-top: 10px; box-sizing: border-box; }
-        #master-waveform { width: 100vw; height: 5vh; border-top: 1px solid var(--accent-neon); }
-        
-        .btn-row { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; }
-        .mode-btn { padding: 8px 12px; background: transparent; border: 1px solid var(--accent-neon); color: var(--accent-neon); border-radius: 4px; cursor: pointer; font-size: 11px; transition: 0.3s; font-weight: bold;}
-        .mode-btn.active { background: var(--accent-neon); color: #000; box-shadow: 0 0 15px var(--accent-neon); }
-        .recording-active { background: var(--error-red) !important; color: white !important; animation: blink 1s infinite; border-color: var(--error-red) !important; }
+        /* Bottom HUD */
+        #bottom-hud {
+            position: absolute; bottom: 0; left: 0; width: 100vw; height: 15vh;
+            background: var(--glass-bg); backdrop-filter: blur(10px);
+            border-top: 1px solid var(--glass-border); z-index: 50;
+            display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+        }
 
-        @keyframes blink { 50% { opacity: 0.5; } }
+        .hud-controls { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; justify-content: center; }
+        .mode-btn {
+            padding: 6px 14px; background: rgba(0,0,0,0.5); border: 1px solid var(--accent-neon);
+            color: var(--accent-neon); border-radius: 4px; cursor: pointer; font-size: 10px; font-weight: bold;
+        }
+        .mode-btn.active { background: var(--accent-neon); color: #000; box-shadow: 0 0 10px var(--accent-neon); }
+        #master-waveform { width: 100vw; height: 50%; background: rgba(0,0,0,0.3); }
 
-        #init-overlay { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
-        #btn-start { padding: 20px 40px; font-size: 1.5rem; background: var(--accent-neon); border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
-        #btn-start:hover { background: #00ccaa; }
-        #error-msg { color: var(--error-red); margin-top: 20px; font-family: monospace; font-size: 1rem; min-height: 1.5rem; padding: 0 20px;}
+        /* Drop Zone */
+        #drop-zone-indicator {
+            position: fixed; inset: 0; background: rgba(0, 255, 204, 0.2); border: 5px dashed var(--accent-neon);
+            z-index: 999; display: none; justify-content: center; align-items: center; pointer-events: none;
+        }
+
+        /* Initializer */
+        #init-overlay {
+            position: fixed; inset: 0; background: #000; z-index: 1000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
+        }
+        #btn-start { padding: 20px 40px; font-size: 1.5rem; background: var(--accent-neon); border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div id="init-overlay">
-    <h1 style="color: var(--accent-neon); letter-spacing: 8px;">GYR-OS</h1>
-    <p style="color: #666; margin-bottom: 20px;">SPATIAL AUDIO UTILITY V1.3</p>
+    <h1 style="color: var(--accent-neon); letter-spacing: 5px;">GYR-OS V2.0</h1>
+    <p>SPATIAL AUDIO & MULTI-OSC UTILITY</p>
     <button id="btn-start">INITIALIZE ENGINE</button>
-    <div id="error-msg"></div>
+    <div id="error-msg" style="color: var(--error-red); margin-top: 15px;"></div>
+</div>
+
+<div id="drop-zone-indicator"><h2>DROP AUDIO FILE HERE</h2></div>
+
+<!-- 3 GUI Containers -->
+<div class="gui-wrap" id="gui-left"></div>
+<div class="gui-wrap" id="gui-center"></div>
+<div class="gui-wrap" id="gui-right"></div>
+
+<!-- Data Dashboard -->
+<div id="live-dashboard">
+    <div>X (Gamma): <span id="rd-x">0</span></div>
+    <div>Y (Beta) : <span id="rd-y">0</span></div>
+    <div>Freq     : <span id="rd-f">0</span> Hz</div>
+    <div>Vol      : <span id="rd-v">0</span> dB</div>
+    <div>Cell Aim : <span id="rd-c">None</span></div>
 </div>
 
 <div id="canvas-container"></div>
+<div id="grid-overlay"></div>
 
-<div id="bottom-hud" class="glass-panel">
-    <div id="readout" style="font-family: monospace; font-size: 12px; color: var(--accent-neon);">SYSTEM STANDBY</div>
-    <div class="btn-row" id="mode-controls">
+<div id="bottom-hud">
+    <div class="hud-controls">
         <button class="mode-btn active" data-mode="1">1: THEREMIN</button>
-        <button class="mode-btn" data-mode="2">2: IMPACT</button>
-        <button class="mode-btn" data-mode="3">3: HYBRID</button>
-        <button class="mode-btn" data-mode="5">5: COMPOSER</button>
-    </div>
-    <div class="btn-row">
+        <button class="mode-btn" data-mode="2">2: IMPACT GRID</button>
+        <button class="mode-btn" data-mode="5">5: ARPEGGIATOR</button>
         <button id="btn-panic" class="mode-btn" style="border-color: var(--warning-orange); color: var(--warning-orange);">■ MUTE/PANIC</button>
         <button id="btn-record" class="mode-btn" style="border-color: var(--error-red); color: var(--error-red);">● REC</button>
     </div>
     <canvas id="master-waveform"></canvas>
 </div>
-    
+
 <script type="importmap">
-    { "imports": { 
-        "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.js"
-    } }
+    { "imports": { "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.js" } }
 </script>
 
 <script type="module">
-    import * as THREE from 'three';
-    import * as Tone from 'https://esm.sh/tone';
+import * as THREE from 'three';
+import * as Tone from 'https://esm.sh/tone';
 
-// Simple math map function
-const mapRange = (value, inMin, inMax, outMin, outMax) => {
-    return ((value - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
-};
+const mapRange = (val, inMin, inMax, outMin, outMax) => ((val - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
 
-/**
- * THE GYR-OS MASTER OBJECT
- */
 const GyrOS = {
     state: {
-        mode: 1, sensitivity: 25, threshold: 15, 
-        hasGyro: false,
+        mode: 1, hasGyro: false,
         gyro: { x: 0, y: 0, z: 0 },
-        mouse: { x: 0, y: 0 },
-        synthParams: {
-            oscType: 'sine', attack: 0.05, release: 1.5,
-            reverbMix: 0.3, delayMix: 0.2, masterVol: 0
+        touchOffset: { freq: 1, vol: 0 }, // Touch interaction offsets
+        
+        // System / Left GUI
+        sys: { threshold: 15, sensitivity: 30, fineControl: false },
+        
+        // Config / Center GUI
+        cfg: { gridCols: 4, gridRows: 3, showGrid: true, decimals: 1, uiColor: '#00ffcc' },
+        
+        // Sound / Right GUI
+        snd: { 
+            scale: 'major', root: 'C', octave: 3, pitchBend: 0,
+            osc1: 'sine', osc2: 'sawtooth', oscMix: 0.5,
+            eqHigh: 0, eqMid: 0, eqLow: 0,
+            reverb: 0.3, delay: 0.2, masterVol: -5,
+            speechText: "Gyro Spatial System Active", speechRate: 1.0, speechPitch: 1.0
         },
-        isRecording: false
+        
+        scaleNotes: [], activeCellIdx: -1, isRecording: false
     },
 
     async init() {
-        const errorDiv = document.getElementById('error-msg');
-        const startBtn = document.getElementById('btn-start');
-        
         try {
-            errorDiv.style.color = "var(--accent-neon)";
-            errorDiv.innerText = "Requesting Audio/Sensor Permissions...";
-            startBtn.disabled = true;
-
+            document.getElementById('error-msg').innerText = "Requesting permissions...";
             await Tone.start();
             
-            try { 
-                await this.detectSensors(); 
-                this.state.hasGyro = true;
-            } catch(e) { 
-                console.warn(e.message); 
-                this.state.hasGyro = false; // Fallback to mouse/pointer
-            }
+            try { await this.detectSensors(); this.state.hasGyro = true; } 
+            catch(e) { console.warn(e); this.state.hasGyro = false; }
 
-            if ('wakeLock' in navigator) {
-                try { await navigator.wakeLock.request('screen'); } catch(e) {}
-            }
-            
             this.initAudio();
             this.initVisuals();
             this.initSensors();
-            this.initRecorder();
-            this.initGUI();
+            this.initGrid();
+            this.initGUIs();
+            this.initDragAndDrop();
             this.bindEvents();
+            this.updateScale();
 
             document.getElementById('init-overlay').style.display = 'none';
-            document.getElementById('readout').innerText = this.state.hasGyro ? "SYSTEM ACTIVE // GYRO LINKED" : "DESKTOP MODE // POINTER LINKED";
-            
             this.loop();
-        } catch (error) {
-            startBtn.disabled = false;
-            errorDiv.style.color = "var(--error-red)";
-            errorDiv.innerText = error.message || "Initialization failed.";
+        } catch(err) {
+            document.getElementById('error-msg').innerText = "Failed: " + err.message;
         }
     },
 
     async detectSensors() {
-        if (!window.DeviceOrientationEvent) throw new Error("No Gyroscope hardware.");
-
-        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-            const permissionState = await DeviceOrientationEvent.requestPermission();
-            if (permissionState !== 'granted') throw new Error("Gyroscope permission denied.");
+        if (!window.DeviceOrientationEvent) throw new Error("No hardware");
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+            const p = await DeviceOrientationEvent.requestPermission();
+            if (p !== 'granted') throw new Error("Permission denied");
         }
-        
-        return new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => {
-                window.removeEventListener('deviceorientation', checkGyro);
-                reject(new Error("No Gyro data received. Defaulting to pointer."));
-            }, 1000);
-
-            const checkGyro = (event) => {
-                if (event.alpha !== null && event.beta !== null && event.gamma !== null) {
-                    clearTimeout(timeout);
-                    window.removeEventListener('deviceorientation', checkGyro);
-                    resolve();
-                }
-            };
-            window.addEventListener('deviceorientation', checkGyro);
+        return new Promise((res, rej) => {
+            const t = setTimeout(() => { window.removeEventListener('deviceorientation', check); rej(); }, 1000);
+            const check = (e) => { if (e.alpha !== null) { clearTimeout(t); res(); } };
+            window.addEventListener('deviceorientation', check);
         });
     },
 
     initAudio() {
         this.analyser = new Tone.Analyser("waveform", 1024);
         
-        this.masterBus = new Tone.Volume(this.state.synthParams.masterVol).toDestination();
-        this.masterBus.connect(this.analyser);
+        // Master Bus + EQ
+        this.eq = new Tone.EQ3(this.state.snd.eqLow, this.state.snd.eqMid, this.state.snd.eqHigh);
+        this.masterVol = new Tone.Volume(this.state.snd.masterVol).toDestination();
+        this.eq.connect(this.masterVol);
+        this.masterVol.connect(this.analyser);
 
+        // Effects Rack
         this.rack = {
-            reverb: new Tone.Freeverb({ roomSize: 0.8, dampening: 2000 }).connect(this.masterBus),
-            delay: new Tone.FeedbackDelay("8n", 0.3).connect(this.masterBus)
+            reverb: new Tone.Freeverb({ roomSize: 0.8 }).connect(this.eq),
+            delay: new Tone.FeedbackDelay("8n", 0.3).connect(this.eq)
         };
-        this.rack.reverb.wet.value = this.state.synthParams.reverbMix;
-        this.rack.delay.wet.value = this.state.synthParams.delayMix;
+        this.rack.reverb.wet.value = this.state.snd.reverb;
+        this.rack.delay.wet.value = this.state.snd.delay;
 
-        // Theremin setup (Using a Volume node to stop audio cleanly)
-        this.thereminVol = new Tone.Volume(-Infinity).connect(this.rack.reverb);
+        // Multi-Oscillator Synths for Playfield/Grid
         this.synths = {
-            poly: new Tone.PolySynth(Tone.Synth, {
-                oscillator: { type: this.state.synthParams.oscType },
-                envelope: { attack: this.state.synthParams.attack, decay: 0.2, sustain: 0.2, release: this.state.synthParams.release }
-            }).connect(this.rack.delay).connect(this.masterBus),
-            
-            // Oscillator stays running, but is silenced by thereminVol when not in use
-            theremin: new Tone.Oscillator(440, this.state.synthParams.oscType).connect(this.thereminVol).start()
+            osc1: new Tone.PolySynth(Tone.Synth).connect(this.rack.delay),
+            osc2: new Tone.PolySynth(Tone.Synth).connect(this.rack.delay),
+            theremin: new Tone.Oscillator(440, "sine").start()
         };
-        this.drums = { kick: new Tone.MembraneSynth().connect(this.masterBus) };
+        
+        this.synths.osc1.set({ oscillator: { type: this.state.snd.osc1 }});
+        this.synths.osc2.set({ oscillator: { type: this.state.snd.osc2 }, volume: -6 });
+
+        // Theremin Volume Gate
+        this.thereminVol = new Tone.Volume(-Infinity).connect(this.rack.reverb);
+        this.synths.theremin.connect(this.thereminVol);
+
+        // Custom File Sampler
+        this.customPlayer = new Tone.Player().connect(this.rack.reverb);
+        
+        // Speech Synth
+        this.synthSpeech = window.speechSynthesis;
     },
 
     initVisuals() {
@@ -206,273 +231,291 @@ const GyrOS = {
         this.cam = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(window.devicePixelRatio);
         document.getElementById('canvas-container').appendChild(this.renderer.domElement);
-        
-        // Main Gyro Object
-        this.cursor = new THREE.Mesh(
-            new THREE.IcosahedronGeometry(0.6, 0), 
-            new THREE.MeshPhongMaterial({ color: 0x00ffcc, wireframe: true })
-        );
-        this.scene.add(this.cursor);
 
-        // Pointer/Mouse tracking object
+        // The Original Gyro Pointer Style
         this.pointer = new THREE.Mesh(
-            new THREE.TorusGeometry(0.3, 0.05, 8, 24),
-            new THREE.MeshBasicMaterial({ color: 0xffaa00, wireframe: true })
+            new THREE.SphereGeometry(0.8, 16, 16),
+            new THREE.MeshBasicMaterial({ color: 0x00ffcc, wireframe: true })
         );
         this.scene.add(this.pointer);
-
-        this.scene.add(new THREE.GridHelper(100, 50, 0x222222, 0x111111));
-        this.cam.position.z = 12;
         
-        const light = new THREE.PointLight(0xffffff, 1, 100);
-        light.position.set(10, 10, 10);
-        this.scene.add(light);
+        const grid = new THREE.GridHelper(100, 50, 0x222222, 0x111111);
+        grid.rotation.x = Math.PI / 2;
+        grid.position.z = -5;
+        this.scene.add(grid);
 
-        // Raycasting setup
-        this.raycaster = new THREE.Raycaster();
-        this.rayPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+        this.cam.position.z = 10;
+    },
+
+    initGrid() {
+        const overlay = document.getElementById('grid-overlay');
+        overlay.innerHTML = '';
+        overlay.style.gridTemplateColumns = `repeat(${this.state.cfg.gridCols}, 1fr)`;
+        overlay.style.gridTemplateRows = `repeat(${this.state.cfg.gridRows}, 1fr)`;
+        overlay.style.opacity = this.state.cfg.showGrid ? "1" : "0";
+
+        const total = this.state.cfg.gridCols * this.state.cfg.gridRows;
+        for(let i=0; i<total; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'grid-cell';
+            cell.id = `cell-${i}`;
+            overlay.appendChild(cell);
+        }
+        this.updateScale();
+    },
+
+    updateScale() {
+        const { root, octave, scale, gridCols, gridRows } = this.state.snd;
+        const total = gridCols * gridRows;
+        // Generate Tonal.js scale
+        const s = Tonal.Scale.get(`${root} ${scale}`).notes;
+        let notes = [];
+        let currOct = parseInt(octave);
+        
+        for (let i = 0; i < total; i++) {
+            let noteStr = s[i % s.length] + currOct;
+            notes.push(noteStr);
+            if ((i + 1) % s.length === 0) currOct++;
+        }
+        this.state.scaleNotes = notes;
     },
 
     initSensors() {
-        if (this.state.hasGyro) {
+        if(this.state.hasGyro) {
             window.addEventListener("deviceorientation", e => {
-                this.state.gyro = { x: e.beta || 0, y: e.gamma || 0, z: e.alpha || 0 };
+                this.state.gyro = { x: e.gamma || 0, y: e.beta || 0 }; // Gamma is X (Left/Right), Beta is Y (Front/Back)
             });
             window.addEventListener("devicemotion", e => {
                 let a = e.acceleration || e.accelerationIncludingGravity;
                 if (!a || a.x === null) return;
                 const force = Math.sqrt(a.x**2 + a.y**2 + a.z**2);
-                if (force > this.state.threshold && force > 10) this.handleThrust(force);
+                if (force > this.state.sys.threshold && force > 10) this.triggerImpact(force);
             });
         }
     },
 
-    handleThrust(force = 30) {
-        const now = Tone.now();
-        if (this.lastThrust && (now - this.lastThrust) < 0.15) return;
-        this.lastThrust = now;
-
-        if (navigator.vibrate) navigator.vibrate(30);
-        
-        const scaleBump = 1 + Math.min(force / 15, 3);
-        this.cursor.scale.set(scaleBump, scaleBump, scaleBump);
-        this.pointer.scale.set(scaleBump, scaleBump, scaleBump);
-        setTimeout(() => {
-            this.cursor.scale.set(1, 1, 1);
-            this.pointer.scale.set(1, 1, 1);
-        }, 150);
-
-        if (this.state.mode === 2 || this.state.mode === 3) {
-            const scale = ["C3", "D3", "E3", "G3", "A3", "C4", "D4", "E4", "G4", "A4", "C5", "D5", "E5", "G5", "A5"];
-            
-            // Use Gyro X if available, otherwise use Mouse Y for pitch
-            let pitchVal = this.state.hasGyro ? this.state.gyro.x : mapRange(this.state.mouse.y, -1, 1, -90, 90);
-            
-            let index = Math.floor(mapRange(pitchVal, -90, 90, 0, scale.length - 1));
-            index = Math.max(0, Math.min(scale.length - 1, index));
-            
-            const velocity = Math.min(1, force / 40);
-            this.synths.poly.triggerAttackRelease(scale[index], "8n", now, velocity);
-            this.drums.kick.triggerAttackRelease("C1", "16n", now, velocity * 0.8);
-        }
-    },
-
-    initRecorder() {
-        this.streamDest = Tone.context.createMediaStreamDestination();
-        this.masterBus.connect(this.streamDest);
-        let mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
-        this.recorder = new MediaRecorder(this.streamDest.stream, { mimeType });
-        this.chunks = [];
-        this.recorder.ondataavailable = e => { if (e.data.size > 0) this.chunks.push(e.data); };
-        this.recorder.onstop = () => {
-            const blob = new Blob(this.chunks, { type: mimeType });
-            this.chunks = [];
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = `GyrOS_Rec_${Date.now()}.${mimeType.split('/')[1]}`;
-            a.click();
-        };
-    },
-
-    initGUI() {
-        if (this.gui) this.gui.destroy();
-        this.gui = new dat.GUI({ width: 280 });
-        
-        // 1. Logic Settings
-        const sys = this.gui.addFolder('System Logic');
-        sys.add(this.state, 'threshold', 5, 50).name("Impact Thresh");
-        sys.add(this.state, 'sensitivity', 1, 50).name("Visual Scale");
-        sys.open();
-
-        // 2. Sound Engine Settings
-        const snd = this.gui.addFolder('Sound Engine');
-        snd.add(this.state.synthParams, 'masterVol', -60, 10).name('Master Vol (dB)').onChange(v => this.masterBus.volume.value = v);
-        
-        snd.add(this.state.synthParams, 'oscType', ['sine', 'square', 'sawtooth', 'triangle']).name('Osc Type').onChange(v => {
-            this.synths.theremin.type = v;
-            this.synths.poly.set({ oscillator: { type: v } });
+    initDragAndDrop() {
+        const dropZone = document.getElementById('drop-zone-indicator');
+        window.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.display = 'flex'; });
+        window.addEventListener('dragleave', e => { e.preventDefault(); dropZone.style.display = 'none'; });
+        window.addEventListener('drop', async e => {
+            e.preventDefault();
+            dropZone.style.display = 'none';
+            const file = e.dataTransfer.files[0];
+            if(file && file.type.includes('audio')) {
+                const url = URL.createObjectURL(file);
+                await this.customPlayer.load(url);
+                document.getElementById('rd-c').innerText = `Loaded: ${file.name}`;
+            }
         });
+    },
 
-        const env = snd.addFolder('Poly Envelope');
-        env.add(this.state.synthParams, 'attack', 0.001, 2).name('Attack').onChange(v => this.synths.poly.set({ envelope: { attack: v }}));
-        env.add(this.state.synthParams, 'release', 0.01, 5).name('Release').onChange(v => this.synths.poly.set({ envelope: { release: v }}));
+    triggerImpact(force = 30) {
+        if(this.state.mode !== 2 && this.state.mode !== 5) return;
+        const now = Tone.now();
+        if (this.lastHit && (now - this.lastHit) < 0.1) return;
+        this.lastHit = now;
 
-        const fx = snd.addFolder('Effects Mix');
-        fx.add(this.state.synthParams, 'reverbMix', 0, 1).name('Reverb Mix').onChange(v => this.rack.reverb.wet.value = v);
-        fx.add(this.state.synthParams, 'delayMix', 0, 1).name('Delay Mix').onChange(v => this.rack.delay.wet.value = v);
+        const vol = Math.min(1, force / 40);
+        const idx = this.state.activeCellIdx;
         
-        snd.open();
+        // Play Audio file if loaded
+        if (this.customPlayer.loaded) this.customPlayer.start(now);
+        
+        // Play mapped Synth Note
+        if (idx >= 0 && idx < this.state.scaleNotes.length) {
+            const note = this.state.scaleNotes[idx];
+            this.synths.osc1.triggerAttackRelease(note, "8n", now, vol);
+            this.synths.osc2.triggerAttackRelease(note, "8n", now, vol * this.state.snd.oscMix);
+        }
+
+        // Visual feedback
+        this.pointer.scale.set(1.5, 1.5, 1.5);
+        setTimeout(() => this.pointer.scale.set(1, 1, 1), 100);
+    },
+
+    triggerSpeech() {
+        const u = new SpeechSynthesisUtterance(this.state.snd.speechText);
+        u.rate = this.state.snd.speechRate;
+        u.pitch = this.state.snd.speechPitch;
+        this.synthSpeech.speak(u);
+    },
+
+    initGUIs() {
+        // 1. SYSTEM GUI (Left)
+        this.guiSys = new dat.GUI({ autoPlace: false, width: 220 });
+        document.getElementById('gui-left').appendChild(this.guiSys.domElement);
+        const fSys = this.guiSys.addFolder('System Settings');
+        fSys.add(this.state.sys, 'threshold', 5, 50).name('Hit Thresh');
+        fSys.add(this.state.sys, 'sensitivity', 10, 90).name('Gyro Scale');
+        fSys.add(this.state.sys, 'fineControl').name('Fine Tuning');
+        fSys.open();
+
+        // 2. CONFIG GUI (Center)
+        this.guiCfg = new dat.GUI({ autoPlace: false, width: 220 });
+        document.getElementById('gui-center').appendChild(this.guiCfg.domElement);
+        const fCfg = this.guiCfg.addFolder('Playfield & HUD');
+        fCfg.add(this.state.cfg, 'gridCols', 1, 16).step(1).name('Grid Columns').onChange(() => this.initGrid());
+        fCfg.add(this.state.cfg, 'gridRows', 1, 16).step(1).name('Grid Rows').onChange(() => this.initGrid());
+        fCfg.add(this.state.cfg, 'showGrid').name('Visible Grid').onChange(() => this.initGrid());
+        fCfg.add(this.state.cfg, 'decimals', 0, 4).step(1).name('Data Precision');
+        fCfg.addColor(this.state.cfg, 'uiColor').name('UI Accent').onChange(c => document.documentElement.style.setProperty('--accent-neon', c));
+        
+        // 3. SOUND GUI (Right)
+        this.guiSnd = new dat.GUI({ autoPlace: false, width: 260 });
+        document.getElementById('gui-right').appendChild(this.guiSnd.domElement);
+        
+        const fMix = this.guiSnd.addFolder('Master Mixer');
+        fMix.add(this.state.snd, 'masterVol', -60, 10).name('Master Vol').onChange(v => this.masterVol.volume.value = v);
+        fMix.add(this.state.snd, 'eqLow', -10, 10).name('EQ Low').onChange(v => this.eq.low.value = v);
+        fMix.add(this.state.snd, 'eqMid', -10, 10).name('EQ Mid').onChange(v => this.eq.mid.value = v);
+        fMix.add(this.state.snd, 'eqHigh', -10, 10).name('EQ High').onChange(v => this.eq.high.value = v);
+        fMix.add(this.state.snd, 'reverb', 0, 1).name('Reverb Mix').onChange(v => this.rack.reverb.wet.value = v);
+        fMix.add(this.state.snd, 'delay', 0, 1).name('Delay Mix').onChange(v => this.rack.delay.wet.value = v);
+
+        const fMsc = this.guiSnd.addFolder('Oscillators & Scale');
+        fMsc.add(this.state.snd, 'osc1', ['sine', 'sawtooth', 'square', 'triangle']).onChange(v => this.synths.osc1.set({ oscillator: { type: v }}));
+        fMsc.add(this.state.snd, 'osc2', ['sine', 'sawtooth', 'square', 'triangle']).onChange(v => this.synths.osc2.set({ oscillator: { type: v }}));
+        fMsc.add(this.state.snd, 'scale', ['major', 'minor', 'pentatonic', 'chromatic', 'blues']).onChange(() => this.updateScale());
+        fMsc.add(this.state.snd, 'root', ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']).onChange(() => this.updateScale());
+        fMsc.add(this.state.snd, 'octave', 1, 6).step(1).onChange(() => this.updateScale());
+        fMsc.add(this.state.snd, 'pitchBend', -1200, 1200).name('Pitch Bend(c)').onChange(v => this.synths.theremin.detune.value = v);
+
+        const fSpk = this.guiSnd.addFolder('Web Speech API');
+        fSpk.add(this.state.snd, 'speechText').name('Text');
+        fSpk.add(this.state.snd, 'speechRate', 0.1, 3).name('Rate');
+        fSpk.add(this.state.snd, 'speechPitch', 0.1, 2).name('Pitch');
+        fSpk.add(this, 'triggerSpeech').name('► Speak Text');
     },
 
     bindEvents() {
-        window.addEventListener('resize', () => {
-            this.cam.aspect = window.innerWidth / window.innerHeight;
-            this.cam.updateProjectionMatrix();
-            this.renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-
-        // Mode Switching
+        // Mode switch
         document.querySelectorAll('.mode-btn[data-mode]').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 document.querySelectorAll('.mode-btn[data-mode]').forEach(b => b.classList.remove('active'));
                 e.target.classList.add('active');
                 this.state.mode = parseInt(e.target.getAttribute('data-mode'));
-                document.getElementById('readout').innerText = `MODE ${this.state.mode} ENGAGED`;
             });
         });
 
-        // Mouse / Pointer Tracking for Desktop support
-        const updatePointer = (clientX, clientY) => {
-            this.state.mouse.x = (clientX / window.innerWidth) * 2 - 1;
-            this.state.mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+        // Touch for Theremin Offset & Desktop Mouse fallback
+        const updateTouch = (e) => {
+            const x = e.touches ? e.touches[0].clientX : e.clientX;
+            const y = e.touches ? e.touches[0].clientY : e.clientY;
             
-            this.raycaster.setFromCamera(new THREE.Vector2(this.state.mouse.x, this.state.mouse.y), this.cam);
-            const target = new THREE.Vector3();
-            this.raycaster.ray.intersectPlane(this.rayPlane, target);
-            this.pointer.position.copy(target);
+            // Map touch to frequency multiplier (0.5x to 2.0x) and Volume Offset
+            this.state.touchOffset.freq = mapRange(y, window.innerHeight, 0, 0.5, 2.0);
+            this.state.touchOffset.vol = mapRange(x, 0, window.innerWidth, -10, 10);
+            
+            // Manual Trigger for Desktop
+            if(!this.state.hasGyro && e.type === 'mousedown') this.triggerImpact(30);
         };
+        const resetTouch = () => { this.state.touchOffset = { freq: 1, vol: 0 }; };
 
-        window.addEventListener('mousemove', e => updatePointer(e.clientX, e.clientY));
-        window.addEventListener('touchmove', e => updatePointer(e.touches[0].clientX, e.touches[0].clientY));
-        
-        // Manual impact triggers via click (For Desktop functionality Parity)
-        window.addEventListener('mousedown', () => this.handleThrust(30));
-        window.addEventListener('touchstart', () => this.handleThrust(30));
+        window.addEventListener('mousemove', updateTouch);
+        window.addEventListener('touchmove', updateTouch);
+        window.addEventListener('mousedown', updateTouch);
+        window.addEventListener('touchstart', updateTouch);
+        window.addEventListener('touchend', resetTouch);
+        window.addEventListener('mouseup', resetTouch);
 
-        // Panic / Mute System
+        // Panic
         document.getElementById('btn-panic').onclick = () => {
             Tone.Transport.stop();
-            this.synths.poly.releaseAll();
-            this.drums.kick.triggerRelease();
+            this.synths.osc1.releaseAll();
+            this.synths.osc2.releaseAll();
             this.thereminVol.volume.rampTo(-Infinity, 0.05);
-            
-            this.state.mode = 0; // Set to Standby
+            this.state.mode = 0;
             document.querySelectorAll('.mode-btn[data-mode]').forEach(b => b.classList.remove('active'));
-            document.getElementById('readout').innerText = "SYSTEM MUTED // STANDBY";
-            
-            this.pointer.scale.set(0.1, 0.1, 0.1); // Visual shrink
         };
     },
 
     loop() {
         requestAnimationFrame(() => this.loop());
-        const { gyro, sensitivity, mode, hasGyro, mouse } = this.state;
+        const { gyro, sys, cfg, mode, touchOffset } = this.state;
         const now = Tone.now();
+        const dec = cfg.decimals;
 
-        // 1. Visuals Iteration
-        if (hasGyro) {
-            const targetX = mapRange(gyro.y, -90, 90, -10 * (sensitivity/25), 10 * (sensitivity/25));
-            const targetY = mapRange(gyro.x, -90, 90, -10 * (sensitivity/25), 10 * (sensitivity/25));
-            this.cursor.position.x += (targetX - this.cursor.position.x) * 0.1;
-            this.cursor.position.y += (targetY - this.cursor.position.y) * 0.1;
-        }
-        this.cursor.rotation.x += 0.01;
-        this.cursor.rotation.y += 0.02;
-        this.pointer.rotation.x -= 0.03;
-        this.pointer.rotation.z += 0.01;
+        // Visual Pointer Calculation (Mapped to screen bounds)
+        // Gamma (X) goes roughly -90 to 90. Beta (Y) goes -90 to 90.
+        let normX = Math.max(-1, Math.min(1, gyro.x / sys.sensitivity));
+        let normY = Math.max(-1, Math.min(1, gyro.y / sys.sensitivity));
 
-        // 2. Audio Theremin Logic (Modes 1 and 3)
-        if (mode === 1 || mode === 3) {
-            let pitchVal, volVal;
-            if (hasGyro) {
-                pitchVal = gyro.x;
-                volVal = gyro.y;
-            } else {
-                pitchVal = mapRange(mouse.y, -1, 1, -90, 90);
-                volVal = mapRange(mouse.x, -1, 1, -90, 90);
+        // Coarse/Fine tuning
+        if (sys.fineControl) { normX *= 0.2; normY *= 0.2; }
+
+        this.pointer.position.x = normX * 8; // Screen spread
+        this.pointer.position.y = normY * 5;
+
+        // Grid Cell Collision Logic
+        let gridX = Math.floor(mapRange(normX, -1, 1, 0, cfg.gridCols));
+        let gridY = Math.floor(mapRange(normY, 1, -1, 0, cfg.gridRows)); // Invert Y for screen space
+        gridX = Math.max(0, Math.min(cfg.gridCols - 1, gridX));
+        gridY = Math.max(0, Math.min(cfg.gridRows - 1, gridY));
+        
+        let newActiveCell = gridY * cfg.gridCols + gridX;
+
+        // Update Grid Visuals
+        if (newActiveCell !== this.state.activeCellIdx) {
+            if (this.state.activeCellIdx !== -1) {
+                const old = document.getElementById(`cell-${this.state.activeCellIdx}`);
+                if (old) old.classList.remove('active');
             }
+            const cur = document.getElementById(`cell-${newActiveCell}`);
+            if (cur) cur.classList.add('active');
+            this.state.activeCellIdx = newActiveCell;
 
-            let freq = mapRange(pitchVal, -90, 90, 100, 1500);
-            freq = Math.max(50, Math.min(2000, freq)); 
+            // Arpeggiator Trigger (Mode 5)
+            if (mode === 5) this.triggerImpact(20); 
+        }
+
+        // Theremin Logic
+        let tFreq = 0, tVol = -Infinity;
+        if (mode === 1) {
+            tFreq = mapRange(normY, -1, 1, 100, 1500) * touchOffset.freq;
+            tFreq = Math.max(20, Math.min(3000, tFreq));
             
-            let vol = mapRange(volVal, -90, 90, -40, 0);
-            vol = Math.max(-60, Math.min(0, vol));
+            tVol = mapRange(normX, -1, 1, -40, 0) + touchOffset.vol;
+            tVol = Math.max(-60, Math.min(10, tVol));
 
-            this.synths.theremin.frequency.setTargetAtTime(freq, now, 0.05);
-            this.thereminVol.volume.setTargetAtTime(vol, now, 0.05);
+            this.synths.theremin.frequency.setTargetAtTime(tFreq, now, 0.05);
+            this.thereminVol.volume.setTargetAtTime(tVol, now, 0.05);
         } else {
-            // Smoothly mute theremin when not in modes 1 or 3
             this.thereminVol.volume.setTargetAtTime(-Infinity, now, 0.1);
         }
 
-        // 3. Composer Mode (Mode 5) Arpeggiator
-        if (mode === 5) {
-            if (!this.lastArp || now - this.lastArp > 0.15) { 
-                this.lastArp = now;
-                const scale = ["C3", "E3", "G3", "B3", "C4", "E4", "G4", "B4", "C5"];
-                let pitchVal = hasGyro ? gyro.x : mapRange(mouse.y, -1, 1, -90, 90);
-                let index = Math.floor(mapRange(pitchVal, -90, 90, 0, scale.length - 1));
-                index = Math.max(0, Math.min(scale.length - 1, index));
-                this.synths.poly.triggerAttackRelease(scale[index], "16n");
-            }
-        }
+        // Live Dashboard Update
+        document.getElementById('rd-x').innerText = gyro.x.toFixed(dec);
+        document.getElementById('rd-y').innerText = gyro.y.toFixed(dec);
+        document.getElementById('rd-f').innerText = mode === 1 ? tFreq.toFixed(dec) : "---";
+        document.getElementById('rd-v').innerText = mode === 1 ? tVol.toFixed(dec) : "---";
+        document.getElementById('rd-c').innerText = this.state.scaleNotes[this.state.activeCellIdx] || "None";
 
         this.renderWaveform();
         this.renderer.render(this.scene, this.cam);
     },
 
     renderWaveform() {
-        const canvas = document.getElementById('master-waveform');
-        const ctx = canvas.getContext('2d');
-        const width = canvas.clientWidth;
-        const height = canvas.clientHeight;
+        const cvs = document.getElementById('master-waveform');
+        const ctx = cvs.getContext('2d');
+        if (cvs.width !== cvs.clientWidth) { cvs.width = cvs.clientWidth; cvs.height = cvs.clientHeight; }
         
-        if (canvas.width !== width || canvas.height !== height) {
-            canvas.width = width;
-            canvas.height = height;
-        }
-
         const data = this.analyser.getValue();
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, cvs.width, cvs.height);
         ctx.beginPath();
-        ctx.strokeStyle = '#00ffcc';
+        ctx.strokeStyle = this.state.cfg.uiColor;
         ctx.lineWidth = 2;
-        
-        for(let i = 0; i < data.length; i++) {
-            const x = (i / data.length) * canvas.width;
-            const y = ((data[i] + 1) / 2) * canvas.height;
-            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        for(let i=0; i<data.length; i++) {
+            const x = (i/data.length) * cvs.width;
+            const y = ((data[i]+1)/2) * cvs.height;
+            i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
         }
         ctx.stroke();
     }
 };
 
-// Start Buttons
 document.getElementById('btn-start').onclick = () => GyrOS.init();
-document.getElementById('btn-record').onclick = function() {
-    if (!GyrOS.state.isRecording) {
-        GyrOS.recorder.start();
-        this.classList.add('recording-active');
-        this.innerText = "■ STOP REC";
-    } else {
-        GyrOS.recorder.stop();
-        this.classList.remove('recording-active');
-        this.innerText = "● REC";
-    }
-    GyrOS.state.isRecording = !GyrOS.state.isRecording;
-};
 </script>
 </body>
 </html>
