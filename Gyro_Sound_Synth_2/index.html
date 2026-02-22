@@ -5,8 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <link rel="manifest" href="manifest.json">
     <title>Gyr-OS | Master Utility</title>
+    <!--
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.180.0/three.core.min.js" type="module"></script>
+    -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/15.3.5/Tone.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tonaljs/tonal/browser/tonal.min.js"></script>
 
@@ -66,7 +68,17 @@
     <canvas id="master-waveform"></canvas>
 </div>
     
-<script>
+<script type="importmap">
+    { "imports": { 
+        "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.180.0/three.module.js",
+        "dat.gui": "https://unpkg.com/dat.gui@0.7.9/build/dat.gui.module.js"
+    } }
+</script>
+
+<script type="module">
+    import * as THREE from 'three';
+    //import * as Tone from 'https://esm.sh/tone';
+    import { GUI } from 'dat.gui';
 /**
  * THE GYR-OS MASTER OBJECT
  */
