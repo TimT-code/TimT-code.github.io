@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <link rel="manifest" href="manifest.json">
+    <title>Gyr-OS | Master Workstation V5.0</title>
+    
+    <!-- 
+      Author: Tim Tesner
+      Co-Author / AI Assistance: Gemini3
+      Gyr-OS Workstation Engine V5.0
+    -->
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tonaljs/tonal/browser/tonal.min.js"></script>
+
+    <style>
+        :root { --accent-neon: #00ffcc; --glass-bg: rgba(10, 10, 15, 0.85); --wave-color: #00ffcc; }
+        body, html { margin: 0; padding: 0; overflow: hidden; background: #020202; font-family: sans-serif; color: white; user-select: none; }
+        
+        /* Layering System */
+        #bg-layer { position: absolute; inset: 0; z-index: 0; background-size: cover; background-position: center; transition: opacity 0.3s; opacity: 1; }
+        #canvas-container { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+        #screensaver-layer { position: absolute; inset: 0; z-index: 1000; pointer-events: none; opacity: 0; transition: opacity 2s ease-in-out; background: rgba(0,0,0,0.8); }
+        
+        #grid-overlay { position: absolute; inset: 0; display: grid; z-index: 2; perspective: 1000px; transition: transform 0.1s; }
+        .grid-cell { border: 1px solid rgba(255,255,255,0.05); transition: all 0.2s; background-size: cover; background-position: center; display: flex; align-items: flex-end; justify-content: flex-end; padding: 5px; box-sizing: border-box; font-family: monospace; font-size: 11px; font-weight: bold; text-shadow: 1px 1px 2px black; }
+        .grid-cell.active { border-color: var(--accent-neon); box-shadow: inset 0 0 30px var(--accent-neon); transform: translateZ(30px); z-index: 3; color: white !important; }
+        .grid-cell.has-audio::before { content: '🎵'; position: absolute; top: 5px; left: 5px; font-size: 14px; }
+
+        /* Visual Composer Mode */
+        #composer-layer { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+        .custom-pad { position: absolute; border: 2px dashed var(--accent-neon); background: rgba(0, 255, 204, 0.1); pointer-events: auto; display: flex; justify-content: center; align-items: center; font-family: monospace; font-weight: bold; text-shadow: 1px 1px 2px black; box-shadow: inset 0 0 10px rgba(0,255,204,0.5); transition: 0.1s; }
+        .custom-pad:active { background: rgba(0, 255, 204, 0.4); transform: scale(0.95); }
+
+        /* GUIs & HUD */
+        .gui-window { position: absolute; z-index: 100; background: var(--glass-bg); border: 1px solid var(--accent-neon); border-radius: 6px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.5); transition: opacity 0.3s; }
+        .gui-header { background: var(--accent-neon); color: black; padding: 6px 10px; font-size: 12px; font-weight: bold; cursor: grab; display: flex; justify-content: space-between; }
+        .gui-header:active { cursor: grabbing; }
+        #gui-left { top: 20px; left: 20px; } #gui-center { top: 20px; left: 50%; transform: translateX(-50%); } #gui-right { top: 20px; right: 20px; }
+
+        #live-dashboard { position: absolute; bottom: 18vh; left: 20px; background: var(--glass-bg); padding: 10px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; font-family: monospace; font-size: 11px; z-index: 50; pointer-events: none; color: var(--accent-neon); transition: opacity 0.3s; }
+        
+        #bottom-hud { position: absolute; bottom: 0; left: 0; width: 100vw; height: 16vh; background: var(--glass-bg); backdrop-filter: blur(10px); border-top: 1px solid rgba(255,255,255,0.2); z-index: 50; display: flex; flex-direction: column; transition: transform 0.4s cubic-bezier(0.1, 0.8, 0.1, 1); }
+        #bottom-hud.hidden { transform: translateY(100%); }
+        .hud-controls { display: flex; gap: 4px; justify-content: center; padding: 5px; flex-wrap: wrap; }
+        .mode-btn { padding: 6px 10px; background: rgba(0,0,0,0.5); border: 1px solid var(--accent-neon); color: var(--accent-neon); border-radius: 4px; cursor: pointer; font-size: 10px; font-weight: bold; transition: 0.2s; }
+        .mode-btn.active { background: var(--accent-neon); color: #000; box-shadow: 0 0 10px var(--accent-neon); }
+        .mode-btn.toggled { background: #00ffcc; color: #000; }
+        
+        /* Mute Pulsing */
+        @keyframes mutePulse { 0% { box-shadow: 0 0 5px red; background: rgba(255,0,0,0.2); } 50% { box-shadow: 0 0 20px red; background: rgba(255,0,0,0.8); color: white; } 100% { box-shadow: 0 0 5px red; background: rgba(255,0,0,0.2); } }
+        .is-muted { border-color: red !important; color: red !important; }
+        .mute-active-audio { animation: mutePulse 0.3s infinite; border-color: red !important; }
+
+        #master-waveform { width: 100%; height: 100%; flex-grow: 1; }
+
+        /* Secret Corners (Long Press) */
+        .secret-corner { position: absolute; width: 80px; height: 80px; z-index: 999; opacity: 0; cursor: pointer; }
+        #sc-tl { top: 0; left: 0; } #sc-tr { top: 0; right: 0; } #sc-bl { bottom: 0; left: 0; } #sc-br { bottom: 0; right: 0; }
+
+        /* VFX Layer */
+        .vfx-layer { position: absolute; pointer-events: none; transform: translate(-50%, -50%); transform-origin: center; }
+
+        input[type="file"] { display: none; }
+        #init-overlay { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+        #btn-start { padding: 20px 40px; font-size: 1.5rem; background: var(--accent-neon); border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div id="init-overlay">
+    <h1 style="color: var(--accent-neon); letter-spacing: 5px;">GYR-OS V5.0</h1>
+    <p>AUTHOR: TIM TESNER & GEMINI3</p>
+    <button id="btn-start">INITIALIZE ENGINE</button>
+    <div id="error-msg" style="color: #ff4444; margin-top: 15px;"></div>
+</div>
+
+<div id="bg-layer"></div>
+<div id="canvas-container"></div>
+<div id="screensaver-layer"></div>
+<div id="grid-overlay"></div>
+<div id="composer-layer"></div>
+
+<div class="secret-corner" id="sc-tl"></div><div class="secret-corner" id="sc-tr"></div>
+<div class="secret-corner" id="sc-bl"></div><div class="secret-corner" id="sc-br"></div>
+
+<div class="gui-window" id="gui-left" style="transform: none;"><div class="gui-header"><span>SYSTEM & SENSORS</span><span class="gui-toggle">▼</span></div><div class="gui-content" id="gui-left-content"></div></div>
+<div class="gui-window" id="gui-center" style="transform: none;"><div class="gui-header"><span>VISUALS & MEDIA</span><span class="gui-toggle">▼</span></div><div class="gui-content" id="gui-center-content"></div></div>
+<div class="gui-window" id="gui-right" style="transform: none;"><div class="gui-header"><span>SYNTH ENGINE</span><span class="gui-toggle">▼</span></div><div class="gui-content" id="gui-right-content"></div></div>
+
+<div id="live-dashboard">
+    <div>POS: <span id="rd-pos">0, 0</span></div>
+    <div>ACC: <span id="rd-acc">0</span></div>
+    <div>AIM: <span id="rd-cell">None</span></div>
+</div>
+
+<div id="bottom-hud">
+    <div class="hud-controls" id="mode-btn-container"></div>
+    <div class="hud-controls">
+        <button class="mode-btn" id="btn-oct-down">[- OCT]</button>
+        <button class="mode-btn" id="btn-oct-up">[+ OCT]</button>
+        <button id="btn-hold" class="mode-btn">⎄ HOLD</button>
+        <button id="btn-mute" class="mode-btn" style="border-color: #ff4444; color: #ff4444;">🔇 MUTE</button>
+        <button id="btn-panic" class="mode-btn" style="border-color: #ffaa00; color: #ffaa00;">■ PANIC</button>
+    </div>
+    <canvas id="master-waveform"></canvas>
+</div>
+
+<!-- Uploads -->
+<input type="file" id="up-config" accept=".json">
+<input type="file" id="up-part" accept=".json">
+<input type="file" id="up-bg" accept="image/*">
+<input type="file" id="up-vfx" accept="image/*">
+<input type="file" id="up-note-img" accept="image/*">
+
+<script type="importmap">
+    { "imports": { "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.js" } }
+</script>
+
+<script type="module">
+/**
+ * GYR-OS WORKSTATION V5.0
+ * Author: Tim Tesner
+ * Assistant: Gemini3
+ */
+
+import * as THREE from 'three';
+import * as Tone from 'https://esm.sh/tone';
+
+const mapRange = (val, inMin, inMax, outMin, outMax) => ((val - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
+
+const NOTE_COLORS = { 'C': 0, 'C#': 30, 'D': 60, 'D#': 90, 'E': 120, 'F': 150, 'F#': 180, 'G': 210, 'G#': 240, 'A': 270, 'A#': 300, 'B': 330 };
+function getNoteColor(noteStr, isWireframe) {
+    if (!noteStr) return 'rgba(255,255,255,0.1)';
+    let base = noteStr.replace(/\d+/, '');
+    let oct = parseInt(noteStr.replace(/\D+/g, '')) || 3;
+    let hue = NOTE_COLORS[base] || 0;
+    let light = 20 + (oct * 8); 
+    return isWireframe ? `hsla(${hue}, 80%, ${light}%, 0.3)` : `hsla(${hue}, 80%, ${light}%, 0.6)`;
+}
+
+const GyrOS = {
+    state: {
+        mode: 1, hasGyro: false, holdMode: false, uiHidden: false, isMuted: false,
+        rawSensors: { x: 0, y: 0, z: 0, acc: 0 },
+        pointer: { x: 0, y: 0 }, lastInteraction: Date.now(),
+        activeCellIdx: -1,
+        drawnPads: [], drawingStart: null,
+        
+        cfg: {
+            // Master config
+            sensSwapXY: false, sensInvertX: false, sensInvertY: false,
+            gyroScale: 30, mouseScale: 1.5, mouseSmooth: 0.2, impactThresh: 15,
+            
+            // Haptics
+            vibActive: 30, vibRest: 10,
+            
+            // Visuals
+            gridCols: 4, gridRows: 3, showGrid: true, perspective: false, colorNotes: true,
+            hudColor: 'rgba(10, 10, 15, 0.85)', accentColor: '#00ffcc', waveColor: '#00ffcc',
+            bgImageUrl: null, bgOpacity: 1.0, bgSize: 'cover',
+            vfxImageUrl: null, vfxOpac: 0.8, vfxScale: 2.0, vfxSpeed: 0.5, vfxZ: 10,
+            ssDelay: 5000, pointerSize: 1.0,
+            
+            // Audio Engine Master
+            masterVol: -5, eqLow: 0, eqMid: 0, eqHigh: 0, reverbMix: 0.3, delayMix: 0.2,
+            scale: 'pentatonic', root: 'C', octave: 3,
+            
+            // Theremin
+            thereminWave: 'sine', thBaseFreq: 100, thMaxFreq: 2000, thVolMax: 0, thVolMin: -40,
+            
+            // Synth 1
+            s1Type: 'Synth', s1Vol: 0, s1Pan: -0.5, s1Atk: 0.05, s1Dec: 0.2, s1Sus: 0.5, s1Rel: 1.5,
+            // Synth 2
+            s2Type: 'FMSynth', s2Vol: -6, s2Pan: 0.5, s2Atk: 0.1, s2Dec: 0.3, s2Sus: 0.4, s2Rel: 2.0,
+            
+            // Ramps / Envelopes for Samples
+            sampFadeIn: 0.01, sampFadeOut: 0.1, sampHold: 0,
+
+            // Toggles
+            m1: true, m2: true, m3: true, m4: true, m5: true, m6: true, m7: true, m8: true, m9: true,
+            guiFolders: {}, cells: [], noteImages: {} 
+        }
+    },
+
+    modesList: [
+        { id: 1, name: "1: THEREMIN" }, { id: 2, name: "2: IMPACT" }, { id: 3, name: "3: HYBRID" },
+        { id: 4, name: "4: HOVER" }, { id: 5, name: "5: ARP" }, { id: 6, name: "6: TOUCH ONLY" },
+        { id: 7, name: "7: TCH+THER" }, { id: 8, name: "8: THER-SYNTH" }, { id: 9, name: "9: COMPOSER" }
+    ],
+    scalesList: ['major', 'minor', 'pentatonic', 'chromatic', 'lydian', 'dorian', 'mixolydian', 'phrygian', 'blues'],
+
+    async init() {
+        try {
+            await Tone.start();
+            try { await this.detectSensors(); this.state.hasGyro = true; } catch(e) { this.state.hasGyro = false; }
+
+            this.initAudio();
+            this.initVisuals();
+            this.initGrid();
+            this.initGUIs();
+            this.makeGUIsDraggable();
+            this.bindEvents();
+            this.renderModeButtons();
+            
+            document.getElementById('init-overlay').style.display = 'none';
+            this.loop();
+        } catch(err) { document.getElementById('error-msg').innerText = "Failed: " + err.message; }
+    },
+
+    async detectSensors() {
+        if (!window.DeviceOrientationEvent) throw new Error("No hardware");
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+            const p = await DeviceOrientationEvent.requestPermission();
+            if (p !== 'granted') throw new Error("Permission denied");
+        }
+        return new Promise((res, rej) => {
+            const t = setTimeout(() => { window.removeEventListener('deviceorientation', check); rej(); }, 1000);
+            const check = (e) => { if (e.alpha !== null) { clearTimeout(t); res(); } };
+            window.addEventListener('deviceorientation', check);
+        });
+    },
+
+    initAudio() {
+        this.analyser = new Tone.Analyser("waveform", 1024);
+        
+        // Mute Bus and Metering
+        this.masterBus = new Tone.Volume(0);
+        this.meter = new Tone.Meter().connect(this.masterBus); // Read before mute
+        this.muteNode = new Tone.Volume(0).connect(this.analyser).toDestination();
+        this.masterBus.connect(this.muteNode);
+
+        this.eq = new Tone.EQ3(this.state.cfg.eqLow, this.state.cfg.eqMid, this.state.cfg.eqHigh).connect(this.masterBus);
+        this.rack = {
+            reverb: new Tone.Freeverb({ roomSize: 0.8 }).connect(this.eq),
+            delay: new Tone.FeedbackDelay("8n", 0.3).connect(this.eq)
+        };
+
+        // Dual Synths
+        this.s1Pan = new Tone.Panner(this.state.cfg.s1Pan).connect(this.rack.delay);
+        this.s2Pan = new Tone.Panner(this.state.cfg.s2Pan).connect(this.rack.delay);
+        
+        this.synth1 = new Tone.PolySynth(Tone[this.state.cfg.s1Type]).connect(this.s1Pan);
+        this.synth2 = new Tone.PolySynth(Tone[this.state.cfg.s2Type]).connect(this.s2Pan);
+        
+        // Theremin
+        this.theremin = new Tone.Oscillator(this.state.cfg.thBaseFreq, this.state.cfg.thereminWave).start();
+        this.thereminVol = new Tone.Volume(-Infinity).connect(this.rack.reverb);
+        this.theremin.connect(this.thereminVol);
+
+        // Mic
+        this.mic = new Tone.UserMedia().connect(this.rack.reverb);
+
+        this.cellPlayers = new Map();
+        this.updateSynths();
+    },
+
+    updateSynths() {
+        this.synth1.volume.value = this.state.cfg.s1Vol;
+        this.synth2.volume.value = this.state.cfg.s2Vol;
+        this.s1Pan.pan.value = this.state.cfg.s1Pan;
+        this.s2Pan.pan.value = this.state.cfg.s2Pan;
+        this.synth1.set({ envelope: { attack: this.state.cfg.s1Atk, decay: this.state.cfg.s1Dec, sustain: this.state.cfg.s1Sus, release: this.state.cfg.s1Rel } });
+        this.synth2.set({ envelope: { attack: this.state.cfg.s2Atk, decay: this.state.cfg.s2Dec, sustain: this.state.cfg.s2Sus, release: this.state.cfg.s2Rel } });
+        this.theremin.type = this.state.cfg.thereminWave;
+    },
+
+    initVisuals() {
+        this.scene = new THREE.Scene();
+        this.cam = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('canvas-container').appendChild(this.renderer.domElement);
+
+        this.pointerMaterial = new THREE.MeshBasicMaterial({ color: this.state.cfg.accentColor, wireframe: true });
+        this.pointerObj = new THREE.Mesh(new THREE.SphereGeometry(0.8, 16, 16), this.pointerMaterial);
+        this.scene.add(this.pointerObj);
+        
+        this.gridHelper = new THREE.GridHelper(100, 50, 0x222222, 0x111111);
+        this.gridHelper.rotation.x = Math.PI / 2;
+        this.gridHelper.position.z = -5;
+        this.scene.add(this.gridHelper);
+        this.cam.position.z = 10;
+        
+        // Screensaver Particles
+        this.ssScene = new THREE.Scene();
+        this.ssCam = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        this.ssCam.position.z = 50;
+        this.ssRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        this.ssRenderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('screensaver-layer').appendChild(this.ssRenderer.domElement);
+        
+        const geom = new THREE.BufferGeometry();
+        const verts = [];
+        for(let i=0; i<2000; i++) verts.push(THREE.MathUtils.randFloatSpread(200), THREE.MathUtils.randFloatSpread(200), THREE.MathUtils.randFloatSpread(200));
+        geom.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+        this.particles = new THREE.Points(geom, new THREE.PointsMaterial({ color: 0x00ffcc, size: 0.5 }));
+        this.ssScene.add(this.particles);
+
+        this.applyTheme();
+    },
+
+    applyTheme() {
+        document.documentElement.style.setProperty('--accent-neon', this.state.cfg.accentColor);
+        document.documentElement.style.setProperty('--glass-bg', this.state.cfg.hudColor);
+        document.documentElement.style.setProperty('--wave-color', this.state.cfg.waveColor);
+        this.pointerMaterial.color.set(this.state.cfg.accentColor);
+        this.pointerObj.scale.setScalar(this.state.cfg.pointerSize);
+        this.particles.material.color.set(this.state.cfg.accentColor);
+        
+        const bg = document.getElementById('bg-layer');
+        if(this.state.cfg.bgImageUrl) {
+            bg.style.backgroundImage = `url(${this.state.cfg.bgImageUrl})`;
+            bg.style.opacity = this.state.cfg.bgOpacity;
+            bg.style.backgroundSize = this.state.cfg.bgSize;
+        } else { bg.style.backgroundImage = 'none'; }
+    },
+
+    initGrid() {
+        const overlay = document.getElementById('grid-overlay');
+        overlay.innerHTML = '';
+        overlay.style.gridTemplateColumns = `repeat(${this.state.cfg.gridCols}, 1fr)`;
+        overlay.style.gridTemplateRows = `repeat(${this.state.cfg.gridRows}, 1fr)`;
+        overlay.style.opacity = this.state.cfg.showGrid ? "1" : "0";
+
+        const total = this.state.cfg.gridCols * this.state.cfg.gridRows;
+        if (this.state.cfg.cells.length !== total) this.state.cfg.cells = Array.from({length: total}, (_, i) => ({ id: i, audioSrc: null, imageSrc: null }));
+
+        const s = Tonal.Scale.get(`${this.state.cfg.root} ${this.state.cfg.scale}`).notes;
+        let currOct = parseInt(this.state.cfg.octave);
+
+        for(let i=0; i<total; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'grid-cell';
+            cell.id = `cell-${i}`;
+            
+            let note = s[i % s.length] + currOct;
+            if ((i + 1) % s.length === 0) currOct++;
+            this.state.cfg.cells[i].defaultNote = note;
+            
+            cell.innerText = note;
+            if(this.state.cfg.colorNotes) {
+                cell.style.backgroundColor = getNoteColor(note, true);
+                cell.style.color = getNoteColor(note, false);
+            }
+
+            const cData = this.state.cfg.cells[i];
+            if (cData.imageSrc) cell.style.backgroundImage = `url(${cData.imageSrc})`;
+            if (cData.audioSrc) cell.classList.add('has-audio');
+
+            cell.addEventListener('dragover', e => { e.preventDefault(); cell.style.boxShadow = `inset 0 0 50px ${this.state.cfg.accentColor}`; });
+            cell.addEventListener('dragleave', () => cell.style.boxShadow = '');
+            cell.addEventListener('drop', async e => {
+                e.preventDefault(); cell.style.boxShadow = '';
+                const file = e.dataTransfer.files[0];
+                if (!file) return;
+                const url = URL.createObjectURL(file);
+                if (file.type.startsWith('image/')) { cData.imageSrc = url; cell.style.backgroundImage = `url(${url})`; } 
+                else if (file.type.startsWith('audio/')) {
+                    cData.audioSrc = url;
+                    const player = new Tone.Player(url).connect(this.rack.delay);
+                    await Tone.loaded();
+                    this.cellPlayers.set(i, player);
+                    cell.classList.add('has-audio');
+                }
+            });
+            overlay.appendChild(cell);
+        }
+
+        // Remap drawn pads
+        this.state.drawnPads.forEach((pad, i) => {
+            pad.note = s[i % s.length] + currOct;
+            pad.el.innerText = pad.note;
+        });
+    },
+
+    spawnVFX(xNorm, yNorm, customImg = null, opac = null) {
+        const imgUrl = customImg || this.state.cfg.vfxImageUrl;
+        if (!imgUrl) return;
+        const vfx = document.createElement('img');
+        vfx.src = imgUrl;
+        vfx.className = 'vfx-layer';
+        vfx.style.left = `${(xNorm + 1) / 2 * window.innerWidth}px`;
+        vfx.style.top = `${(-yNorm + 1) / 2 * window.innerHeight}px`;
+        vfx.style.zIndex = this.state.cfg.vfxZ;
+        
+        const opacity = opac || this.state.cfg.vfxOpac;
+        const scale = this.state.cfg.vfxScale;
+        const speed = this.state.cfg.vfxSpeed;
+        
+        vfx.animate([
+            { opacity: opacity, transform: `translate(-50%, -50%) scale(0.1)` },
+            { opacity: 0, transform: `translate(-50%, -50%) scale(${scale})` }
+        ], { duration: speed * 1000, easing: 'ease-out' });
+        
+        document.body.appendChild(vfx);
+        setTimeout(() => vfx.remove(), speed * 1000);
+    },
+
+    triggerNote(noteStr, force = 30, sampleIdx = -1, originX = 0, originY = 0) {
+        const now = Tone.now();
+        const vol = Math.min(1, force / 40);
+        
+        if(navigator.vibrate) navigator.vibrate([this.state.cfg.vibActive, this.state.cfg.vibRest]);
+
+        // Pointer Reaction
+        this.pointerObj.scale.setScalar(this.state.cfg.pointerSize * 1.8);
+        this.pointerMaterial.color.setHex(0xffffff);
+        setTimeout(() => { this.pointerObj.scale.setScalar(this.state.cfg.pointerSize); this.pointerMaterial.color.set(this.state.cfg.accentColor); }, 150);
+        
+        // Note-Specific Custom Image Logic
+        let baseNote = noteStr.replace(/\d+/, '');
+        let customImg = null, customOpac = null;
+        if(this.state.cfg.noteImages[baseNote]) {
+            customImg = this.state.cfg.noteImages[baseNote].url;
+            customOpac = this.state.cfg.noteImages[baseNote].opac;
+        }
+        
+        this.spawnVFX(originX, originY, customImg, customOpac);
+
+        // Play Sample with Ramps
+        if (sampleIdx !== -1 && this.cellPlayers.has(sampleIdx)) {
+            const p = this.cellPlayers.get(sampleIdx);
+            if(p.loaded) {
+                // Apply Envelope via Tone.js Volume
+                p.volume.value = -Infinity;
+                p.volume.rampTo(Tone.gainToDb(vol), this.state.cfg.sampFadeIn, now);
+                p.start(now);
+                if(!this.state.holdMode) {
+                    p.volume.rampTo(-Infinity, this.state.cfg.sampFadeOut, now + this.state.cfg.sampFadeIn + this.state.cfg.sampHold + 0.1);
+                    p.stop(now + this.state.cfg.sampFadeIn + this.state.cfg.sampHold + this.state.cfg.sampFadeOut + 0.2);
+                }
+            }
+        } 
+        
+        // Play Synths
+        const dur = this.state.holdMode ? "100m" : "8n";
+        this.synth1.triggerAttackRelease(noteStr, dur, now, vol);
+        this.synth2.triggerAttackRelease(noteStr, dur, now, vol);
+    },
+
+    renderModeButtons() {
+        const c = document.getElementById('mode-btn-container');
+        c.innerHTML = '';
+        this.modesList.forEach(m => {
+            if(this.state.cfg[`m${m.id}`]) {
+                const b = document.createElement('button');
+                b.className = `mode-btn ${this.state.mode === m.id ? 'active' : ''}`;
+                b.innerText = m.name;
+                b.onclick = () => {
+                    document.querySelectorAll('.mode-btn[data-mode]').forEach(btn => btn.classList.remove('active'));
+                    b.classList.add('active');
+                    this.state.mode = m.id;
+                    if(m.id !== 4 && !this.state.holdMode) { this.synth1.releaseAll(); this.synth2.releaseAll(); }
+                    document.getElementById('composer-layer').style.pointerEvents = m.id === 9 ? 'auto' : 'none';
+                };
+                c.appendChild(b);
+            }
+        });
+    },
+
+    downloadSubConfig(keysPrefix, filename) {
+        const sub = {};
+        Object.keys(this.state.cfg).forEach(k => { if(k.startsWith(keysPrefix)) sub[k] = this.state.cfg[k]; });
+        const a = document.createElement('a');
+        a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(sub));
+        a.download = filename; a.click();
+    },
+
+    initGUIs() {
+        document.getElementById('gui-left-content').innerHTML = '';
+        document.getElementById('gui-center-content').innerHTML = '';
+        document.getElementById('gui-right-content').innerHTML = '';
+
+        const guiOpts = { autoPlace: false, closed: false };
+
+        // --- 1. LEFT GUI ---
+        this.guiSys = new dat.GUI(guiOpts);
+        document.getElementById('gui-left-content').appendChild(this.guiSys.domElement);
+        
+        const gSave = this.guiSys.addFolder('Master Saves');
+        gSave.add({ export: () => this.downloadSubConfig('', 'GyrOS_Master.json') }, 'export').name('💾 Save MASTER');
+        gSave.add({ import: () => document.getElementById('up-config').click() }, 'import').name('📂 Load MASTER');
+        
+        const gSen = this.guiSys.addFolder('Sensors & Haptics');
+        gSen.add(this.state.cfg, 'sensSwapXY'); gSen.add(this.state.cfg, 'sensInvertX'); gSen.add(this.state.cfg, 'sensInvertY');
+        gSen.add(this.state.cfg, 'gyroScale', 10, 90); gSen.add(this.state.cfg, 'impactThresh', 5, 50);
+        gSen.add(this.state.cfg, 'vibActive', 0, 100); gSen.add(this.state.cfg, 'vibRest', 0, 100);
+
+        const gMic = this.guiSys.addFolder('Live Microphone');
+        gMic.add({ t: async () => { await Tone.start(); this.mic.open(); } }, 't').name('🎙️ Open Mic');
+        gMic.add({ t: () => this.mic.close() }, 't').name('⏹️ Close Mic');
+
+        // --- 2. CENTER GUI ---
+        this.guiCfg = new dat.GUI(guiOpts);
+        document.getElementById('gui-center-content').appendChild(this.guiCfg.domElement);
+        
+        const gVis = this.guiCfg.addFolder('Colors & Theme');
+        gVis.add({ s: () => this.downloadSubConfig('bg', 'GyrOS_Visuals.json') }, 's').name('💾 Save Visuals');
+        gVis.addColor(this.state.cfg, 'accentColor').onChange(()=>this.applyTheme());
+        gVis.addColor(this.state.cfg, 'hudColor').onChange(()=>this.applyTheme());
+        gVis.add({ b: () => document.getElementById('up-bg').click() }, 'b').name('🖼️ BG Image');
+        gVis.add(this.state.cfg, 'bgOpacity', 0, 1).onChange(()=>this.applyTheme());
+        gVis.add(this.state.cfg, 'bgSize', ['cover', 'contain']).onChange(()=>this.applyTheme());
+        gVis.add(this.state.cfg, 'ssDelay', 1000, 20000).name('Screensaver MS');
+        
+        const gVfx = this.guiCfg.addFolder('VFX & Note Images');
+        gVfx.add({ v: () => document.getElementById('up-vfx').click() }, 'v').name('💥 Base Hit VFX');
+        gVfx.add(this.state.cfg, 'vfxOpac', 0.1, 1);
+        gVfx.add(this.state.cfg, 'vfxScale', 0.5, 5);
+        gVfx.add(this.state.cfg, 'vfxSpeed', 0.1, 2);
+        gVfx.add({ n: () => document.getElementById('up-note-img').click() }, 'n').name('🎵 Map Image to Note C'); // Simplified demo for mapping C
+
+        const gGrd = this.guiCfg.addFolder('Grid Setup');
+        gGrd.add(this.state.cfg, 'gridCols', 1, 16).step(1).onChange(()=>this.initGrid());
+        gGrd.add(this.state.cfg, 'gridRows', 1, 16).step(1).onChange(()=>this.initGrid());
+        gGrd.add(this.state.cfg, 'showGrid').onChange(()=>this.initGrid());
+        gGrd.add(this.state.cfg, 'perspective').onChange(()=>this.initGrid());
+        gGrd.add(this.state.cfg, 'colorNotes').onChange(()=>this.initGrid());
+
+        const gUI = this.guiCfg.addFolder('UI Mode Toggles');
+        this.modesList.forEach(m => gUI.add(this.state.cfg, `m${m.id}`).name(m.name).onChange(()=>this.renderModeButtons()));
+
+        // --- 3. RIGHT GUI ---
+        this.guiSnd = new dat.GUI(guiOpts);
+        document.getElementById('gui-right-content').appendChild(this.guiSnd.domElement);
+        
+        const sMix = this.guiSnd.addFolder('Master Mixer');
+        sMix.add(this.state.cfg, 'masterVol', -60, 10).onChange(v => this.masterVol.volume.value = v);
+        sMix.add(this.state.cfg, 'eqLow', -10, 10).onChange(v => this.eq.low.value = v);
+        sMix.add(this.state.cfg, 'eqMid', -10, 10).onChange(v => this.eq.mid.value = v);
+        sMix.add(this.state.cfg, 'eqHigh', -10, 10).onChange(v => this.eq.high.value = v);
+        sMix.add(this.state.cfg, 'reverbMix', 0, 1).onChange(v => this.rack.reverb.wet.value = v);
+        sMix.add(this.state.cfg, 'delayMix', 0, 1).onChange(v => this.rack.delay.wet.value = v);
+        
+        const sTh = this.guiSnd.addFolder('Theremin Details');
+        sTh.add({ s: () => this.downloadSubConfig('th', 'GyrOS_Theremin.json') }, 's').name('💾 Save Theremin');
+        sTh.add(this.state.cfg, 'thereminWave', ['sine', 'square', 'sawtooth', 'triangle']).onChange(()=>this.updateSynths());
+        sTh.add(this.state.cfg, 'thBaseFreq', 20, 500);
+        sTh.add(this.state.cfg, 'thMaxFreq', 500, 5000);
+        sTh.add(this.state.cfg, 'thVolMax', -20, 10);
+        sTh.add(this.state.cfg, 'thVolMin', -80, -20);
+
+        const buildSynthGUI = (fName, pfx, synthObj, panObj) => {
+            const f = this.guiSnd.addFolder(fName);
+            f.add({ s: () => this.downloadSubConfig(pfx, `GyrOS_${fName}.json`) }, 's').name('💾 Save Synth');
+            f.add(this.state.cfg, `${pfx}Type`, ['Synth', 'AMSynth', 'FMSynth', 'MembraneSynth']).onChange(v => {
+                synthObj.dispose();
+                if(pfx==='s1') { this.synth1 = new Tone.PolySynth(Tone[v]).connect(panObj); this.updateSynths(); }
+                else { this.synth2 = new Tone.PolySynth(Tone[v]).connect(panObj); this.updateSynths(); }
+            });
+            f.add(this.state.cfg, `${pfx}Vol`, -60, 10).onChange(()=>this.updateSynths());
+            f.add(this.state.cfg, `${pfx}Pan`, -1, 1).onChange(()=>this.updateSynths());
+            f.add(this.state.cfg, `${pfx}Atk`, 0.01, 2).onChange(()=>this.updateSynths());
+            f.add(this.state.cfg, `${pfx}Dec`, 0.01, 2).onChange(()=>this.updateSynths());
+            f.add(this.state.cfg, `${pfx}Sus`, 0, 1).onChange(()=>this.updateSynths());
+            f.add(this.state.cfg, `${pfx}Rel`, 0.1, 10).onChange(()=>this.updateSynths());
+        };
+        buildSynthGUI('Synth 1 Setup', 's1', this.synth1, this.s1Pan);
+        buildSynthGUI('Synth 2 Setup', 's2', this.synth2, this.s2Pan);
+
+        const sRmp = this.guiSnd.addFolder('Sample Envelopes');
+        sRmp.add(this.state.cfg, 'sampFadeIn', 0, 2).name('Attack(s)');
+        sRmp.add(this.state.cfg, 'sampHold', 0, 5).name('Hold(s)');
+        sRmp.add(this.state.cfg, 'sampFadeOut', 0.1, 5).name('Fade(s)');
+        
+        const sScl = this.guiSnd.addFolder('Scales');
+        sScl.add(this.state.cfg, 'scale', this.scalesList).onChange(()=>this.initGrid());
+        sScl.add(this.state.cfg, 'root', ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']).onChange(()=>this.initGrid());
+        
+        this.restoreFolderStates();
+    },
+
+    restoreFolderStates() {
+        [this.guiSys, this.guiCfg, this.guiSnd].forEach(gui => {
+            Object.keys(gui.__folders).forEach(k => {
+                if (this.state.cfg.guiFolders[k] === false) gui.__folders[k].open();
+                else if (this.state.cfg.guiFolders[k] === true) gui.__folders[k].close();
+            });
+        });
+    },
+
+    makeGUIsDraggable() {
+        let z = 100;
+        document.querySelectorAll('.gui-window').forEach(el => {
+            const header = el.querySelector('.gui-header');
+            el.addEventListener('mousedown', () => { el.style.zIndex = ++z; });
+            let isDown = false, startX, startY, origX, origY;
+            header.onmousedown = (e) => {
+                if(e.target.classList.contains('gui-toggle')) {
+                    const content = el.querySelector('.gui-content');
+                    content.style.display = content.style.display === 'none' ? 'block' : 'none';
+                    e.target.innerText = content.style.display === 'none' ? '▲' : '▼';
+                    return;
+                }
+                isDown = true; startX = e.clientX; startY = e.clientY; origX = el.offsetLeft; origY = el.offsetTop;
+            };
+            window.addEventListener('mousemove', (e) => {
+                if(!isDown) return;
+                el.style.left = (origX + (e.clientX - startX)) + "px";
+                el.style.top = (origY + (e.clientY - startY)) + "px";
+            });
+            window.addEventListener('mouseup', () => isDown = false);
+        });
+    },
+
+    bindEvents() {
+        const handleUp = (e, callback) => {
+            const file = e.target.files[0]; if(!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => callback(ev.target.result, file);
+            file.type.startsWith('image') ? callback(URL.createObjectURL(file)) : reader.readAsText(file);
+        };
+        
+        document.getElementById('up-config').addEventListener('change', e => handleUp(e, (res) => { Object.assign(this.state.cfg, JSON.parse(res)); this.initGrid(); this.initGUIs(); this.applyTheme(); }));
+        document.getElementById('up-part').addEventListener('change', e => handleUp(e, (res) => { Object.assign(this.state.cfg, JSON.parse(res)); this.initGrid(); this.initGUIs(); this.applyTheme(); }));
+        document.getElementById('up-bg').addEventListener('change', e => handleUp(e, (url) => { this.state.cfg.bgImageUrl = url; this.applyTheme(); }));
+        document.getElementById('up-vfx').addEventListener('change', e => handleUp(e, (url) => { this.state.cfg.vfxImageUrl = url; this.applyTheme(); }));
+        document.getElementById('up-note-img').addEventListener('change', e => handleUp(e, (url) => { this.state.cfg.noteImages['C'] = { url: url, opac: 0.8 }; }));
+
+        // Quick Octaves
+        document.getElementById('btn-oct-up').onclick = () => { if(this.state.cfg.octave < 6) { this.state.cfg.octave++; this.initGrid(); this.guiSnd.updateDisplay(); } };
+        document.getElementById('btn-oct-down').onclick = () => { if(this.state.cfg.octave > 1) { this.state.cfg.octave--; this.initGrid(); this.guiSnd.updateDisplay(); } };
+
+        // Panic
+        document.getElementById('btn-panic').onclick = () => {
+            Tone.Transport.stop(); this.synth1.releaseAll(); this.synth2.releaseAll();
+            this.cellPlayers.forEach(p => p.stop()); this.thereminVol.volume.rampTo(-Infinity, 0.05);
+            this.state.holdMode = false; document.getElementById('btn-hold').classList.remove('toggled');
+        };
+
+        // Mute
+        const btnMute = document.getElementById('btn-mute');
+        btnMute.onclick = () => {
+            this.state.isMuted = !this.state.isMuted;
+            this.muteNode.volume.value = this.state.isMuted ? -Infinity : 0;
+            btnMute.classList.toggle('is-muted', this.state.isMuted);
+        };
+
+        // Hold
+        document.getElementById('btn-hold').onclick = (e) => { this.state.holdMode = !this.state.holdMode; e.target.classList.toggle('toggled', this.state.holdMode); };
+
+        // Long Press Corners
+        let cpTimer;
+        document.querySelectorAll('.secret-corner').forEach(c => {
+            const toggleUI = () => {
+                this.state.uiHidden = !this.state.uiHidden;
+                document.querySelectorAll('.gui-window, #live-dashboard').forEach(el => el.style.opacity = this.state.uiHidden ? '0' : '1');
+                document.getElementById('bottom-hud').classList.toggle('hidden', this.state.uiHidden);
+            };
+            c.onmousedown = c.ontouchstart = () => { cpTimer = setTimeout(toggleUI, 1500); c.style.backgroundColor = 'var(--accent-neon)'; c.style.opacity = 0.5; };
+            c.onmouseup = c.ontouchend = c.onmouseleave = () => { clearTimeout(cpTimer); c.style.opacity = 0; };
+        });
+
+        const markActive = () => { this.state.lastInteraction = Date.now(); document.getElementById('screensaver-layer').style.opacity = 0; };
+
+        // Visual Composer Drawing (Mode 9)
+        const compLayer = document.getElementById('composer-layer');
+        compLayer.onmousedown = (e) => {
+            if(this.state.mode !== 9) return;
+            markActive();
+            this.state.drawingStart = { x: e.clientX, y: e.clientY };
+            const pad = document.createElement('div');
+            pad.className = 'custom-pad';
+            pad.style.left = e.clientX + 'px'; pad.style.top = e.clientY + 'px';
+            compLayer.appendChild(pad);
+            
+            const onMove = (ev) => {
+                pad.style.width = Math.abs(ev.clientX - this.state.drawingStart.x) + 'px';
+                pad.style.height = Math.abs(ev.clientY - this.state.drawingStart.y) + 'px';
+                pad.style.left = Math.min(ev.clientX, this.state.drawingStart.x) + 'px';
+                pad.style.top = Math.min(ev.clientY, this.state.drawingStart.y) + 'px';
+            };
+            const onUp = () => {
+                window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp);
+                const idx = this.state.drawnPads.length;
+                this.state.drawnPads.push({ el: pad });
+                this.initGrid(); // Remaps notes to pads
+                pad.onmousedown = () => this.triggerNote(this.state.drawnPads[idx].note, 40, -1, mapRange(pad.offsetLeft, 0, window.innerWidth, -1, 1), mapRange(pad.offsetTop, 0, window.innerHeight, 1, -1));
+            };
+            window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp);
+        };
+
+        if(this.state.hasGyro) {
+            window.addEventListener("deviceorientation", e => { this.state.rawSensors = { x: e.gamma||0, y: e.beta||0, z: e.alpha||0 }; markActive(); });
+            window.addEventListener("devicemotion", e => {
+                let a = e.acceleration || e.accelerationIncludingGravity; if (!a || a.x === null) return;
+                const force = Math.sqrt(a.x**2 + a.y**2 + a.z**2); this.state.rawSensors.acc = force;
+                if (force > this.state.cfg.impactThresh && force > 10) {
+                    if ([2,3,8].includes(this.state.mode) && this.state.cfg.cells[this.state.activeCellIdx]) {
+                        this.triggerNote(this.state.cfg.cells[this.state.activeCellIdx].defaultNote, force, this.state.activeCellIdx, this.state.pointer.x, this.state.pointer.y);
+                    }
+                }
+            });
+        }
+
+        window.addEventListener('mousemove', e => {
+            markActive();
+            if(this.state.hasGyro && ![6,7].includes(this.state.mode)) return;
+            this.state.rawSensors.x = mapRange(e.clientX, 0, window.innerWidth, -90, 90);
+            this.state.rawSensors.y = mapRange(e.clientY, 0, window.innerHeight, 90, -90);
+        });
+
+        const touchTrigger = () => {
+            if(!this.state.hasGyro || [6,7].includes(this.state.mode)) {
+                if ([2,3,8,6,7].includes(this.state.mode) && this.state.cfg.cells[this.state.activeCellIdx]) {
+                    this.triggerNote(this.state.cfg.cells[this.state.activeCellIdx].defaultNote, 40, this.state.activeCellIdx, this.state.pointer.x, this.state.pointer.y);
+                }
+            }
+        };
+        window.addEventListener('mousedown', touchTrigger); window.addEventListener('touchstart', touchTrigger);
+    },
+
+    loop() {
+        requestAnimationFrame(() => this.loop());
+        const { rawSensors, cfg, mode, pointer, isMuted } = this.state;
+        const now = Tone.now();
+
+        // Mute Pulsing Logic via Meter
+        if (isMuted) {
+            const level = this.meter.getValue();
+            document.getElementById('btn-mute').classList.toggle('mute-active-audio', level > -40);
+        } else { document.getElementById('btn-mute').classList.remove('mute-active-audio'); }
+
+        // Screensaver Logic
+        if (Date.now() - this.state.lastInteraction > cfg.ssDelay) {
+            document.getElementById('screensaver-layer').style.opacity = 1;
+            this.particles.rotation.x += 0.001; this.particles.rotation.y += 0.002;
+            this.ssRenderer.render(this.ssScene, this.ssCam);
+        }
+
+        let inX = rawSensors.x; let inY = rawSensors.y;
+        if(cfg.sensSwapXY) { let t = inX; inX = inY; inY = t; }
+        if(cfg.sensInvertX) inX *= -1; if(cfg.sensInvertY) inY *= -1;
+
+        let targetX = Math.max(-1, Math.min(1, inX / cfg.gyroScale));
+        let targetY = Math.max(-1, Math.min(1, inY / cfg.gyroScale));
+        if(!this.state.hasGyro || [6,7].includes(mode)) { targetX *= cfg.mouseScale; targetY *= cfg.mouseScale; }
+
+        pointer.x += (targetX - pointer.x) * cfg.mouseSmooth; pointer.y += (targetY - pointer.y) * cfg.mouseSmooth;
+        this.pointerObj.position.x = pointer.x * 8; this.pointerObj.position.y = pointer.y * 5;
+
+        let gridX = Math.floor(mapRange(pointer.x, -1, 1, 0, cfg.gridCols));
+        let gridY = Math.floor(mapRange(pointer.y, 1, -1, 0, cfg.gridRows)); 
+        gridX = Math.max(0, Math.min(cfg.gridCols - 1, gridX)); gridY = Math.max(0, Math.min(cfg.gridRows - 1, gridY));
+        let newCell = gridY * cfg.gridCols + gridX;
+
+        if(cfg.perspective) document.getElementById('grid-overlay').style.transform = `rotateX(${pointer.y * -20}deg) rotateY(${pointer.x * 20}deg)`;
+        else document.getElementById('grid-overlay').style.transform = `none`;
+
+        if (newCell !== this.state.activeCellIdx) {
+            if (this.state.activeCellIdx !== -1) {
+                const old = document.getElementById(`cell-${this.state.activeCellIdx}`);
+                if (old) old.classList.remove('active');
+                if (mode === 4 && !this.state.holdMode) {
+                    if (this.cellPlayers.has(this.state.activeCellIdx)) this.cellPlayers.get(this.state.activeCellIdx).stop();
+                    else { this.synth1.releaseAll(); this.synth2.releaseAll(); }
+                }
+            }
+            const cur = document.getElementById(`cell-${newCell}`);
+            if (cur) cur.classList.add('active');
+            
+            this.state.activeCellIdx = newCell;
+            if ([4,5].includes(mode) && cfg.cells[newCell]) this.triggerNote(cfg.cells[newCell].defaultNote, mode === 4 ? 40 : 20, newCell, pointer.x, pointer.y); 
+        }
+
+        // Theremin Update
+        if ([1, 3, 7, 8].includes(mode)) {
+            let tFreq = mapRange(pointer.y, -1, 1, cfg.thBaseFreq, cfg.thMaxFreq);
+            tFreq = Math.max(20, Math.min(5000, tFreq));
+            let tVol = mapRange(pointer.x, -1, 1, cfg.thVolMin, cfg.thVolMax);
+            this.theremin.frequency.setTargetAtTime(tFreq, now, 0.05);
+            this.thereminVol.volume.setTargetAtTime(tVol, now, 0.05);
+        } else { this.thereminVol.volume.setTargetAtTime(-Infinity, now, 0.1); }
+
+        document.getElementById('rd-pos').innerText = `${pointer.x.toFixed(2)}, ${pointer.y.toFixed(2)}`;
+        document.getElementById('rd-acc').innerText = rawSensors.acc.toFixed(1);
+
+        this.renderWaveform();
+        this.renderer.render(this.scene, this.cam);
+    },
+
+    renderWaveform() {
+        const cvs = document.getElementById('master-waveform'); const ctx = cvs.getContext('2d');
+        if (cvs.width !== cvs.clientWidth) { cvs.width = cvs.clientWidth; cvs.height = cvs.clientHeight; }
+        const data = this.analyser.getValue();
+        ctx.clearRect(0, 0, cvs.width, cvs.height);
+        ctx.beginPath(); ctx.strokeStyle = this.state.cfg.waveColor; ctx.lineWidth = 2;
+        for(let i=0; i<data.length; i++) {
+            const x = (i/data.length) * cvs.width; const y = ((data[i]+1)/2) * cvs.height;
+            i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+        }
+        ctx.stroke();
+    }
+};
+
+document.getElementById('btn-start').onclick = () => GyrOS.init();
+</script>
+</body>
+</html>
