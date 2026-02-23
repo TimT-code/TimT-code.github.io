@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <link rel="manifest" href="manifest.json">
-    <title>Gyr-OS | Master Workstation V7.0</title>
+    <title>Gyr-OS | Master Workstation V7.1</title>
     
     <!-- 
       Author: Tim Tesner
       Co-Author / AI Assistance: Gemini 3 Pro
-      Gyr-OS Workstation Engine V7.0
+      Gyr-OS Workstation Engine V7.1
     -->
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
@@ -31,11 +31,11 @@
         .gui-window { position: absolute; z-index: 100; background: var(--glass-bg); border: 1px solid var(--accent-neon); border-radius: 6px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); transition: opacity 0.3s; cursor: grab; }
         .gui-window:active { cursor: grabbing; }
         .gui-header { background: var(--accent-neon); color: black; padding: 6px 10px; font-size: 12px; font-weight: bold; display: flex; justify-content: space-between; touch-action: none; pointer-events: none; }
-        .gui-toggle { pointer-events: auto; cursor: pointer; }
+        .gui-toggle { pointer-events: auto; cursor: pointer; padding: 0 5px; }
         
-        #gui-left { top: 60px; left: 60px; } 
+        #gui-left { top: 60px; left: 40px; } 
         #gui-center { top: 60px; left: 50%; transform: translateX(-50%); } 
-        #gui-right { top: 60px; right: 60px; }
+        #gui-right { top: 60px; right: 40px; }
 
         /* Custom Sampler Buttons */
         #custom-buttons-layer { position: absolute; inset: 0; z-index: 80; pointer-events: none; }
@@ -46,22 +46,32 @@
 
         .ui-hidden { opacity: 0 !important; pointer-events: none !important; }
         
-        #live-dashboard { position: absolute; bottom: 18vh; left: 20px; background: var(--glass-bg); padding: 10px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; font-family: monospace; font-size: 11px; z-index: 50; pointer-events: none; color: var(--accent-neon); transition: opacity 0.3s; }
-        #bottom-hud { position: absolute; bottom: 0; left: 0; width: 100vw; height: 18vh; background: var(--glass-bg); backdrop-filter: blur(10px); border-top: 1px solid rgba(255,255,255,0.2); z-index: 50; display: flex; flex-direction: column; transition: transform 0.4s cubic-bezier(0.1, 0.8, 0.1, 1); }
-        #bottom-hud.hidden { transform: translateY(100%); }
-        .hud-controls { display: flex; gap: 4px; justify-content: center; padding: 5px; flex-wrap: wrap; }
-        .mode-btn { padding: 6px 10px; background: rgba(0,0,0,0.5); border: 1px solid var(--accent-neon); color: var(--accent-neon); border-radius: 4px; cursor: pointer; font-size: 10px; font-weight: bold; transition: 0.2s; }
-        .mode-btn.active { background: var(--accent-neon); color: #000; box-shadow: 0 0 10px var(--accent-neon); }
-        .mode-btn.toggled { background: #00ffcc; color: #000; }
-        .mode-btn.off-state { border-color: #888; color: #888; text-decoration: line-through; }
+        #live-dashboard { position: absolute; bottom: 20vh; left: 20px; background: var(--glass-bg); padding: 10px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; font-family: monospace; font-size: 11px; z-index: 50; pointer-events: none; color: var(--accent-neon); transition: opacity 0.3s; }
         
-        @keyframes mutePulse { 0% { box-shadow: 0 0 5px red; background: rgba(255,0,0,0.2); } 50% { box-shadow: 0 0 20px red; background: rgba(255,0,0,0.8); color: white; } 100% { box-shadow: 0 0 5px red; background: rgba(255,0,0,0.2); } }
-        .is-muted { border-color: red !important; color: red !important; }
-        .mute-active-audio { animation: mutePulse 0.3s infinite; border-color: red !important; }
+        /* Bottom HUD & Buttons */
+        #bottom-hud { position: absolute; bottom: 0; left: 0; width: 100vw; height: 18vh; background: var(--glass-bg); backdrop-filter: blur(10px); border-top: 1px solid rgba(255,255,255,0.2); z-index: 150; display: flex; flex-direction: column; transition: transform 0.4s cubic-bezier(0.1, 0.8, 0.1, 1); pointer-events: auto; }
+        #bottom-hud.hidden { transform: translateY(100%); }
+        .hud-controls { display: flex; gap: 6px; justify-content: center; padding: 6px; flex-wrap: wrap; }
+        
+        .sys-btn { padding: 8px 12px; background: rgba(0,0,0,0.6); border: 1px solid var(--accent-neon); color: var(--accent-neon); border-radius: 4px; cursor: pointer; font-size: 10px; font-weight: bold; transition: 0.2s; pointer-events: auto; }
+        .sys-btn.active { background: var(--accent-neon); color: #000; box-shadow: 0 0 10px var(--accent-neon); }
+        
+        /* Toggle States */
+        .btn-mute-on { background: rgba(255,0,0,0.9) !important; color: white !important; border-color: red !important; box-shadow: 0 0 15px red; }
+        @keyframes mutePulse { 0% { box-shadow: 0 0 5px red; background: rgba(255,0,0,0.5); } 100% { box-shadow: 0 0 25px red; background: rgba(255,0,0,1); } }
+        .mute-active-audio { animation: mutePulse 0.3s infinite alternate !important; border-color: white !important; }
+        
+        .btn-sensors-on { background: var(--accent-neon); color: #000; box-shadow: 0 0 10px var(--accent-neon); }
+        .btn-sensors-off { border-color: #666 !important; color: #666 !important; text-decoration: line-through; background: rgba(0,0,0,0.5); }
+        
+        .btn-pads-edit { background: #ffaa00 !important; color: #000 !important; border-color: #ffaa00 !important; box-shadow: 0 0 10px #ffaa00; }
+        .btn-pads-locked { border-color: #666 !important; color: #666 !important; background: rgba(0,0,0,0.5); }
+
         .sleep-indicator { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); color: #ffaa00; font-family: monospace; font-weight: bold; font-size: 14px; z-index: 1000; display: none; background: rgba(0,0,0,0.8); padding: 5px 15px; border-radius: 20px; border: 1px solid #ffaa00; }
 
         #master-waveform { width: 100%; height: 100%; flex-grow: 1; pointer-events: none; }
 
+        /* Secret Corners */
         .secret-corner { position: absolute; width: 80px; height: 80px; z-index: 999; opacity: 0; cursor: pointer; }
         #sc-tl { top: 0; left: 0; } #sc-tr { top: 0; right: 0; } #sc-bl { bottom: 0; left: 0; } #sc-br { bottom: 0; right: 0; }
 
@@ -75,7 +85,7 @@
 <body>
 
 <div id="init-overlay">
-    <h1 style="color: var(--accent-neon); letter-spacing: 5px;">GYR-OS V7.0</h1>
+    <h1 style="color: var(--accent-neon); letter-spacing: 5px;">GYR-OS V7.1</h1>
     <p>AUTHOR: TIM TESNER & GEMINI 3 PRO</p>
     <button id="btn-start">INITIALIZE ENGINE</button>
     <div id="error-msg" style="color: #ff4444; margin-top: 15px;"></div>
@@ -104,13 +114,13 @@
 <div id="bottom-hud">
     <div class="hud-controls" id="mode-btn-container"></div>
     <div class="hud-controls">
-        <button class="mode-btn" id="btn-oct-down">[- OCT]</button>
-        <button class="mode-btn" id="btn-oct-up">[+ OCT]</button>
-        <button id="btn-hold" class="mode-btn">⎄ HOLD</button>
-        <button id="btn-pads-edit" class="mode-btn">PADS: LOCKED</button>
-        <button id="btn-sensors" class="mode-btn">⚡ SENSORS: ON</button>
-        <button id="btn-mute" class="mode-btn" style="border-color: #ff4444; color: #ff4444;">🔇 MUTE</button>
-        <button id="btn-panic" class="mode-btn" style="border-color: #ffaa00; color: #ffaa00;">■ PANIC</button>
+        <button class="sys-btn" id="btn-oct-down">[- OCT]</button>
+        <button class="sys-btn" id="btn-oct-up">[+ OCT]</button>
+        <button class="sys-btn" id="btn-hold">⎄ HOLD: OFF</button>
+        <button class="sys-btn btn-pads-locked" id="btn-pads-edit">PADS: LOCKED</button>
+        <button class="sys-btn btn-sensors-on" id="btn-sensors">⚡ SENSORS: ON</button>
+        <button class="sys-btn" id="btn-mute" style="border-color: #ff4444; color: #ff4444;">🔊 MUTE: OFF</button>
+        <button class="sys-btn" id="btn-panic" style="border-color: #ffaa00; color: #ffaa00;">■ PANIC</button>
     </div>
     <canvas id="master-waveform"></canvas>
 </div>
@@ -130,7 +140,7 @@
 
 <script type="module">
 /**
- * GYR-OS WORKSTATION V7.0
+ * GYR-OS WORKSTATION V7.1
  * Author: Tim Tesner
  * Co-Author: Gemini 3 Pro
  */
@@ -150,7 +160,7 @@ function getNoteColor(noteStr) {
 
 const GyrOS = {
     state: {
-        mode: 1, hasGyro: false, holdMode: false, uiHidden: false, isMuted: false, isAsleep: false, sensorsActive: true, padsEditing: false,
+        mode: 1, hasGyro: false, holdMode: false, uiHidden: false, isMuted: false, isAsleep: false, sensorsActive: true, padsEditing: false, zIndexCounter: 100,
         rawSensors: { x: 0, y: 0, z: 0, acc: 0 },
         pointer: { x: 0, y: 0 }, lastInteraction: Date.now(),
         activeCellIdx: -1, customSamplers: [],
@@ -345,22 +355,30 @@ const GyrOS = {
         btn.style.left = '50px'; btn.style.top = '150px';
         btn.style.background = data.bgCol; btn.style.color = data.txtCol; btn.style.borderColor = data.brdCol;
         
-        let isDragging = false, startX, startY, origX, origY, hasMoved = false;
-        btn.addEventListener('touchstart', e => { e.stopPropagation(); isDragging = true; hasMoved = false; startX = e.touches[0].clientX; startY = e.touches[0].clientY; origX = btn.offsetLeft; origY = btn.offsetTop; }, {passive: false});
-        btn.addEventListener('mousedown', e => { e.stopPropagation(); isDragging = true; hasMoved = false; startX = e.clientX; startY = e.clientY; origX = btn.offsetLeft; origY = btn.offsetTop; });
+        let isDown = false, startX, startY, origX, origY, hasMoved = false;
         
-        const move = (cx, cy) => { if(!isDragging) return; hasMoved = true; btn.style.left = (origX + cx - startX) + 'px'; btn.style.top = (origY + cy - startY) + 'px'; };
-        window.addEventListener('touchmove', e => move(e.touches[0].clientX, e.touches[0].clientY), {passive: false});
-        window.addEventListener('mousemove', e => move(e.clientX, e.clientY));
+        btn.addEventListener('pointerdown', e => {
+            e.stopPropagation();
+            if(!this.state.padsEditing) return; // Only interactable in EDIT mode
+            isDown = true; hasMoved = false; startX = e.clientX; startY = e.clientY; origX = btn.offsetLeft; origY = btn.offsetTop;
+            btn.setPointerCapture(e.pointerId);
+        });
         
-        const end = () => {
-            if(isDragging && !hasMoved) {
+        btn.addEventListener('pointermove', e => {
+            if(!isDown || !this.state.padsEditing) return;
+            hasMoved = true; btn.style.left = (origX + e.clientX - startX) + 'px'; btn.style.top = (origY + e.clientY - startY) + 'px';
+        });
+        
+        const end = (e) => {
+            if(!isDown) return;
+            isDown = false; btn.releasePointerCapture(e.pointerId);
+            if(!hasMoved) {
                 if(player.state === 'started') { player.stop(); btn.classList.remove('playing'); }
                 else { player.start(Tone.now()); btn.classList.add('playing'); if(!data.loop) setTimeout(()=>btn.classList.remove('playing'), 2000); }
             }
-            isDragging = false;
         };
-        window.addEventListener('touchend', end); window.addEventListener('mouseup', end);
+        btn.addEventListener('pointerup', end); btn.addEventListener('pointercancel', end);
+        
         document.getElementById('custom-buttons-layer').appendChild(btn);
 
         const f = this.guiCenter.addFolder(`Pad: ${data.name}`);
@@ -423,9 +441,10 @@ const GyrOS = {
         this.modesList.forEach(m => {
             if(this.state.cfg[`m${m.id}`]) {
                 const b = document.createElement('button');
-                b.className = `mode-btn ${this.state.mode === m.id ? 'active' : ''}`; b.innerText = m.name;
+                b.className = `sys-btn ${this.state.mode === m.id ? 'active' : ''}`; b.innerText = m.name;
                 b.onclick = () => {
-                    document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+                    // Only clear mode buttons to avoid breaking toggles
+                    document.querySelectorAll('#mode-btn-container .sys-btn').forEach(btn => btn.classList.remove('active'));
                     b.classList.add('active'); this.state.mode = m.id;
                     if(m.id !== 4 && !this.state.holdMode) { this.synth1.releaseAll(); this.synth2.releaseAll(); }
                     this.applyTheme();
@@ -472,6 +491,7 @@ const GyrOS = {
         gVfx.add(this.state.cfg, 'vfxOpac', 0.1, 1); gVfx.add(this.state.cfg, 'vfxScale', 0.5, 5); gVfx.add(this.state.cfg, 'vfxSpeed', 0.1, 2);
         gVfx.add(this.state.cfg, 'targetNoteForImg').name('Target Note (e.g. C or D#4)');
         gVfx.add({ n: () => document.getElementById('up-note-img').click() }, 'n').name('🎵 Map Image to Note');
+        gVis.add({ s: () => document.getElementById('up-sample').click() }, 's').name('🎵 Add Custom Pad');
 
         const gGrd = this.guiCenter.addFolder('Grid Setup');
         gGrd.add(this.state.cfg, 'gridCols', 1, 16).step(1).onChange(()=>this.initGrid());
@@ -525,43 +545,46 @@ const GyrOS = {
 
     makeGUIsDraggable() {
         document.querySelectorAll('.gui-window').forEach(el => {
-            el.addEventListener('mousedown', e => {
-                // Prevent drag if clicking input/slider controls
-                if(e.target.tagName==='INPUT' || e.target.tagName==='SELECT' || e.target.closest('.cr')) return;
-                e.stopPropagation();
-                
-                let startX = e.clientX, startY = e.clientY;
-                let origX = el.offsetLeft, origY = el.offsetTop;
-                el.style.left = origX + 'px'; el.style.right = 'auto'; // Remove right constraint
-
-                const move = (ev) => {
-                    let newX = origX + (ev.clientX - startX);
-                    let newY = origY + (ev.clientY - startY);
-                    // Constraints so it doesn't leave screen
-                    newX = Math.max(0, Math.min(newX, window.innerWidth - 100));
-                    newY = Math.max(0, Math.min(newY, window.innerHeight - 30));
-                    el.style.left = newX + "px"; el.style.top = newY + "px";
-                };
-                const up = () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
-                window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
-            });
+            const toggle = el.querySelector('.gui-toggle');
+            const content = el.querySelector('.gui-content');
             
-            // Touch Equivalent
-            el.addEventListener('touchstart', e => {
-                if(e.target.tagName==='INPUT' || e.target.tagName==='SELECT' || e.target.closest('.cr')) return;
-                e.stopPropagation();
-                let startX = e.touches[0].clientX, startY = e.touches[0].clientY;
-                let origX = el.offsetLeft, origY = el.offsetTop;
-                el.style.left = origX + 'px'; el.style.right = 'auto';
+            // Bring to front
+            el.addEventListener('pointerdown', () => { el.style.zIndex = ++this.state.zIndexCounter; });
 
-                const move = (ev) => {
-                    let newX = origX + (ev.touches[0].clientX - startX); let newY = origY + (ev.touches[0].clientY - startY);
-                    newX = Math.max(0, Math.min(newX, window.innerWidth - 100)); newY = Math.max(0, Math.min(newY, window.innerHeight - 30));
-                    el.style.left = newX + "px"; el.style.top = newY + "px";
-                };
-                const up = () => { window.removeEventListener('touchmove', move); window.removeEventListener('touchend', up); };
-                window.addEventListener('touchmove', move, {passive: false}); window.addEventListener('touchend', up);
-            }, {passive: false});
+            // Folder toggle logic
+            toggle.addEventListener('pointerdown', e => {
+                e.stopPropagation();
+                const isHidden = content.style.display === 'none';
+                content.style.display = isHidden ? 'block' : 'none';
+                toggle.innerText = isHidden ? '▼' : '▲';
+            });
+
+            let isDown = false, startX, startY, origX, origY;
+            
+            // Start Drag
+            el.addEventListener('pointerdown', e => {
+                // Ignore drags if clicking a dat.gui folder structure so they still open/close natively!
+                if(e.target.closest('.dg') || e.target.tagName==='INPUT' || e.target.tagName==='SELECT' || e.target.closest('.gui-toggle')) return;
+                e.stopPropagation();
+                el.setPointerCapture(e.pointerId);
+                isDown = true; startX = e.clientX; startY = e.clientY; origX = el.offsetLeft; origY = el.offsetTop;
+                el.style.left = origX + 'px'; el.style.right = 'auto'; // Break CSS alignment
+            });
+
+            // Move Drag
+            el.addEventListener('pointermove', e => {
+                if(!isDown) return;
+                let newX = origX + (e.clientX - startX);
+                let newY = origY + (e.clientY - startY);
+                // Hard Boundary constraints
+                newX = Math.max(0, Math.min(newX, window.innerWidth - 60));
+                newY = Math.max(0, Math.min(newY, window.innerHeight - 30));
+                el.style.left = newX + "px"; el.style.top = newY + "px";
+            });
+
+            // End Drag
+            const endDrag = (e) => { if(isDown) { el.releasePointerCapture(e.pointerId); isDown = false; } };
+            el.addEventListener('pointerup', endDrag); el.addEventListener('pointercancel', endDrag);
         });
     },
 
@@ -591,41 +614,51 @@ const GyrOS = {
         document.getElementById('up-note-img').addEventListener('change', e => handleUp(e, url => { this.state.cfg.noteImages[this.state.cfg.targetNoteForImg] = { url: url, opac: 0.8 }; alert(`Image Mapped to ${this.state.cfg.targetNoteForImg}`); }));
         document.getElementById('up-sample').addEventListener('change', e => handleUp(e, (url, file) => this.addCustomSampler(url, file)));
 
-        document.getElementById('btn-oct-up').onclick = () => { if(this.state.cfg.octave < 6) { this.state.cfg.octave++; this.initGrid(); this.guiSnd.updateDisplay(); } };
-        document.getElementById('btn-oct-down').onclick = () => { if(this.state.cfg.octave > 1) { this.state.cfg.octave--; this.initGrid(); this.guiSnd.updateDisplay(); } };
+        // Utility Buttons
+        document.getElementById('btn-oct-up').addEventListener('click', () => { if(this.state.cfg.octave < 6) { this.state.cfg.octave++; this.initGrid(); this.guiSnd.updateDisplay(); } });
+        document.getElementById('btn-oct-down').addEventListener('click', () => { if(this.state.cfg.octave > 1) { this.state.cfg.octave--; this.initGrid(); this.guiSnd.updateDisplay(); } });
 
         const btnPads = document.getElementById('btn-pads-edit');
-        btnPads.onclick = () => {
+        btnPads.addEventListener('click', () => {
             this.state.padsEditing = !this.state.padsEditing;
             btnPads.innerText = this.state.padsEditing ? "PADS: EDIT" : "PADS: LOCKED";
-            btnPads.classList.toggle('toggled', this.state.padsEditing);
+            btnPads.classList.toggle('btn-pads-edit', this.state.padsEditing);
+            btnPads.classList.toggle('btn-pads-locked', !this.state.padsEditing);
             document.getElementById('custom-buttons-layer').classList.toggle('editing', this.state.padsEditing);
-        };
+        });
 
         const btnSen = document.getElementById('btn-sensors');
-        btnSen.onclick = () => {
+        btnSen.addEventListener('click', () => {
             this.state.sensorsActive = !this.state.sensorsActive;
             btnSen.innerText = this.state.sensorsActive ? "⚡ SENSORS: ON" : "❌ SENSORS: OFF";
-            btnSen.classList.toggle('off-state', !this.state.sensorsActive);
-        };
+            btnSen.classList.toggle('btn-sensors-on', this.state.sensorsActive);
+            btnSen.classList.toggle('btn-sensors-off', !this.state.sensorsActive);
+        });
 
         const doPanic = () => {
             Tone.Transport.stop(); this.synth1.releaseAll(); this.synth2.releaseAll();
             this.state.customSamplers.forEach(s => s.player.stop());
             this.thereminVol.volume.rampTo(-Infinity, 0.05);
-            this.state.holdMode = false; document.getElementById('btn-hold').classList.remove('toggled');
+            this.state.holdMode = false; document.getElementById('btn-hold').classList.remove('active');
+            document.getElementById('btn-hold').innerText = "⎄ HOLD: OFF";
         };
-        document.getElementById('btn-panic').onclick = doPanic;
+        document.getElementById('btn-panic').addEventListener('click', doPanic);
 
         const btnMute = document.getElementById('btn-mute');
         const toggleMute = (forceState = null) => {
             this.state.isMuted = forceState !== null ? forceState : !this.state.isMuted;
             this.muteNode.volume.value = this.state.isMuted ? -Infinity : 0;
-            btnMute.classList.toggle('is-muted', this.state.isMuted);
+            btnMute.classList.toggle('btn-mute-on', this.state.isMuted);
+            btnMute.innerText = this.state.isMuted ? "🔇 MUTE: ON" : "🔊 MUTE: OFF";
         };
-        btnMute.onclick = (e) => { e.target.blur(); toggleMute(); }; // Blur fixes accidental spacebar firing
+        btnMute.addEventListener('click', e => { e.target.blur(); toggleMute(); });
 
-        document.getElementById('btn-hold').onclick = (e) => { this.state.holdMode = !this.state.holdMode; e.target.classList.toggle('toggled', this.state.holdMode); };
+        const btnHold = document.getElementById('btn-hold');
+        btnHold.addEventListener('click', () => { 
+            this.state.holdMode = !this.state.holdMode; 
+            btnHold.classList.toggle('active', this.state.holdMode); 
+            btnHold.innerText = this.state.holdMode ? "⎄ HOLD: ON" : "⎄ HOLD: OFF";
+        });
 
         let cpTimer;
         document.querySelectorAll('.secret-corner').forEach(c => {
@@ -654,7 +687,6 @@ const GyrOS = {
                 let a = e.acceleration || e.accelerationIncludingGravity; if (!a || a.x === null) return;
                 const force = Math.sqrt(a.x**2 + a.y**2 + a.z**2); this.state.rawSensors.acc = force;
                 if (force > 10) {
-                    // Check Custom Pads Impact Mapping
                     this.state.customSamplers.forEach(pad => {
                         if (pad.impactEnabled && force > pad.impactThresh && pad.player.state !== 'started') pad.player.start(Tone.now());
                     });
@@ -680,6 +712,7 @@ const GyrOS = {
         });
 
         const touchTrigger = (e) => {
+            // Protect touch execution from UI interactions
             if(!this.state.sensorsActive || e.target.closest('.gui-window') || e.target.closest('#bottom-hud') || e.target.closest('.custom-sampler-btn')) return;
             markActive();
             if(!this.state.hasGyro || [6,7].includes(this.state.mode)) {
@@ -689,14 +722,13 @@ const GyrOS = {
                 }
             }
         };
-        window.addEventListener('mousedown', touchTrigger); window.addEventListener('touchstart', touchTrigger, {passive: false});
+        window.addEventListener('mousedown', touchTrigger); 
+        window.addEventListener('touchstart', touchTrigger, {passive: false});
         
         setInterval(() => {
             if(!this.state.isAsleep && Date.now() - this.state.lastInteraction > 10000) {
                 this.state.isAsleep = true; 
-                // Let pads finish loop naturally instead of hard stopping
                 this.state.customSamplers.forEach(s => { s.player.loop = false; });
-                
                 this.synth1.releaseAll(); this.synth2.releaseAll();
                 this.thereminVol.volume.rampTo(-Infinity, 0.05);
                 toggleMute(true);
