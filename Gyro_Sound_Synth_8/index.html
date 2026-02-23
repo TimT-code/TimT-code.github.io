@@ -1,0 +1,841 @@
+
+Model 10:30 AM
+ThinkingThoughts
+**Resuming the Code Generation**
+
+I'm now focused on picking up the HTML/JS code generation for "Gyr-OS | Master Workstation V8.0" exactly where it was previously interrupted. I need to precisely identify the cutoff point and ensure a seamless continuation. My goal is to resume generating the code and prevent any loss of context.
+
+
+**Completing the Synth Parameters**
+
+I'm currently focused on completing the 's2' configuration properties within the `window.GyrOS` object. I've resumed precisely where I left off and have added properties such as `s2Vol`, `s2Pan`, and so forth. I'm now transitioning to the next logical content, which I've determined to be the `m1` property. I'm on track for code generation and matching V8.0's features.
+
+
+**Resuming the s2 Configuration**
+
+I'm restarting the code generation exactly after the previous cutoff, picking up with `Vol: -6, ...` to ensure a smooth continuation of the 's2' configuration parameters. I'm focusing on the precise details to match V8.0's intended functionality, now. I will make sure the string is seamless. I'll make sure to add it right after `s2On: true, s2Type: 'FMSynth', s2`. Then, I will address the broader requirements, such as presets, a master visualizer and microphone and recording logic.
+
+
+**Implementing Audio Input**
+
+I'm now focused on audio input implementation, specifically `micActive` and `isRecording` status. I'm leveraging `MediaRecorder` with `Tone.Destination` to capture and route audio. I'm diving into the UI elements now, including a gear icon and popover for custom samplers, considering `playMode` options and visual indicators like a progress bar. Next is the draggable windows fix, and then I will resume the synth parameters.
+
+
+**Defining the Modes & Scales**
+
+I'm now integrating the `modesList` and `scalesList` data into the V8.0 code, structuring them within the `window.GyrOS` object. These are essential for the custom sampler and audio processing. I am focusing on seamless integration, before I begin the custom sampler functions, and GUI setup that will follow. I'm focusing on incorporating these lists into the application's core functionality, enabling dynamic interaction.
+
+
+**Refining Player Logic**
+
+I'm now refining the audio player logic, specifically for sampler and retrigger behavior. I'm focusing on `Tone.Player`, considering options like `overlap` or `restart`, aiming for a robust and simplified approach. I'm thinking of `Tone.Sampler` for polyphonic layering and weighing the tradeoffs. I've decided to utilize `Tone.Player` and adjust the restart functionality. I have the master visualizer code ready. And then I will do presets 1-4.
+
+
+**Implementing Preset Handling**
+
+I'm now implementing the `loadPreset(num)` and `savePreset(num)` functions. I'm focusing on seamless data persistence using `localStorage`. The current plan is to handle loading configurations from local storage and applying them with `Object.assign`. I will trigger updates for synths, grid initialization and theme application. I also plan to add an alert to indicate preset saves. I'm now finishing the formatting and integration.
+
+
+**Integrating Player Logic**
+
+I'm now integrating the updated player logic, incorporating Tone.Sampler for layering with the drag-from-anywhere behavior, focusing on the play button sub-menu, and adding CSS scrollbars for the GUI/HUD. The `requestAnimationFrame` for a fake progress bar is the current focus, after the drag behavior is fully implemented for all GUI elements, not just the titlebar. I will continue adding the UI elements and controls now.
+
+
+**Refining the Custom Sampler**
+
+I'm now refining the custom sampler logic. I'm focusing on the pad HTML structure, implementing `pad-pulsing` CSS class toggling, and Z-index control. I'm connecting `Tone.UserMedia` to `delay`, and using `MediaRecorder` connected to `Tone.Destination` for recording. I'm building a text input for loading audio by URL and a load button. I also plan to add visuals inside the button, linking a `.pad-react-bg` opacity to an `Analyser` attached to the specific pad.
+
+
+Collapse to hide model thoughts
+
+chevron_right
+```javascript
+Vol: -6, s2Pan: 0.5, s2Atk: 0.1, s2Dec: 0.3, s2Sus: 0.4, s2Rel: 2.0,
+            s2Dist: 0, s2Phaser: 0,
+
+            m1: true, m2: true, m3: true, m4: true, m5: true, m6: true, m7: true, m8: true,
+            guiFolders: {}, cells: [], noteImages: {}
+        }
+    },
+
+    modesList: [ { id: 1, name: "1: THEREMIN" }, { id: 2, name: "2: IMPACT" }, { id: 3, name: "3: HYBRID" }, { id: 4, name: "4: HOVER" }, { id: 5, name: "5: ARP" }, { id: 6, name: "6: TOUCH" }, { id: 7, name: "7: TCH+THER" }, { id: 8, name: "8: THER+SYN" } ],
+    scalesList: ['major', 'minor', 'pentatonic', 'chromatic', 'lydian', 'dorian', 'mixolydian', 'phrygian', 'blues'],
+
+    async init() {
+        try {
+            await Tone.start();
+            try { await this.detectSensors(); this.state.hasGyro = true; } catch(e) { this.state.hasGyro = false; }
+            this.initAudio(); this.initVisuals(); this.initGrid(); this.initGUIs();
+            this.makeGUIsDraggable(); this.bindEvents(); this.renderModeButtons();
+            
+            // Set up visualizer window drag
+            this.makeWindowDraggable(document.getElementById('visualizer-window'));
+
+            document.getElementById('init-overlay').style.display = 'none';
+            this.loop();
+        } catch(err) { document.getElementById('error-msg').innerText = "Failed: " + err.message; }
+    },
+
+    async detectSensors() {
+        if (!window.DeviceOrientationEvent) throw new Error("No hardware");
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+            const p = await DeviceOrientationEvent.requestPermission();
+            if (p !== 'granted') throw new Error("Permission denied");
+        }
+        return new Promise((res, rej) => {
+            const t = setTimeout(() => { window.removeEventListener('deviceorientation', check); rej(); }, 1000);
+            const check = (e) => { if (e.alpha !== null) { clearTimeout(t); res(); } };
+            window.addEventListener('deviceorientation', check);
+        });
+    },
+
+    initAudio() {
+        this.analyser = new Tone.Analyser("waveform", 1024);
+        this.masterVis = new Tone.Analyser("waveform", 512); // Specific for windowed visualizer
+        
+        this.limiter = new Tone.Limiter(-2).connect(this.analyser).connect(this.masterVis).toDestination();
+        
+        // Recording Setup
+        this.streamDest = Tone.context.createMediaStreamDestination();
+        this.limiter.connect(this.streamDest);
+        this.recorder = new MediaRecorder(this.streamDest.stream);
+        this.recChunks = [];
+        this.recorder.ondataavailable = e => { if (e.data.size > 0) this.recChunks.push(e.data); };
+        this.recorder.onstop = () => {
+            const blob = new Blob(this.recChunks, { type: 'audio/webm' });
+            this.recChunks = [];
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob); a.download = `GyrOS_Rec_${Date.now()}.webm`; a.click();
+        };
+
+        this.muteNode = new Tone.Volume(0).connect(this.limiter);
+        this.masterBus = new Tone.Volume(0).connect(this.muteNode);
+        this.meter = new Tone.Meter().connect(this.masterBus); 
+
+        this.eq = new Tone.EQ3(this.state.cfg.eqLow, this.state.cfg.eqMid, this.state.cfg.eqHigh).connect(this.masterBus);
+        this.rack = { reverb: new Tone.Freeverb({ roomSize: 0.8 }).connect(this.eq), delay: new Tone.FeedbackDelay("8n", 0.3).connect(this.eq) };
+
+        this.mic = new Tone.UserMedia().connect(this.rack.delay);
+
+        this.s1Phaser = new Tone.Phaser({ frequency: 15, octaves: 5, baseFrequency: 1000 }).connect(this.rack.delay);
+        this.s1Dist = new Tone.Distortion(0).connect(this.s1Phaser);
+        this.s1Pan = new Tone.Panner(this.state.cfg.s1Pan).connect(this.s1Dist);
+        this.synth1 = new Tone.PolySynth(Tone[this.state.cfg.s1Type], { maxPolyphony: 8 }).connect(this.s1Pan);
+        
+        this.s2Phaser = new Tone.Phaser({ frequency: 15, octaves: 5, baseFrequency: 1000 }).connect(this.rack.delay);
+        this.s2Dist = new Tone.Distortion(0).connect(this.s2Phaser);
+        this.s2Pan = new Tone.Panner(this.state.cfg.s2Pan).connect(this.s2Dist);
+        this.synth2 = new Tone.PolySynth(Tone[this.state.cfg.s2Type], { maxPolyphony: 8 }).connect(this.s2Pan);
+        
+        this.theremin = new Tone.Oscillator(this.state.cfg.thBaseFreq, this.state.cfg.thereminWave).start();
+        this.thereminVol = new Tone.Volume(-Infinity).connect(this.rack.reverb);
+        this.theremin.connect(this.thereminVol);
+
+        this.updateSynths();
+    },
+
+    updateSynths() {
+        this.synth1.volume.value = this.state.cfg.s1Vol; this.s1Pan.pan.value = this.state.cfg.s1Pan;
+        this.s1Dist.distortion = this.state.cfg.s1Dist; this.s1Phaser.wet.value = this.state.cfg.s1Phaser;
+        this.synth1.set({ envelope: { attack: this.state.cfg.s1Atk, decay: this.state.cfg.s1Dec, sustain: this.state.cfg.s1Sus, release: this.state.cfg.s1Rel } });
+        
+        this.synth2.volume.value = this.state.cfg.s2Vol; this.s2Pan.pan.value = this.state.cfg.s2Pan;
+        this.s2Dist.distortion = this.state.cfg.s2Dist; this.s2Phaser.wet.value = this.state.cfg.s2Phaser;
+        this.synth2.set({ envelope: { attack: this.state.cfg.s2Atk, decay: this.state.cfg.s2Dec, sustain: this.state.cfg.s2Sus, release: this.state.cfg.s2Rel } });
+        
+        this.theremin.type = this.state.cfg.thereminWave;
+    },
+
+    initVisuals() {
+        this.scene = new THREE.Scene();
+        this.cam = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('canvas-container').appendChild(this.renderer.domElement);
+
+        this.pointerMaterial = new THREE.MeshBasicMaterial({ color: this.state.cfg.accentColor, wireframe: true, transparent: true });
+        this.pointerObj = new THREE.Mesh(new THREE.SphereGeometry(0.8, 16, 16), this.pointerMaterial);
+        this.scene.add(this.pointerObj);
+        
+        this.gridHelper = new THREE.GridHelper(100, 50, 0x222222, 0x111111);
+        this.gridHelper.rotation.x = Math.PI / 2; this.gridHelper.position.z = -5;
+        this.scene.add(this.gridHelper);
+        this.cam.position.z = 10;
+        
+        this.ssScene = new THREE.Scene(); this.ssCam = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000); this.ssCam.position.z = 50;
+        this.ssRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); this.ssRenderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('screensaver-layer').appendChild(this.ssRenderer.domElement);
+        
+        const geom = new THREE.BufferGeometry(); const verts = [];
+        for(let i=0; i<2000; i++) verts.push(THREE.MathUtils.randFloatSpread(200), THREE.MathUtils.randFloatSpread(200), THREE.MathUtils.randFloatSpread(200));
+        geom.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+        this.particles = new THREE.Points(geom, new THREE.PointsMaterial({ color: 0x00ffcc, size: 0.5 }));
+        this.ssScene.add(this.particles);
+
+        this.raycaster = new THREE.Raycaster();
+        this.planeZ0 = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+
+        this.applyTheme();
+    },
+
+    applyTheme() {
+        document.documentElement.style.setProperty('--accent-neon', this.state.cfg.accentColor);
+        document.documentElement.style.setProperty('--glass-bg', this.state.cfg.hudColor);
+        document.documentElement.style.setProperty('--wave-color', this.state.cfg.waveColor);
+        this.pointerMaterial.color.set(this.state.cfg.accentColor);
+        this.pointerMaterial.opacity = this.state.cfg.pointerOpac;
+        this.pointerObj.scale.setScalar(this.state.cfg.pointerSize);
+        this.pointerObj.visible = (!this.state.cfg.hidePointerTouch || ![6,7].includes(this.state.mode));
+        this.particles.material.color.set(this.state.cfg.accentColor);
+        
+        const bg = document.getElementById('bg-layer');
+        if(this.state.cfg.bgImageUrl) { bg.style.backgroundImage = `url(${this.state.cfg.bgImageUrl})`; bg.style.opacity = this.state.cfg.bgOpacity; bg.style.backgroundSize = this.state.cfg.bgSize; } 
+        else { bg.style.backgroundImage = 'none'; }
+
+        document.getElementById('visualizer-window').style.display = this.state.cfg.showVisualizer ? 'flex' : 'none';
+    },
+
+    initGrid() {
+        const overlay = document.getElementById('grid-overlay');
+        overlay.innerHTML = '';
+        overlay.style.gridTemplateColumns = `repeat(${this.state.cfg.gridCols}, 1fr)`;
+        overlay.style.gridTemplateRows = `repeat(${this.state.cfg.gridRows}, 1fr)`;
+        overlay.style.opacity = this.state.cfg.showGrid ? "1" : "0";
+
+        const total = this.state.cfg.gridCols * this.state.cfg.gridRows;
+        if (this.state.cfg.cells.length !== total) this.state.cfg.cells = Array.from({length: total}, (_, i) => ({ id: i }));
+
+        const s = Tonal.Scale.get(`${this.state.cfg.root} ${this.state.cfg.scale}`).notes;
+        let currOct = parseInt(this.state.cfg.octave);
+
+        for(let i=0; i<total; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'grid-cell'; cell.id = `cell-${i}`;
+            let note = s[i % s.length] + currOct; if ((i + 1) % s.length === 0) currOct++;
+            this.state.cfg.cells[i].defaultNote = note; cell.innerText = note;
+            if(this.state.cfg.colorNotes) cell.style.backgroundColor = getNoteColor(note);
+            overlay.appendChild(cell);
+        }
+    },
+
+    addCustomSampler(urlOrPath, nameStr) {
+        const id = Date.now();
+        // Use a Volume node and a dedicated Meter for the internal visualizer reaction
+        const volNode = new Tone.Volume(0).connect(this.rack.delay);
+        const padMeter = new Tone.Meter().connect(volNode);
+        
+        const player = new Tone.Player({ url: urlOrPath, loop: false }).connect(padMeter);
+        
+        const data = { 
+            id, player, volNode, padMeter,
+            name: nameStr.substring(0,12), vol: 0, 
+            playMode: 'Retrigger', // Single, Retrigger, Layered
+            showProgress: true, doPulse: true, doReactiveBg: true, zIndex: 80,
+            impactEnabled: false, impactThresh: 15
+        };
+        this.state.customSamplers.push(data);
+        
+        const btn = document.createElement('div');
+        btn.className = 'custom-sampler-btn';
+        btn.id = `pad-${id}`;
+        btn.style.left = '50px'; btn.style.top = '150px';
+        btn.style.zIndex = data.zIndex;
+        
+        // Internal DOM
+        btn.innerHTML = `
+            <div class="pad-react-bg"></div>
+            <div class="pad-progress"></div>
+            <span class="pad-title">▶ ${data.name}</span>
+            <button class="pad-gear">⚙</button>
+            <div class="pad-settings-menu">
+                <label>Vol (dB): <input type="number" class="set-vol" value="0" style="width:40px;"></label>
+                <label>Mode: <select class="set-mode"><option>Retrigger</option><option>Layered</option><option>Single</option></select></label>
+                <label>Z-Index: <input type="number" class="set-z" value="80" style="width:40px;"></label>
+                <label>Pulse Anim <input type="checkbox" class="set-pulse" checked></label>
+                <label>Prog Bar <input type="checkbox" class="set-prog" checked></label>
+                <label>Audio Bump BG <input type="checkbox" class="set-rebg" checked></label>
+                <label>Trig on Shake <input type="checkbox" class="set-shake"></label>
+                <label>Load Path: <input type="text" class="set-path" placeholder="/sounds/file.wav" style="width:70px;"></label>
+                <button class="set-load-btn">Load Path</button>
+                <button class="set-stop-btn">⏹ Stop All Layers</button>
+                <button class="set-del-btn" style="border-color:red; color:red;">🗑 Delete Pad</button>
+            </div>
+        `;
+        
+        const menu = btn.querySelector('.pad-settings-menu');
+        const gear = btn.querySelector('.pad-gear');
+        const reactBg = btn.querySelector('.pad-react-bg');
+        const prog = btn.querySelector('.pad-progress');
+        const title = btn.querySelector('.pad-title');
+
+        // Settings Logic
+        gear.addEventListener('pointerdown', e => { e.stopPropagation(); menu.classList.toggle('open'); });
+        menu.addEventListener('pointerdown', e => e.stopPropagation()); // Keep clicks inside menu from dragging
+        
+        btn.querySelector('.set-vol').addEventListener('input', e => volNode.volume.value = parseFloat(e.target.value));
+        btn.querySelector('.set-mode').addEventListener('change', e => data.playMode = e.target.value);
+        btn.querySelector('.set-z').addEventListener('input', e => { data.zIndex = parseInt(e.target.value); btn.style.zIndex = data.zIndex; });
+        btn.querySelector('.set-pulse').addEventListener('change', e => data.doPulse = e.target.checked);
+        btn.querySelector('.set-prog').addEventListener('change', e => { data.showProgress = e.target.checked; prog.style.display = data.showProgress ? 'block' : 'none'; });
+        btn.querySelector('.set-rebg').addEventListener('change', e => data.doReactiveBg = e.target.checked);
+        btn.querySelector('.set-shake').addEventListener('change', e => data.impactEnabled = e.target.checked);
+        
+        btn.querySelector('.set-load-btn').addEventListener('click', async () => {
+            const val = btn.querySelector('.set-path').value;
+            if(val) { await player.load(val); title.innerText = `▶ ${val.split('/').pop().substring(0,8)}`; }
+        });
+        btn.querySelector('.set-stop-btn').addEventListener('click', () => { player.stop(); btn.classList.remove('playing'); });
+        btn.querySelector('.set-del-btn').addEventListener('click', () => { player.dispose(); btn.remove(); this.state.customSamplers = this.state.customSamplers.filter(s => s.id !== id); });
+
+        // Playback Logic
+        const firePad = () => {
+            if(!player.loaded) return;
+            if(data.playMode === 'Single' && player.state === 'started') return; // Don't retrigger if playing
+            
+            if(data.playMode === 'Retrigger') player.stop(); // Cut off old
+            
+            player.start(Tone.now()); 
+            
+            if(data.doPulse) btn.classList.add('pad-pulsing');
+            else btn.classList.add('playing');
+        };
+
+        // Drag & Click Logic
+        let isDown = false, startX, startY, origX, origY, hasMoved = false;
+        
+        btn.addEventListener('pointerdown', e => {
+            if(e.target.closest('.pad-settings-menu') || e.target === gear) return;
+            e.stopPropagation();
+            if(!this.state.padsEditing) { firePad(); return; } // Fire immediately if locked
+            
+            isDown = true; hasMoved = false; startX = e.clientX; startY = e.clientY; origX = btn.offsetLeft; origY = btn.offsetTop;
+            btn.setPointerCapture(e.pointerId);
+            btn.style.zIndex = data.zIndex + 100; // temporary bring to front while dragging
+        });
+        
+        btn.addEventListener('pointermove', e => {
+            if(!isDown || !this.state.padsEditing) return;
+            hasMoved = true; btn.style.left = (origX + e.clientX - startX) + 'px'; btn.style.top = (origY + e.clientY - startY) + 'px';
+        });
+        
+        const end = (e) => {
+            if(!isDown) return;
+            isDown = false; btn.releasePointerCapture(e.pointerId);
+            btn.style.zIndex = data.zIndex;
+            if(!hasMoved && this.state.padsEditing) firePad(); // Allow click-to-fire even when editing if no movement
+        };
+        btn.addEventListener('pointerup', end); btn.addEventListener('pointercancel', end);
+        
+        // Progress & Reactive Loop Hook
+        data.updateVisuals = () => {
+            if(player.state === 'started') {
+                if(data.showProgress) prog.style.width = `${(player.position / player.buffer.duration) * 100}%`;
+                if(data.doReactiveBg) reactBg.style.opacity = Math.max(0, mapRange(padMeter.getValue(), -40, 0, 0, 0.8));
+            } else {
+                btn.classList.remove('playing', 'pad-pulsing');
+                if(data.showProgress) prog.style.width = '0%';
+                if(data.doReactiveBg) reactBg.style.opacity = 0;
+            }
+        };
+
+        document.getElementById('custom-buttons-layer').appendChild(btn);
+    },
+
+    spawnVFX(xNorm, yNorm, customImg = null, customOpac = null) {
+        const imgUrl = customImg || this.state.cfg.vfxImageUrl;
+        if (!imgUrl) return;
+        const vfx = document.createElement('img');
+        vfx.src = imgUrl; vfx.className = 'vfx-layer';
+        vfx.style.left = `${(xNorm + 1) / 2 * window.innerWidth}px`;
+        vfx.style.top = `${(-yNorm + 1) / 2 * window.innerHeight}px`;
+        
+        const opac = customOpac || this.state.cfg.vfxOpac;
+        const scale = this.state.cfg.vfxScale; const speed = this.state.cfg.vfxSpeed;
+        
+        vfx.animate([
+            { opacity: opac, transform: `translate(-50%, -50%) scale(0.1)` },
+            { opacity: 0, transform: `translate(-50%, -50%) scale(${scale})` }
+        ], { duration: speed * 1000, easing: 'ease-out' });
+        
+        document.body.appendChild(vfx);
+        setTimeout(() => vfx.remove(), speed * 1000);
+    },
+
+    triggerNote(noteStr, force = 30) {
+        if(!this.state.cfg.s1On && !this.state.cfg.s2On) return;
+        const now = Tone.now();
+        const vol = Math.min(1, force / 40);
+        
+        // Author: Tim Tesner
+        let swingForce = force;
+        if(navigator.vibrate) navigator.vibrate(Math.trunc(swingForce * 10 / 2));
+
+        this.pointerObj.scale.setScalar(this.state.cfg.pointerSize * 1.8);
+        setTimeout(() => this.pointerObj.scale.setScalar(this.state.cfg.pointerSize), 100);
+
+        const baseNote = noteStr.replace(/\d+/, '');
+        let match = this.state.cfg.noteImages[noteStr] || this.state.cfg.noteImages[baseNote];
+        if (match) this.spawnVFX(this.state.pointer.x, this.state.pointer.y, match.url, match.opac);
+        else this.spawnVFX(this.state.pointer.x, this.state.pointer.y);
+        
+        const dur = this.state.holdMode ? "100m" : "8n";
+        if(this.state.cfg.s1On) this.synth1.triggerAttackRelease(noteStr, dur, now, vol);
+        if(this.state.cfg.s2On) this.synth2.triggerAttackRelease(noteStr, dur, now, vol);
+    },
+
+    renderModeButtons() {
+        const c = document.getElementById('mode-btn-container'); c.innerHTML = '';
+        this.modesList.forEach(m => {
+            if(this.state.cfg[`m${m.id}`]) {
+                const b = document.createElement('button');
+                b.className = `sys-btn ${this.state.mode === m.id ? 'active' : ''}`; b.innerText = m.name;
+                b.onclick = () => {
+                    document.querySelectorAll('#mode-btn-container .sys-btn').forEach(btn => btn.classList.remove('active'));
+                    b.classList.add('active'); this.state.mode = m.id;
+                    if(m.id !== 4 && !this.state.holdMode) { this.synth1.releaseAll(); this.synth2.releaseAll(); }
+                    this.applyTheme();
+                };
+                c.appendChild(b);
+            }
+        });
+    },
+
+    downloadConfig(prefix, filename) {
+        const sub = {}; Object.keys(this.state.cfg).forEach(k => { if(k.startsWith(prefix)) sub[k] = this.state.cfg[k]; });
+        const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(sub));
+        a.download = filename; a.click();
+    },
+
+    savePreset(num) {
+        // Deep copy state config to string, save in local storage
+        localStorage.setItem(`gyros_preset_${num}`, JSON.stringify(this.state.cfg));
+        alert(`Configuration saved to Preset ${num}!`);
+    },
+    
+    loadPreset(num) {
+        const data = localStorage.getItem(`gyros_preset_${num}`);
+        if(data) {
+            Object.assign(this.state.cfg, JSON.parse(data));
+            this.initGrid(); this.updateSynths(); this.applyTheme();
+            this.renderModeButtons();
+            
+            // Sync Dat.GUI displays
+            for (var i in this.guiSys.__folders) { for (var j in this.guiSys.__folders[i].__controllers) { this.guiSys.__folders[i].__controllers[j].updateDisplay(); } }
+            for (var i in this.guiCenter.__folders) { for (var j in this.guiCenter.__folders[i].__controllers) { this.guiCenter.__folders[i].__controllers[j].updateDisplay(); } }
+            for (var i in this.guiSnd.__folders) { for (var j in this.guiSnd.__folders[i].__controllers) { this.guiSnd.__folders[i].__controllers[j].updateDisplay(); } }
+        } else {
+            alert(`Preset ${num} is empty.`);
+        }
+    },
+
+    initGUIs() {
+        document.getElementById('gui-left-content').innerHTML = ''; document.getElementById('gui-center-content').innerHTML = ''; document.getElementById('gui-right-content').innerHTML = '';
+        const guiOpts = { autoPlace: false, closed: false };
+
+        // LEFT
+        this.guiSys = new dat.GUI(guiOpts); document.getElementById('gui-left-content').appendChild(this.guiSys.domElement);
+        const gSave = this.guiSys.addFolder('Master Saves');
+        gSave.add({ export: () => this.downloadConfig('', 'GyrOS_Master.json') }, 'export').name('💾 Save MASTER');
+        gSave.add({ import: () => document.getElementById('up-config').click() }, 'import').name('📂 Load MASTER');
+        
+        const gSen = this.guiSys.addFolder('Sensors & Haptics');
+        gSen.add(this.state.cfg, 'sensSwapXY'); gSen.add(this.state.cfg, 'sensInvertX'); gSen.add(this.state.cfg, 'sensInvertY');
+        gSen.add(this.state.cfg, 'gyroScale', 10, 90); gSen.add(this.state.cfg, 'impactThresh', 5, 50);
+
+        // CENTER
+        this.guiCenter = new dat.GUI(guiOpts); document.getElementById('gui-center-content').appendChild(this.guiCenter.domElement);
+        const gVis = this.guiCenter.addFolder('Colors & Theme');
+        gVis.addColor(this.state.cfg, 'accentColor').onChange(()=>this.applyTheme());
+        gVis.addColor(this.state.cfg, 'hudColor').onChange(()=>this.applyTheme());
+        gVis.add({ b: () => document.getElementById('up-bg').click() }, 'b').name('🖼️ BG Image');
+        gVis.add(this.state.cfg, 'bgOpacity', 0, 1).onChange(()=>this.applyTheme());
+        gVis.add(this.state.cfg, 'bgSize', ['cover', 'contain']).onChange(()=>this.applyTheme());
+        gVis.add(this.state.cfg, 'pointerSize', 0.1, 5).onChange(()=>this.applyTheme());
+        gVis.add(this.state.cfg, 'pointerOpac', 0, 1).onChange(()=>this.applyTheme());
+        gVis.add(this.state.cfg, 'hidePointerTouch').onChange(()=>this.applyTheme());
+        gVis.add(this.state.cfg, 'showVisualizer').name('Show Visualizer').onChange(()=>this.applyTheme());
+        
+        const gVfx = this.guiCenter.addFolder('VFX & Note Images');
+        gVfx.add({ v: () => document.getElementById('up-vfx').click() }, 'v').name('💥 Global VFX Img');
+        gVfx.add(this.state.cfg, 'vfxOpac', 0.1, 1); gVfx.add(this.state.cfg, 'vfxScale', 0.5, 5); gVfx.add(this.state.cfg, 'vfxSpeed', 0.1, 2);
+        gVfx.add(this.state.cfg, 'targetNoteForImg').name('Target Note (e.g. C or D#4)');
+        gVfx.add({ n: () => document.getElementById('up-note-img').click() }, 'n').name('🎵 Map Image to Note');
+        gVis.add({ s: () => document.getElementById('up-sample').click() }, 's').name('🎵 Add Custom Pad');
+
+        const gGrd = this.guiCenter.addFolder('Grid Setup');
+        gGrd.add(this.state.cfg, 'gridCols', 1, 16).step(1).onChange(()=>this.initGrid());
+        gGrd.add(this.state.cfg, 'gridRows', 1, 16).step(1).onChange(()=>this.initGrid());
+        gGrd.add(this.state.cfg, 'showGrid').onChange(()=>this.initGrid());
+        gGrd.add(this.state.cfg, 'perspective').onChange(()=>this.initGrid());
+
+        const gUI = this.guiCenter.addFolder('UI Mode Toggles');
+        this.modesList.forEach(m => gUI.add(this.state.cfg, `m${m.id}`).name(m.name).onChange(()=>this.renderModeButtons()));
+
+        // RIGHT
+        this.guiSnd = new dat.GUI(guiOpts); document.getElementById('gui-right-content').appendChild(this.guiSnd.domElement);
+        const sMix = this.guiSnd.addFolder('Master Mixer');
+        sMix.add(this.state.cfg, 'masterVol', -60, 10).onChange(v => this.masterVol.volume.value = v);
+        sMix.add(this.state.cfg, 'eqLow', -10, 10).onChange(v => this.eq.low.value = v);
+        sMix.add(this.state.cfg, 'eqMid', -10, 10).onChange(v => this.eq.mid.value = v);
+        sMix.add(this.state.cfg, 'eqHigh', -10, 10).onChange(v => this.eq.high.value = v);
+        sMix.add(this.state.cfg, 'reverbMix', 0, 1).onChange(v => this.rack.reverb.wet.value = v);
+        sMix.add(this.state.cfg, 'delayMix', 0, 1).onChange(v => this.rack.delay.wet.value = v);
+        
+        const sTh = this.guiSnd.addFolder('Theremin Settings');
+        sTh.add(this.state.cfg, 'thOn').name('Power On');
+        sTh.add({ s: () => this.downloadConfig('th', 'GyrOS_Theremin.json') }, 's').name('💾 Save Theremin');
+        sTh.add({ l: () => document.getElementById('up-th').click() }, 'l').name('📂 Load Theremin');
+        sTh.add(this.state.cfg, 'thereminWave', ['sine', 'square', 'sawtooth', 'triangle']).onChange(()=>this.updateSynths());
+        sTh.add(this.state.cfg, 'thBaseFreq', 20, 500); sTh.add(this.state.cfg, 'thMaxFreq', 500, 5000);
+        
+        const buildSynthGUI = (fName, pfx, synthObj, panObj, upId) => {
+            const f = this.guiSnd.addFolder(fName);
+            f.add(this.state.cfg, `${pfx}On`).name('Power On');
+            f.add({ s: () => this.downloadConfig(pfx, `GyrOS_${fName}.json`) }, 's').name('💾 Save Preset');
+            f.add({ l: () => document.getElementById(upId).click() }, 'l').name('📂 Load Preset');
+            f.add(this.state.cfg, `${pfx}Type`, ['Synth', 'AMSynth', 'FMSynth', 'MembraneSynth']).onChange(v => {
+                synthObj.dispose();
+                if(pfx==='s1') { this.synth1 = new Tone.PolySynth(Tone[v],{maxPolyphony:8}).connect(panObj); this.updateSynths(); }
+                else { this.synth2 = new Tone.PolySynth(Tone[v],{maxPolyphony:8}).connect(panObj); this.updateSynths(); }
+            });
+            f.add(this.state.cfg, `${pfx}Dist`, 0, 1).onChange(()=>this.updateSynths());
+            f.add(this.state.cfg, `${pfx}Phaser`, 0, 1).onChange(()=>this.updateSynths());
+            f.add(this.state.cfg, `${pfx}Vol`, -60, 10).onChange(()=>this.updateSynths());
+            f.add(this.state.cfg, `${pfx}Atk`, 0.01, 2).onChange(()=>this.updateSynths());
+            f.add(this.state.cfg, `${pfx}Rel`, 0.1, 5).onChange(()=>this.updateSynths());
+        };
+        buildSynthGUI('Synth 1', 's1', this.synth1, this.s1Pan, 'up-s1');
+        buildSynthGUI('Synth 2', 's2', this.synth2, this.s2Pan, 'up-s2');
+
+        const sScl = this.guiSnd.addFolder('Scales');
+        sScl.add(this.state.cfg, 'scale', this.scalesList).onChange(()=>this.initGrid());
+        sScl.add(this.state.cfg, 'root', ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']).onChange(()=>this.initGrid());
+    },
+
+    makeWindowDraggable(el) {
+        const header = el.querySelector('.gui-header');
+        el.addEventListener('pointerdown', e => { e.stopPropagation(); el.style.zIndex = ++this.state.zIndexCounter; });
+        let isDown = false, startX, startY, origX, origY;
+        header.addEventListener('pointerdown', e => {
+            if(e.target.classList.contains('gui-toggle')) {
+                const content = el.querySelector('.gui-content');
+                content.style.display = content.style.display === 'none' ? 'block' : 'none';
+                e.target.innerText = content.style.display === 'none' ? '▲' : '▼'; return;
+            }
+            isDown = true; startX = e.clientX; startY = e.clientY; origX = el.offsetLeft; origY = el.offsetTop;
+            el.setPointerCapture(e.pointerId);
+            el.style.left = origX + 'px'; el.style.right = 'auto'; 
+        });
+        el.addEventListener('pointermove', e => {
+            if(!isDown) return;
+            let newX = origX + (e.clientX - startX); let newY = origY + (e.clientY - startY);
+            newX = Math.max(0, Math.min(newX, window.innerWidth - 60)); newY = Math.max(10, Math.min(newY, window.innerHeight - 30));
+            el.style.left = newX + "px"; el.style.top = newY + "px";
+        });
+        const end = (e) => { if(isDown) { el.releasePointerCapture(e.pointerId); isDown = false; } };
+        el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+    },
+
+    makeGUIsDraggable() {
+        document.querySelectorAll('.gui-window').forEach(el => {
+            // Already handled visualizer window above
+            if(el.id === 'visualizer-window') return;
+
+            // Bring to front
+            el.addEventListener('pointerdown', () => { el.style.zIndex = ++this.state.zIndexCounter; });
+
+            let isDown = false, startX, startY, origX, origY;
+            
+            el.addEventListener('pointerdown', e => {
+                // Ignore drags if clicking a dat.gui input, label, or scrollbar
+                if(e.target.closest('.dg') || e.target.tagName==='INPUT' || e.target.tagName==='SELECT' || e.target.closest('.gui-toggle') || e.clientX > el.getBoundingClientRect().right - 15) return;
+                e.stopPropagation();
+                el.setPointerCapture(e.pointerId);
+                isDown = true; startX = e.clientX; startY = e.clientY; origX = el.offsetLeft; origY = el.offsetTop;
+                el.style.left = origX + 'px'; el.style.right = 'auto'; // Break CSS right alignment
+            });
+
+            el.addEventListener('pointermove', e => {
+                if(!isDown) return;
+                let newX = origX + (e.clientX - startX);
+                let newY = origY + (e.clientY - startY);
+                // Hard Boundary constraints (never let it go above top screen)
+                newX = Math.max(0, Math.min(newX, window.innerWidth - 60));
+                newY = Math.max(10, Math.min(newY, window.innerHeight - 30));
+                el.style.left = newX + "px"; el.style.top = newY + "px";
+            });
+
+            const endDrag = (e) => { if(isDown) { el.releasePointerCapture(e.pointerId); isDown = false; } };
+            el.addEventListener('pointerup', endDrag); el.addEventListener('pointercancel', endDrag);
+            
+            // Header toggle
+            const toggle = el.querySelector('.gui-toggle');
+            if(toggle) {
+                toggle.addEventListener('pointerdown', e => {
+                    e.stopPropagation();
+                    const content = el.querySelector('.gui-content');
+                    const isHidden = content.style.display === 'none';
+                    content.style.display = isHidden ? 'block' : 'none';
+                    toggle.innerText = isHidden ? '▼' : '▲';
+                });
+            }
+        });
+    },
+
+    bindEvents() {
+        window.addEventListener('dragover', e => e.preventDefault());
+        window.addEventListener('drop', e => {
+            e.preventDefault();
+            const file = e.dataTransfer.files[0]; if(!file) return;
+            if(file.type.startsWith('audio/') || file.name.match(/\.(mp3|wav|ogg|webm|flac|m4a)$/i)) {
+                this.addCustomSampler(URL.createObjectURL(file), file.name);
+            } else { alert("Please drop a valid audio file."); }
+        });
+
+        const handleUp = (e, callback) => {
+            const file = e.target.files[0]; if(!file) return;
+            const reader = new FileReader(); reader.onload = (ev) => callback(ev.target.result, file);
+            file.type.startsWith('image') || file.type.startsWith('audio') ? callback(URL.createObjectURL(file), file) : reader.readAsText(file);
+        };
+        
+        document.getElementById('up-config').addEventListener('change', e => handleUp(e, res => { Object.assign(this.state.cfg, JSON.parse(res)); this.initGrid(); this.initGUIs(); this.applyTheme(); }));
+        document.getElementById('up-s1').addEventListener('change', e => handleUp(e, res => { Object.assign(this.state.cfg, JSON.parse(res)); this.updateSynths(); this.initGUIs(); }));
+        document.getElementById('up-s2').addEventListener('change', e => handleUp(e, res => { Object.assign(this.state.cfg, JSON.parse(res)); this.updateSynths(); this.initGUIs(); }));
+        document.getElementById('up-th').addEventListener('change', e => handleUp(e, res => { Object.assign(this.state.cfg, JSON.parse(res)); this.updateSynths(); this.initGUIs(); }));
+        document.getElementById('up-bg').addEventListener('change', e => handleUp(e, url => { this.state.cfg.bgImageUrl = url; this.applyTheme(); }));
+        document.getElementById('up-vfx').addEventListener('change', e => handleUp(e, url => { this.state.cfg.vfxImageUrl = url; }));
+        document.getElementById('up-note-img').addEventListener('change', e => handleUp(e, url => { this.state.cfg.noteImages[this.state.cfg.targetNoteForImg] = { url: url, opac: 0.8 }; alert(`Image Mapped to ${this.state.cfg.targetNoteForImg}`); }));
+        document.getElementById('up-sample').addEventListener('change', e => handleUp(e, (url, file) => this.addCustomSampler(url, file.name)));
+
+        const btnPads = document.getElementById('btn-pads-edit');
+        btnPads.addEventListener('click', () => {
+            this.state.padsEditing = !this.state.padsEditing;
+            btnPads.innerText = this.state.padsEditing ? "PADS: EDIT" : "PADS: LOCKED";
+            btnPads.classList.toggle('btn-pads-edit', this.state.padsEditing);
+            btnPads.classList.toggle('btn-pads-locked', !this.state.padsEditing);
+            document.getElementById('custom-buttons-layer').classList.toggle('editing', this.state.padsEditing);
+        });
+
+        const btnSen = document.getElementById('btn-sensors');
+        btnSen.addEventListener('click', () => {
+            this.state.sensorsActive = !this.state.sensorsActive;
+            btnSen.innerText = this.state.sensorsActive ? "⚡ SENSORS: ON" : "❌ SENSORS: OFF";
+            btnSen.classList.toggle('btn-sensors-on', this.state.sensorsActive);
+            btnSen.classList.toggle('btn-sensors-off', !this.state.sensorsActive);
+        });
+
+        const btnMic = document.getElementById('btn-mic');
+        btnMic.addEventListener('click', async () => {
+            if(!this.state.micActive) {
+                await this.mic.open(); this.state.micActive = true;
+                btnMic.innerText = "🎙️ MIC: ON"; btnMic.classList.add('active');
+            } else {
+                this.mic.close(); this.state.micActive = false;
+                btnMic.innerText = "🎙️ MIC: OFF"; btnMic.classList.remove('active');
+            }
+        });
+
+        const btnRec = document.getElementById('btn-record');
+        btnRec.addEventListener('click', () => {
+            if(!this.state.isRecording) {
+                this.recorder.start(); this.state.isRecording = true;
+                btnRec.innerText = "⏹ STOP REC"; btnRec.classList.add('btn-recording');
+            } else {
+                this.recorder.stop(); this.state.isRecording = false;
+                btnRec.innerText = "⏺ RECORD"; btnRec.classList.remove('btn-recording');
+            }
+        });
+
+        const doPanic = () => {
+            Tone.Transport.stop(); this.synth1.releaseAll(); this.synth2.releaseAll();
+            this.state.customSamplers.forEach(s => s.player.stop());
+            this.thereminVol.volume.rampTo(-Infinity, 0.05);
+            this.state.holdMode = false; document.getElementById('btn-hold').classList.remove('active');
+            document.getElementById('btn-hold').innerText = "⎄ HOLD: OFF";
+        };
+        document.getElementById('btn-panic').addEventListener('click', doPanic);
+
+        const btnMute = document.getElementById('btn-mute');
+        const toggleMute = (forceState = null) => {
+            this.state.isMuted = forceState !== null ? forceState : !this.state.isMuted;
+            this.muteNode.volume.value = this.state.isMuted ? -Infinity : 0;
+            btnMute.classList.toggle('btn-mute-on', this.state.isMuted);
+            btnMute.innerText = this.state.isMuted ? "🔇 MUTE: ON" : "🔊 MUTE: OFF";
+        };
+        btnMute.addEventListener('click', e => { e.target.blur(); toggleMute(); });
+
+        const btnHold = document.getElementById('btn-hold');
+        btnHold.addEventListener('click', () => { 
+            this.state.holdMode = !this.state.holdMode; 
+            btnHold.classList.toggle('active', this.state.holdMode); 
+            btnHold.innerText = this.state.holdMode ? "⎄ HOLD: ON" : "⎄ HOLD: OFF";
+        });
+
+        let cpTimer;
+        document.querySelectorAll('.secret-corner').forEach(c => {
+            const toggleUI = () => {
+                this.state.uiHidden = !this.state.uiHidden;
+                document.querySelectorAll('.gui-window, #live-dashboard').forEach(el => el.classList.toggle('ui-hidden', this.state.uiHidden));
+                document.getElementById('bottom-hud').classList.toggle('hidden', this.state.uiHidden);
+            };
+            c.onmousedown = c.ontouchstart = () => { cpTimer = setTimeout(toggleUI, 1500); };
+            c.onmouseup = c.ontouchend = c.onmouseleave = () => clearTimeout(cpTimer);
+        });
+
+        const markActive = () => { 
+            this.state.lastInteraction = Date.now();
+            if(this.state.isAsleep) {
+                this.state.isAsleep = false; document.getElementById('screensaver-layer').style.opacity = 0;
+                document.getElementById('sleep-indicator').style.display = 'none';
+                toggleMute(false);
+            }
+        };
+
+        if(this.state.hasGyro) {
+            window.addEventListener("deviceorientation", e => { if(!this.state.sensorsActive) return; this.state.rawSensors = { x: e.gamma||0, y: e.beta||0, z: e.alpha||0 }; markActive(); });
+            window.addEventListener("devicemotion", e => {
+                if(!this.state.sensorsActive) return;
+                let a = e.acceleration || e.accelerationIncludingGravity; if (!a || a.x === null) return;
+                const force = Math.sqrt(a.x**2 + a.y**2 + a.z**2); this.state.rawSensors.acc = force;
+                if (force > 10) {
+                    this.state.customSamplers.forEach(pad => {
+                        if (pad.impactEnabled && force > pad.impactThresh && pad.player.state !== 'started') {
+                            if(pad.playMode === 'Retrigger') pad.player.stop();
+                            pad.player.start(Tone.now()); 
+                            document.getElementById(`pad-${pad.id}`).classList.add(pad.doPulse ? 'pad-pulsing' : 'playing');
+                        }
+                    });
+                    
+                    if (force > this.state.cfg.impactThresh && [2,3,8].includes(this.state.mode) && this.state.cfg.cells[this.state.activeCellIdx]) {
+                        this.triggerNote(this.state.cfg.cells[this.state.activeCellIdx].defaultNote, force);
+                    }
+                }
+            });
+        }
+
+        const mapMouseTo3D = (cx, cy) => {
+            if(!this.state.sensorsActive) return;
+            const x = (cx / window.innerWidth) * 2 - 1; const y = -(cy / window.innerHeight) * 2 + 1;
+            this.raycaster.setFromCamera(new THREE.Vector2(x, y), this.cam);
+            const target = new THREE.Vector3(); this.raycaster.ray.intersectPlane(this.planeZ0, target);
+            this.state.pointer.x = target.x / 8; this.state.pointer.y = target.y / 5;
+        };
+
+        window.addEventListener('mousemove', e => {
+            if(!this.state.sensorsActive) return; markActive();
+            if(!this.state.hasGyro || [6,7].includes(this.state.mode)) mapMouseTo3D(e.clientX, e.clientY);
+        });
+
+        const touchTrigger = (e) => {
+            if(!this.state.sensorsActive || e.target.closest('.gui-window') || e.target.closest('#bottom-hud') || e.target.closest('.custom-sampler-btn')) return;
+            markActive();
+            if(!this.state.hasGyro || [6,7].includes(this.state.mode)) {
+                if(e.touches) mapMouseTo3D(e.touches[0].clientX, e.touches[0].clientY);
+                if ([2,3,8,6,7].includes(this.state.mode) && this.state.cfg.cells[this.state.activeCellIdx]) {
+                    this.triggerNote(this.state.cfg.cells[this.state.activeCellIdx].defaultNote, 40);
+                }
+            }
+        };
+        window.addEventListener('mousedown', touchTrigger); 
+        window.addEventListener('touchstart', touchTrigger, {passive: false});
+        
+        setInterval(() => {
+            if(!this.state.isAsleep && Date.now() - this.state.lastInteraction > 10000) {
+                this.state.isAsleep = true; 
+                this.state.customSamplers.forEach(s => { s.player.loop = false; });
+                this.synth1.releaseAll(); this.synth2.releaseAll();
+                this.thereminVol.volume.rampTo(-Infinity, 0.05);
+                toggleMute(true);
+                document.getElementById('screensaver-layer').style.opacity = 1;
+                document.getElementById('sleep-indicator').style.display = 'block';
+            }
+        }, 1000);
+    },
+
+    loop() {
+        requestAnimationFrame(() => this.loop());
+        const { rawSensors, cfg, mode, pointer, isMuted, isAsleep, sensorsActive } = this.state;
+        const now = Tone.now();
+
+        if (isMuted) {
+            const level = this.meter.getValue(); document.getElementById('btn-mute').classList.toggle('mute-active-audio', level > -40);
+        } else { document.getElementById('btn-mute').classList.remove('mute-active-audio'); }
+
+        // Update Pads Logic (Progress & React)
+        this.state.customSamplers.forEach(pad => { if(pad.updateVisuals) pad.updateVisuals(); });
+
+        if (isAsleep || !sensorsActive) {
+            this.particles.rotation.x += 0.001; this.particles.rotation.y += 0.002;
+            this.ssRenderer.render(this.ssScene, this.ssCam);
+            this.renderVisualizer(); // keep updating master visuals if open
+            if(isAsleep) return; 
+        }
+
+        if(this.state.hasGyro && ![6,7].includes(mode)) {
+            let inX = rawSensors.x; let inY = rawSensors.y;
+            if(cfg.sensSwapXY) { let t = inX; inX = inY; inY = t; }
+            if(cfg.sensInvertX) inX *= -1; if(cfg.sensInvertY) inY *= -1;
+            pointer.x = Math.max(-1, Math.min(1, inX / cfg.gyroScale));
+            pointer.y = Math.max(-1, Math.min(1, inY / cfg.gyroScale));
+        }
+
+        this.pointerObj.position.x = pointer.x * 8; this.pointerObj.position.y = pointer.y * 5;
+
+        let gridX = Math.floor(mapRange(pointer.x, -1, 1, 0, cfg.gridCols)); let gridY = Math.floor(mapRange(pointer.y, 1, -1, 0, cfg.gridRows)); 
+        gridX = Math.max(0, Math.min(cfg.gridCols - 1, gridX)); gridY = Math.max(0, Math.min(cfg.gridRows - 1, gridY));
+        let newCell = gridY * cfg.gridCols + gridX;
+
+        if (newCell !== this.state.activeCellIdx) {
+            if (this.state.activeCellIdx !== -1) {
+                const old = document.getElementById(`cell-${this.state.activeCellIdx}`); if (old) old.classList.remove('active');
+                if (mode === 4 && !this.state.holdMode) { this.synth1.releaseAll(); this.synth2.releaseAll(); }
+            }
+            const cur = document.getElementById(`cell-${newCell}`); if (cur) cur.classList.add('active');
+            this.state.activeCellIdx = newCell;
+            if ([4,5].includes(mode) && cfg.cells[newCell]) this.triggerNote(cfg.cells[newCell].defaultNote, mode === 4 ? 40 : 20); 
+        }
+
+        if (cfg.thOn && [1, 3, 7, 8].includes(mode)) {
+            let tFreq = mapRange(pointer.y, -1, 1, cfg.thBaseFreq, cfg.thMaxFreq); tFreq = Math.max(20, Math.min(5000, tFreq));
+            let tVol = mapRange(pointer.x, -1, 1, cfg.thVolMin, cfg.thVolMax);
+            this.theremin.frequency.setTargetAtTime(tFreq, now, 0.05); this.thereminVol.volume.setTargetAtTime(tVol, now, 0.05);
+        } else { this.thereminVol.volume.setTargetAtTime(-Infinity, now, 0.1); }
+
+        document.getElementById('rd-pos').innerText = `${pointer.x.toFixed(2)}, ${pointer.y.toFixed(2)}`;
+        document.getElementById('rd-acc').innerText = rawSensors.acc.toFixed(1);
+
+        this.renderWaveform();
+        this.renderVisualizer();
+        this.renderer.render(this.scene, this.cam);
+    },
+
+    renderWaveform() {
+        const cvs = document.getElementById('master-waveform'); const ctx = cvs.getContext('2d');
+        if (cvs.width !== cvs.clientWidth) { cvs.width = cvs.clientWidth; cvs.height = cvs.clientHeight; }
+        const data = this.analyser.getValue();
+        ctx.clearRect(0, 0, cvs.width, cvs.height);
+        ctx.beginPath(); ctx.strokeStyle = this.state.cfg.waveColor; ctx.lineWidth = 2;
+        for(let i=0; i<data.length; i++) {
+            const x = (i/data.length) * cvs.width; const y = ((data[i]+1)/2) * cvs.height; i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+        }
+        ctx.stroke();
+    },
+
+    renderVisualizer() {
+        if(!this.state.cfg.showVisualizer) return;
+        const cvs = document.getElementById('vis-canvas'); const ctx = cvs.getContext('2d');
+        if (cvs.width !== cvs.clientWidth) { cvs.width = cvs.clientWidth; cvs.height = cvs.clientHeight; }
+        const data = this.masterVis.getValue();
+        ctx.clearRect(0, 0, cvs.width, cvs.height);
+        ctx.beginPath(); ctx.strokeStyle = this.state.cfg.accentColor; ctx.lineWidth = 3;
+        for(let i=0; i<data.length; i++) {
+            const x = (i/data.length) * cvs.width; const y = ((data[i]+1)/2) * cvs.height; i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+        }
+        ctx.stroke();
+    }
+};
+
+document.getElementById('btn-start').onclick = () => GyrOS.init();
+</script>
+</body>
+</html>
