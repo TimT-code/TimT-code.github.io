@@ -1,56 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <link rel="manifest" href="manifest.json">
+    <title>Gyr-OS | Master Workstation V8.0</title>
+    
+    <!-- 
+      Author: Tim Tesner
+      Co-Author / AI Assistance: Gemini 3 Pro
+      Gyr-OS Workstation Engine V8.0
+    -->
 
-Model 10:30 AM
-ThinkingThoughts
-**Resuming the Code Generation**
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tonaljs/tonal/browser/tonal.min.js"></script>
 
-I'm now focused on picking up the HTML/JS code generation for "Gyr-OS | Master Workstation V8.0" exactly where it was previously interrupted. I need to precisely identify the cutoff point and ensure a seamless continuation. My goal is to resume generating the code and prevent any loss of context.
+    <style>
+        :root { --accent-neon: #00ffcc; --glass-bg: rgba(10, 10, 15, 0.85); --wave-color: #00ffcc; }
+        body, html { margin: 0; padding: 0; overflow: hidden; background: #020202; font-family: sans-serif; color: white; user-select: none; touch-action: none; }
+        
+        #bg-layer { position: absolute; inset: 0; z-index: 0; background-size: cover; background-position: center; transition: opacity 0.3s; }
+        #canvas-container { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+        #screensaver-layer { position: absolute; inset: 0; z-index: 900; pointer-events: none; opacity: 0; transition: opacity 1s; background: rgba(0,0,0,0.8); }
+        
+        #grid-overlay { position: absolute; inset: 0; display: grid; z-index: 2; perspective: 1000px; transition: transform 0.1s; }
+        .grid-cell { border: 1px solid rgba(255,255,255,0.05); transition: all 0.2s; background-size: cover; background-position: center; display: flex; align-items: flex-end; justify-content: flex-end; padding: 5px; box-sizing: border-box; font-family: monospace; font-size: 11px; font-weight: bold; text-shadow: 1px 1px 2px black; }
+        .grid-cell.active { border-color: var(--accent-neon); box-shadow: inset 0 0 30px var(--accent-neon); transform: translateZ(30px); z-index: 3; color: white !important; }
 
+        /* Draggable GUIs */
+        .gui-window { position: absolute; z-index: 100; background: var(--glass-bg); border: 1px solid var(--accent-neon); border-radius: 6px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); transition: opacity 0.3s; cursor: grab; display: flex; flex-direction: column; max-height: 70vh; }
+        .gui-window:active { cursor: grabbing; }
+        .gui-header { background: var(--accent-neon); color: black; padding: 6px 10px; font-size: 12px; font-weight: bold; display: flex; justify-content: space-between; touch-action: none; pointer-events: none; flex-shrink: 0; }
+        .gui-toggle { pointer-events: auto; cursor: pointer; padding: 0 5px; }
+        .gui-content { overflow-y: auto; overflow-x: hidden; flex-grow: 1; }
+        /* Custom Scrollbar for GUIs */
+        .gui-content::-webkit-scrollbar { width: 6px; }
+        .gui-content::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
+        .gui-content::-webkit-scrollbar-thumb { background: var(--accent-neon); border-radius: 3px; }
+        
+        #gui-left { top: 60px; left: 40px; } 
+        #gui-center { top: 60px; left: 50%; transform: translateX(-50%); } 
+        #gui-right { top: 60px; right: 40px; }
 
-**Completing the Synth Parameters**
+        /* Custom Sampler Buttons */
+        #custom-buttons-layer { position: absolute; inset: 0; z-index: 80; pointer-events: none; }
+        #custom-buttons-layer.editing { pointer-events: auto; background: rgba(0, 255, 204, 0.05); }
+        
+        .pad-container { position: absolute; pointer-events: auto; }
+        .custom-sampler-btn { position: relative; padding: 10px 25px 10px 15px; background: rgba(0,0,0,0.8); border: 2px solid var(--accent-neon); color: var(--accent-neon); border-radius: 8px; font-family: monospace; font-weight: bold; cursor: pointer; user-select: none; touch-action: none; box-shadow: 0 4px 10px rgba(0,0,0,0.5); transition: transform 0.1s; overflow: hidden; resize: both; min-width: 80px; min-height: 40px; pointer-events: auto; }
+        .custom-sampler-btn:active { transform: scale(0.95); }
+        .custom-sampler-btn .pad-title { position: relative; z-index: 2; pointer-events: none; white-space: nowrap; }
+        
+        /* Pad Reactive Background */
+        .pad-react-bg { position: absolute; inset: 0; background: var(--accent-neon); opacity: 0; z-index: 0; transition: opacity 0.05s; pointer-events: none; }
+        
+        /* Pad Progress Bar */
+        .pad-progress { position: absolute; bottom: 0; left: 0; height: 4px; background: white; width: 0%; z-index: 3; pointer-events: none; }
 
-I'm currently focused on completing the 's2' configuration properties within the `window.GyrOS` object. I've resumed precisely where I left off and have added properties such as `s2Vol`, `s2Pan`, and so forth. I'm now transitioning to the next logical content, which I've determined to be the `m1` property. I'm on track for code generation and matching V8.0's features.
+        @keyframes padPulse { 0% { box-shadow: 0 0 5px var(--accent-neon); filter: brightness(1); } 100% { box-shadow: 0 0 20px var(--accent-neon); filter: brightness(1.5); } }
+        .pad-pulsing { animation: padPulse 0.4s infinite alternate; }
 
+        /* Pad Settings Menu (Gear) */
+        .pad-gear { position: absolute; top: 5px; right: 5px; background: none; border: none; color: white; cursor: pointer; z-index: 5; font-size: 14px; display: none; }
+        #custom-buttons-layer.editing .pad-gear { display: block; }
+        
+        .pad-settings-menu { position: absolute; top: 100%; left: 0; background: rgba(10,10,15,0.95); border: 1px solid var(--accent-neon); padding: 10px; border-radius: 4px; display: none; flex-direction: column; gap: 5px; min-width: 180px; z-index: 1000; cursor: default; }
+        .pad-settings-menu.open { display: flex; }
+        .pad-settings-menu input, .pad-settings-menu select { background: #000; color: #fff; border: 1px solid #444; padding: 2px; font-family: monospace; font-size: 10px; width: 100%; }
+        .pad-settings-menu label { font-size: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .pad-settings-menu button { background: #333; color: white; border: 1px solid #555; cursor: pointer; font-size: 10px; margin-top: 5px; }
+        .pad-settings-menu button:hover { background: var(--accent-neon); color: black; }
 
-**Resuming the s2 Configuration**
+        /* Live Visualizer Window */
+        #visualizer-window { top: 20vh; left: 20px; width: 300px; height: 150px; resize: both; overflow: hidden; display: none; flex-direction: column; pointer-events: auto; }
+        #vis-canvas { width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
 
-I'm restarting the code generation exactly after the previous cutoff, picking up with `Vol: -6, ...` to ensure a smooth continuation of the 's2' configuration parameters. I'm focusing on the precise details to match V8.0's intended functionality, now. I will make sure the string is seamless. I'll make sure to add it right after `s2On: true, s2Type: 'FMSynth', s2`. Then, I will address the broader requirements, such as presets, a master visualizer and microphone and recording logic.
+        .ui-hidden { opacity: 0 !important; pointer-events: none !important; }
+        #live-dashboard { position: absolute; bottom: 22vh; left: 20px; background: var(--glass-bg); padding: 10px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; font-family: monospace; font-size: 11px; z-index: 50; pointer-events: none; color: var(--accent-neon); transition: opacity 0.3s; }
+        
+        /* Bottom HUD & Buttons */
+        #bottom-hud { position: absolute; bottom: 0; left: 0; width: 100vw; height: 20vh; background: var(--glass-bg); backdrop-filter: blur(10px); border-top: 1px solid rgba(255,255,255,0.2); z-index: 150; display: flex; flex-direction: column; transition: transform 0.4s cubic-bezier(0.1, 0.8, 0.1, 1); pointer-events: auto; }
+        #bottom-hud.hidden { transform: translateY(100%); }
+        .hud-row { display: flex; gap: 4px; justify-content: center; padding: 4px; flex-wrap: wrap; }
+        
+        .sys-btn { padding: 6px 10px; background: rgba(0,0,0,0.6); border: 1px solid var(--accent-neon); color: var(--accent-neon); border-radius: 4px; cursor: pointer; font-size: 10px; font-weight: bold; transition: 0.2s; pointer-events: auto; }
+        .sys-btn.active { background: var(--accent-neon); color: #000; box-shadow: 0 0 10px var(--accent-neon); }
+        .sys-btn:hover { background: rgba(0,255,204,0.2); }
+        
+        /* Toggle States */
+        .btn-mute-on { background: rgba(255,0,0,0.9) !important; color: white !important; border-color: red !important; box-shadow: 0 0 15px red; }
+        @keyframes mutePulse { 0% { box-shadow: 0 0 5px red; background: rgba(255,0,0,0.5); } 100% { box-shadow: 0 0 25px red; background: rgba(255,0,0,1); } }
+        .mute-active-audio { animation: mutePulse 0.3s infinite alternate !important; border-color: white !important; }
+        
+        .btn-sensors-on { background: var(--accent-neon); color: #000; box-shadow: 0 0 10px var(--accent-neon); }
+        .btn-sensors-off { border-color: #666 !important; color: #666 !important; text-decoration: line-through; background: rgba(0,0,0,0.5); }
+        
+        .btn-pads-edit { background: #ffaa00 !important; color: #000 !important; border-color: #ffaa00 !important; box-shadow: 0 0 10px #ffaa00; }
+        .btn-pads-locked { border-color: #666 !important; color: #666 !important; background: rgba(0,0,0,0.5); }
 
+        .btn-recording { background: red !important; color: white !important; animation: recPulse 1s infinite alternate; }
+        @keyframes recPulse { 0% { opacity: 1; } 100% { opacity: 0.5; } }
 
-**Implementing Audio Input**
+        .sleep-indicator { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); color: #ffaa00; font-family: monospace; font-weight: bold; font-size: 14px; z-index: 1000; display: none; background: rgba(0,0,0,0.8); padding: 5px 15px; border-radius: 20px; border: 1px solid #ffaa00; }
 
-I'm now focused on audio input implementation, specifically `micActive` and `isRecording` status. I'm leveraging `MediaRecorder` with `Tone.Destination` to capture and route audio. I'm diving into the UI elements now, including a gear icon and popover for custom samplers, considering `playMode` options and visual indicators like a progress bar. Next is the draggable windows fix, and then I will resume the synth parameters.
+        #master-waveform { width: 100%; height: 100%; flex-grow: 1; pointer-events: none; }
 
+        .secret-corner { position: absolute; width: 80px; height: 80px; z-index: 999; opacity: 0; cursor: pointer; }
+        #sc-tl { top: 0; left: 0; } #sc-tr { top: 0; right: 0; } #sc-bl { bottom: 0; left: 0; } #sc-br { bottom: 0; right: 0; }
+        .vfx-layer { position: absolute; pointer-events: none; transform: translate(-50%, -50%); transform-origin: center; z-index: 10; }
 
-**Defining the Modes & Scales**
+        input[type="file"] { display: none; }
+        #init-overlay { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+        #btn-start { padding: 20px 40px; font-size: 1.5rem; background: var(--accent-neon); border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
 
-I'm now integrating the `modesList` and `scalesList` data into the V8.0 code, structuring them within the `window.GyrOS` object. These are essential for the custom sampler and audio processing. I am focusing on seamless integration, before I begin the custom sampler functions, and GUI setup that will follow. I'm focusing on incorporating these lists into the application's core functionality, enabling dynamic interaction.
+<div id="init-overlay">
+    <h1 style="color: var(--accent-neon); letter-spacing: 5px;">GYR-OS V8.0</h1>
+    <p>AUTHOR: TIM TESNER & GEMINI 3 PRO</p>
+    <button id="btn-start">INITIALIZE ENGINE</button>
+    <div id="error-msg" style="color: #ff4444; margin-top: 15px;"></div>
+</div>
 
+<div id="sleep-indicator" class="sleep-indicator">💤 SYSTEM ASLEEP / MUTED</div>
+<div id="bg-layer"></div>
+<div id="canvas-container"></div>
+<div id="screensaver-layer"></div>
+<div id="grid-overlay"></div>
+<div id="custom-buttons-layer"></div>
 
-**Refining Player Logic**
+<!-- Draggable Visualizer -->
+<div class="gui-window" id="visualizer-window" style="transform: none; z-index: 500;">
+    <div class="gui-header"><span>MASTER VISUALS</span><span class="gui-toggle">▼</span></div>
+    <div class="gui-content" style="overflow: hidden; padding: 0;"><canvas id="vis-canvas"></canvas></div>
+</div>
 
-I'm now refining the audio player logic, specifically for sampler and retrigger behavior. I'm focusing on `Tone.Player`, considering options like `overlap` or `restart`, aiming for a robust and simplified approach. I'm thinking of `Tone.Sampler` for polyphonic layering and weighing the tradeoffs. I've decided to utilize `Tone.Player` and adjust the restart functionality. I have the master visualizer code ready. And then I will do presets 1-4.
+<div class="secret-corner" id="sc-tl"></div><div class="secret-corner" id="sc-tr"></div>
+<div class="secret-corner" id="sc-bl"></div><div class="secret-corner" id="sc-br"></div>
 
+<div class="gui-window" id="gui-left" style="transform: none;"><div class="gui-header"><span>SYSTEM & SENSORS</span><span class="gui-toggle">▼</span></div><div class="gui-content" id="gui-left-content"></div></div>
+<div class="gui-window" id="gui-center" style="transform: none;"><div class="gui-header"><span>VISUALS & MEDIA</span><span class="gui-toggle">▼</span></div><div class="gui-content" id="gui-center-content"></div></div>
+<div class="gui-window" id="gui-right" style="transform: none;"><div class="gui-header"><span>SYNTH ENGINE</span><span class="gui-toggle">▼</span></div><div class="gui-content" id="gui-right-content"></div></div>
 
-**Implementing Preset Handling**
+<div id="live-dashboard">
+    <div>POS: <span id="rd-pos">0, 0</span></div>
+    <div>ACC: <span id="rd-acc">0</span></div>
+    <div>AIM: <span id="rd-cell">None</span></div>
+</div>
 
-I'm now implementing the `loadPreset(num)` and `savePreset(num)` functions. I'm focusing on seamless data persistence using `localStorage`. The current plan is to handle loading configurations from local storage and applying them with `Object.assign`. I will trigger updates for synths, grid initialization and theme application. I also plan to add an alert to indicate preset saves. I'm now finishing the formatting and integration.
+<div id="bottom-hud">
+    <div class="hud-row" id="mode-btn-container"></div>
+    <div class="hud-row">
+        <!-- Preset Hot Swaps -->
+        <button class="sys-btn" onclick="GyrOS.loadPreset(1)">[P1]</button>
+        <button class="sys-btn" onclick="GyrOS.loadPreset(2)">[P2]</button>
+        <button class="sys-btn" onclick="GyrOS.loadPreset(3)">[P3]</button>
+        <button class="sys-btn" onclick="GyrOS.loadPreset(4)">[P4]</button>
+        <span style="color: #666; font-size: 10px; margin: auto 5px;">|</span>
+        <button class="sys-btn" id="btn-oct-down">[- OCT]</button>
+        <button class="sys-btn" id="btn-oct-up">[+ OCT]</button>
+        <button class="sys-btn" id="btn-hold">⎄ HOLD: OFF</button>
+        <button class="sys-btn btn-pads-locked" id="btn-pads-edit">PADS: LOCKED</button>
+        <button class="sys-btn btn-sensors-on" id="btn-sensors">⚡ SENSORS: ON</button>
+    </div>
+    <div class="hud-row">
+        <button class="sys-btn" id="btn-mic">🎙️ MIC: OFF</button>
+        <button class="sys-btn" id="btn-record">⏺ RECORD</button>
+        <button class="sys-btn" id="btn-mute" style="border-color: #ff4444; color: #ff4444;">🔊 MUTE: OFF</button>
+        <button class="sys-btn" id="btn-panic" style="border-color: #ffaa00; color: #ffaa00;">■ PANIC</button>
+    </div>
+    <canvas id="master-waveform"></canvas>
+</div>
 
+<input type="file" id="up-config" accept=".json">
+<input type="file" id="up-bg" accept="image/*">
+<input type="file" id="up-sample">
+<input type="file" id="up-note-img" accept="image/*">
+<input type="file" id="up-vfx" accept="image/*">
+<input type="file" id="up-s1" accept=".json">
+<input type="file" id="up-s2" accept=".json">
+<input type="file" id="up-th" accept=".json">
 
-**Integrating Player Logic**
+<script type="importmap">
+    { "imports": { "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.js" } }
+</script>
 
-I'm now integrating the updated player logic, incorporating Tone.Sampler for layering with the drag-from-anywhere behavior, focusing on the play button sub-menu, and adding CSS scrollbars for the GUI/HUD. The `requestAnimationFrame` for a fake progress bar is the current focus, after the drag behavior is fully implemented for all GUI elements, not just the titlebar. I will continue adding the UI elements and controls now.
+<script type="module">
+/**
+ * GYR-OS WORKSTATION V8.0
+ * Author: Tim Tesner
+ * Co-Author: Gemini 3 Pro
+ */
 
+import * as THREE from 'three';
+import * as Tone from 'https://esm.sh/tone';
 
-**Refining the Custom Sampler**
+const mapRange = (val, inMin, inMax, outMin, outMax) => ((val - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
 
-I'm now refining the custom sampler logic. I'm focusing on the pad HTML structure, implementing `pad-pulsing` CSS class toggling, and Z-index control. I'm connecting `Tone.UserMedia` to `delay`, and using `MediaRecorder` connected to `Tone.Destination` for recording. I'm building a text input for loading audio by URL and a load button. I also plan to add visuals inside the button, linking a `.pad-react-bg` opacity to an `Analyser` attached to the specific pad.
+const NOTE_COLORS = { 'C': 0, 'C#': 30, 'D': 60, 'D#': 90, 'E': 120, 'F': 150, 'F#': 180, 'G': 210, 'G#': 240, 'A': 270, 'A#': 300, 'B': 330 };
+function getNoteColor(noteStr) {
+    if (!noteStr) return 'rgba(255,255,255,0.1)';
+    let base = noteStr.replace(/\d+/, ''); let oct = parseInt(noteStr.replace(/\D+/g, '')) || 3;
+    let hue = NOTE_COLORS[base] || 0; let light = 20 + (oct * 8); 
+    return `hsla(${hue}, 80%, ${light}%, 0.3)`;
+}
 
-
-Collapse to hide model thoughts
-
-chevron_right
-```javascript
-Vol: -6, s2Pan: 0.5, s2Atk: 0.1, s2Dec: 0.3, s2Sus: 0.4, s2Rel: 2.0,
+window.GyrOS = {
+    state: {
+        mode: 1, hasGyro: false, holdMode: false, uiHidden: false, isMuted: false, isAsleep: false, sensorsActive: true, padsEditing: false, zIndexCounter: 100,
+        micActive: false, isRecording: false,
+        rawSensors: { x: 0, y: 0, z: 0, acc: 0 },
+        pointer: { x: 0, y: 0 }, lastInteraction: Date.now(),
+        activeCellIdx: -1, customSamplers: [],
+        
+        cfg: {
+            sensSwapXY: false, sensInvertX: false, sensInvertY: false,
+            gyroScale: 30, impactThresh: 15,
+            vibActive: 30, vibRest: 10,
+            
+            gridCols: 4, gridRows: 3, showGrid: true, perspective: false, colorNotes: true,
+            hudColor: 'rgba(10, 10, 15, 0.85)', accentColor: '#00ffcc', waveColor: '#00ffcc',
+            bgImageUrl: null, bgOpacity: 1.0, bgSize: 'cover',
+            pointerSize: 1.0, pointerOpac: 1.0, hidePointerTouch: false,
+            showVisualizer: false,
+            
+            vfxImageUrl: null, vfxOpac: 0.8, vfxScale: 2.0, vfxSpeed: 0.5, targetNoteForImg: 'C',
+            
+            masterVol: -2, eqLow: 0, eqMid: 0, eqHigh: 0, reverbMix: 0.3, delayMix: 0.2,
+            scale: 'pentatonic', root: 'C', octave: 3,
+            
+            thOn: true, thereminWave: 'sine', thBaseFreq: 100, thMaxFreq: 2000, thVolMax: 0, thVolMin: -40,
+            
+            s1On: true, s1Type: 'Synth', s1Vol: -4, s1Pan: -0.5, s1Atk: 0.05, s1Dec: 0.2, s1Sus: 0.5, s1Rel: 1.5,
+            s1Dist: 0, s1Phaser: 0,
+            
+            s2On: true, s2Type: 'FMSynth', s2Vol: -6, s2Pan: 0.5, s2Atk: 0.1, s2Dec: 0.3, s2Sus: 0.4, s2Rel: 2.0,
             s2Dist: 0, s2Phaser: 0,
 
             m1: true, m2: true, m3: true, m4: true, m5: true, m6: true, m7: true, m8: true,
@@ -68,7 +253,6 @@ Vol: -6, s2Pan: 0.5, s2Atk: 0.1, s2Dec: 0.3, s2Sus: 0.4, s2Rel: 2.0,
             this.initAudio(); this.initVisuals(); this.initGrid(); this.initGUIs();
             this.makeGUIsDraggable(); this.bindEvents(); this.renderModeButtons();
             
-            // Set up visualizer window drag
             this.makeWindowDraggable(document.getElementById('visualizer-window'));
 
             document.getElementById('init-overlay').style.display = 'none';
@@ -91,11 +275,11 @@ Vol: -6, s2Pan: 0.5, s2Atk: 0.1, s2Dec: 0.3, s2Sus: 0.4, s2Rel: 2.0,
 
     initAudio() {
         this.analyser = new Tone.Analyser("waveform", 1024);
-        this.masterVis = new Tone.Analyser("waveform", 512); // Specific for windowed visualizer
+        this.masterVis = new Tone.Analyser("waveform", 512); 
         
         this.limiter = new Tone.Limiter(-2).connect(this.analyser).connect(this.masterVis).toDestination();
         
-        // Recording Setup
+        // Recording Engine
         this.streamDest = Tone.context.createMediaStreamDestination();
         this.limiter.connect(this.streamDest);
         this.recorder = new MediaRecorder(this.streamDest.stream);
@@ -220,10 +404,8 @@ Vol: -6, s2Pan: 0.5, s2Atk: 0.1, s2Dec: 0.3, s2Sus: 0.4, s2Rel: 2.0,
 
     addCustomSampler(urlOrPath, nameStr) {
         const id = Date.now();
-        // Use a Volume node and a dedicated Meter for the internal visualizer reaction
         const volNode = new Tone.Volume(0).connect(this.rack.delay);
         const padMeter = new Tone.Meter().connect(volNode);
-        
         const player = new Tone.Player({ url: urlOrPath, loop: false }).connect(padMeter);
         
         const data = { 
@@ -241,7 +423,6 @@ Vol: -6, s2Pan: 0.5, s2Atk: 0.1, s2Dec: 0.3, s2Sus: 0.4, s2Rel: 2.0,
         btn.style.left = '50px'; btn.style.top = '150px';
         btn.style.zIndex = data.zIndex;
         
-        // Internal DOM
         btn.innerHTML = `
             <div class="pad-react-bg"></div>
             <div class="pad-progress"></div>
@@ -268,9 +449,8 @@ Vol: -6, s2Pan: 0.5, s2Atk: 0.1, s2Dec: 0.3, s2Sus: 0.4, s2Rel: 2.0,
         const prog = btn.querySelector('.pad-progress');
         const title = btn.querySelector('.pad-title');
 
-        // Settings Logic
         gear.addEventListener('pointerdown', e => { e.stopPropagation(); menu.classList.toggle('open'); });
-        menu.addEventListener('pointerdown', e => e.stopPropagation()); // Keep clicks inside menu from dragging
+        menu.addEventListener('pointerdown', e => e.stopPropagation()); 
         
         btn.querySelector('.set-vol').addEventListener('input', e => volNode.volume.value = parseFloat(e.target.value));
         btn.querySelector('.set-mode').addEventListener('change', e => data.playMode = e.target.value);
@@ -287,30 +467,24 @@ Vol: -6, s2Pan: 0.5, s2Atk: 0.1, s2Dec: 0.3, s2Sus: 0.4, s2Rel: 2.0,
         btn.querySelector('.set-stop-btn').addEventListener('click', () => { player.stop(); btn.classList.remove('playing'); });
         btn.querySelector('.set-del-btn').addEventListener('click', () => { player.dispose(); btn.remove(); this.state.customSamplers = this.state.customSamplers.filter(s => s.id !== id); });
 
-        // Playback Logic
         const firePad = () => {
             if(!player.loaded) return;
-            if(data.playMode === 'Single' && player.state === 'started') return; // Don't retrigger if playing
-            
-            if(data.playMode === 'Retrigger') player.stop(); // Cut off old
-            
+            if(data.playMode === 'Single' && player.state === 'started') return; 
+            if(data.playMode === 'Retrigger') player.stop(); 
             player.start(Tone.now()); 
-            
-            if(data.doPulse) btn.classList.add('pad-pulsing');
-            else btn.classList.add('playing');
+            if(data.doPulse) btn.classList.add('pad-pulsing'); else btn.classList.add('playing');
         };
 
-        // Drag & Click Logic
         let isDown = false, startX, startY, origX, origY, hasMoved = false;
         
         btn.addEventListener('pointerdown', e => {
             if(e.target.closest('.pad-settings-menu') || e.target === gear) return;
             e.stopPropagation();
-            if(!this.state.padsEditing) { firePad(); return; } // Fire immediately if locked
+            if(!this.state.padsEditing) { firePad(); return; } 
             
             isDown = true; hasMoved = false; startX = e.clientX; startY = e.clientY; origX = btn.offsetLeft; origY = btn.offsetTop;
             btn.setPointerCapture(e.pointerId);
-            btn.style.zIndex = data.zIndex + 100; // temporary bring to front while dragging
+            btn.style.zIndex = data.zIndex + 100; 
         });
         
         btn.addEventListener('pointermove', e => {
@@ -322,11 +496,10 @@ Vol: -6, s2Pan: 0.5, s2Atk: 0.1, s2Dec: 0.3, s2Sus: 0.4, s2Rel: 2.0,
             if(!isDown) return;
             isDown = false; btn.releasePointerCapture(e.pointerId);
             btn.style.zIndex = data.zIndex;
-            if(!hasMoved && this.state.padsEditing) firePad(); // Allow click-to-fire even when editing if no movement
+            if(!hasMoved && this.state.padsEditing) firePad(); 
         };
         btn.addEventListener('pointerup', end); btn.addEventListener('pointercancel', end);
         
-        // Progress & Reactive Loop Hook
         data.updateVisuals = () => {
             if(player.state === 'started') {
                 if(data.showProgress) prog.style.width = `${(player.position / player.buffer.duration) * 100}%`;
@@ -407,7 +580,6 @@ Vol: -6, s2Pan: 0.5, s2Atk: 0.1, s2Dec: 0.3, s2Sus: 0.4, s2Rel: 2.0,
     },
 
     savePreset(num) {
-        // Deep copy state config to string, save in local storage
         localStorage.setItem(`gyros_preset_${num}`, JSON.stringify(this.state.cfg));
         alert(`Configuration saved to Preset ${num}!`);
     },
@@ -418,8 +590,6 @@ Vol: -6, s2Pan: 0.5, s2Atk: 0.1, s2Dec: 0.3, s2Sus: 0.4, s2Rel: 2.0,
             Object.assign(this.state.cfg, JSON.parse(data));
             this.initGrid(); this.updateSynths(); this.applyTheme();
             this.renderModeButtons();
-            
-            // Sync Dat.GUI displays
             for (var i in this.guiSys.__folders) { for (var j in this.guiSys.__folders[i].__controllers) { this.guiSys.__folders[i].__controllers[j].updateDisplay(); } }
             for (var i in this.guiCenter.__folders) { for (var j in this.guiCenter.__folders[i].__controllers) { this.guiCenter.__folders[i].__controllers[j].updateDisplay(); } }
             for (var i in this.guiSnd.__folders) { for (var j in this.guiSnd.__folders[i].__controllers) { this.guiSnd.__folders[i].__controllers[j].updateDisplay(); } }
@@ -432,7 +602,6 @@ Vol: -6, s2Pan: 0.5, s2Atk: 0.1, s2Dec: 0.3, s2Sus: 0.4, s2Rel: 2.0,
         document.getElementById('gui-left-content').innerHTML = ''; document.getElementById('gui-center-content').innerHTML = ''; document.getElementById('gui-right-content').innerHTML = '';
         const guiOpts = { autoPlace: false, closed: false };
 
-        // LEFT
         this.guiSys = new dat.GUI(guiOpts); document.getElementById('gui-left-content').appendChild(this.guiSys.domElement);
         const gSave = this.guiSys.addFolder('Master Saves');
         gSave.add({ export: () => this.downloadConfig('', 'GyrOS_Master.json') }, 'export').name('💾 Save MASTER');
@@ -442,7 +611,6 @@ Vol: -6, s2Pan: 0.5, s2Atk: 0.1, s2Dec: 0.3, s2Sus: 0.4, s2Rel: 2.0,
         gSen.add(this.state.cfg, 'sensSwapXY'); gSen.add(this.state.cfg, 'sensInvertX'); gSen.add(this.state.cfg, 'sensInvertY');
         gSen.add(this.state.cfg, 'gyroScale', 10, 90); gSen.add(this.state.cfg, 'impactThresh', 5, 50);
 
-        // CENTER
         this.guiCenter = new dat.GUI(guiOpts); document.getElementById('gui-center-content').appendChild(this.guiCenter.domElement);
         const gVis = this.guiCenter.addFolder('Colors & Theme');
         gVis.addColor(this.state.cfg, 'accentColor').onChange(()=>this.applyTheme());
@@ -471,7 +639,6 @@ Vol: -6, s2Pan: 0.5, s2Atk: 0.1, s2Dec: 0.3, s2Sus: 0.4, s2Rel: 2.0,
         const gUI = this.guiCenter.addFolder('UI Mode Toggles');
         this.modesList.forEach(m => gUI.add(this.state.cfg, `m${m.id}`).name(m.name).onChange(()=>this.renderModeButtons()));
 
-        // RIGHT
         this.guiSnd = new dat.GUI(guiOpts); document.getElementById('gui-right-content').appendChild(this.guiSnd.domElement);
         const sMix = this.guiSnd.addFolder('Master Mixer');
         sMix.add(this.state.cfg, 'masterVol', -60, 10).onChange(v => this.masterVol.volume.value = v);
@@ -538,37 +705,28 @@ Vol: -6, s2Pan: 0.5, s2Atk: 0.1, s2Dec: 0.3, s2Sus: 0.4, s2Rel: 2.0,
 
     makeGUIsDraggable() {
         document.querySelectorAll('.gui-window').forEach(el => {
-            // Already handled visualizer window above
             if(el.id === 'visualizer-window') return;
-
-            // Bring to front
             el.addEventListener('pointerdown', () => { el.style.zIndex = ++this.state.zIndexCounter; });
 
             let isDown = false, startX, startY, origX, origY;
-            
             el.addEventListener('pointerdown', e => {
-                // Ignore drags if clicking a dat.gui input, label, or scrollbar
                 if(e.target.closest('.dg') || e.target.tagName==='INPUT' || e.target.tagName==='SELECT' || e.target.closest('.gui-toggle') || e.clientX > el.getBoundingClientRect().right - 15) return;
                 e.stopPropagation();
                 el.setPointerCapture(e.pointerId);
                 isDown = true; startX = e.clientX; startY = e.clientY; origX = el.offsetLeft; origY = el.offsetTop;
-                el.style.left = origX + 'px'; el.style.right = 'auto'; // Break CSS right alignment
+                el.style.left = origX + 'px'; el.style.right = 'auto'; 
             });
 
             el.addEventListener('pointermove', e => {
                 if(!isDown) return;
-                let newX = origX + (e.clientX - startX);
-                let newY = origY + (e.clientY - startY);
-                // Hard Boundary constraints (never let it go above top screen)
-                newX = Math.max(0, Math.min(newX, window.innerWidth - 60));
-                newY = Math.max(10, Math.min(newY, window.innerHeight - 30));
+                let newX = origX + (e.clientX - startX); let newY = origY + (e.clientY - startY);
+                newX = Math.max(0, Math.min(newX, window.innerWidth - 60)); newY = Math.max(10, Math.min(newY, window.innerHeight - 30));
                 el.style.left = newX + "px"; el.style.top = newY + "px";
             });
 
             const endDrag = (e) => { if(isDown) { el.releasePointerCapture(e.pointerId); isDown = false; } };
             el.addEventListener('pointerup', endDrag); el.addEventListener('pointercancel', endDrag);
             
-            // Header toggle
             const toggle = el.querySelector('.gui-toggle');
             if(toggle) {
                 toggle.addEventListener('pointerdown', e => {
@@ -606,6 +764,9 @@ Vol: -6, s2Pan: 0.5, s2Atk: 0.1, s2Dec: 0.3, s2Sus: 0.4, s2Rel: 2.0,
         document.getElementById('up-vfx').addEventListener('change', e => handleUp(e, url => { this.state.cfg.vfxImageUrl = url; }));
         document.getElementById('up-note-img').addEventListener('change', e => handleUp(e, url => { this.state.cfg.noteImages[this.state.cfg.targetNoteForImg] = { url: url, opac: 0.8 }; alert(`Image Mapped to ${this.state.cfg.targetNoteForImg}`); }));
         document.getElementById('up-sample').addEventListener('change', e => handleUp(e, (url, file) => this.addCustomSampler(url, file.name)));
+
+        document.getElementById('btn-oct-up').addEventListener('click', () => { if(this.state.cfg.octave < 6) { this.state.cfg.octave++; this.initGrid(); this.guiSnd.updateDisplay(); } });
+        document.getElementById('btn-oct-down').addEventListener('click', () => { if(this.state.cfg.octave > 1) { this.state.cfg.octave--; this.initGrid(); this.guiSnd.updateDisplay(); } });
 
         const btnPads = document.getElementById('btn-pads-edit');
         btnPads.addEventListener('click', () => {
@@ -761,13 +922,12 @@ Vol: -6, s2Pan: 0.5, s2Atk: 0.1, s2Dec: 0.3, s2Sus: 0.4, s2Rel: 2.0,
             const level = this.meter.getValue(); document.getElementById('btn-mute').classList.toggle('mute-active-audio', level > -40);
         } else { document.getElementById('btn-mute').classList.remove('mute-active-audio'); }
 
-        // Update Pads Logic (Progress & React)
         this.state.customSamplers.forEach(pad => { if(pad.updateVisuals) pad.updateVisuals(); });
 
         if (isAsleep || !sensorsActive) {
             this.particles.rotation.x += 0.001; this.particles.rotation.y += 0.002;
             this.ssRenderer.render(this.ssScene, this.ssCam);
-            this.renderVisualizer(); // keep updating master visuals if open
+            this.renderVisualizer(); 
             if(isAsleep) return; 
         }
 
