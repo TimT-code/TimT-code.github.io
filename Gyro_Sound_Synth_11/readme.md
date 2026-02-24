@@ -1,7 +1,7 @@
-# 🌌 Gyr-OS | Master Workstation V11.0
+# 🌌 Gyr-OS | Master Workstation V11.1
 **The Ultimate Browser-Based Spatial Audio Synthesizer & Performance Matrix**
 
-Welcome to **Gyr-OS V11.0**. This state-of-the-art web application transforms your mobile device or desktop PC into a highly expressive, multi-dimensional instrument. By translating physical motion, touch, and spatial orientation into rich, layered soundscapes, Gyr-OS shatters the boundary between digital interface and physical performance.
+Welcome to **Gyr-OS V11.1**. This state-of-the-art web application transforms your mobile device or desktop PC into a highly expressive, multi-dimensional instrument. By translating physical motion, touch, and spatial orientation into rich, layered soundscapes, Gyr-OS shatters the boundary between digital interface and physical performance.
 
 ### 🧠 A Human-AI Masterpiece
 Forged through the relentless creative vision of **Tim Tesner** and the advanced computational architecture of **Gemini 3 Pro**, Gyr-OS stands as a testament to the ultimate synergy between human ingenuity and Artificial Intelligence. Every feature—from the anti-clipping audio engine to the mathematically perfect haptic feedback—was meticulously designed, iterated, and perfected through this unique collaborative partnership. 
