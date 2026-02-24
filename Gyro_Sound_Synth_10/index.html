@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <link rel="manifest" href="manifest.json">
-    <title>Gyr-OS | Master Workstation V10.0</title>
+    <title>Gyr-OS | Master Workstation V10.1</title>
     
     <!-- 
       Author: Tim Tesner
       Co-Author / AI Assistance: Gemini 3 Pro
-      Gyr-OS Workstation Engine V10.0
+      Gyr-OS Workstation Engine V10.1
     -->
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
@@ -103,7 +103,7 @@
 <body>
 
 <div id="init-overlay">
-    <h1 style="color: var(--accent-neon); letter-spacing: 5px;">GYR-OS V10.0</h1>
+    <h1 style="color: var(--accent-neon); letter-spacing: 5px;">GYR-OS V10.1</h1>
     <p>AUTHOR: TIM TESNER & GEMINI 3 PRO</p>
     <button id="btn-start">INITIALIZE ENGINE</button>
     <div id="error-msg" style="color: #ff4444; margin-top: 15px;"></div>
@@ -116,13 +116,13 @@
         <button id="close-about" style="background:transparent; border:none; color:black; font-weight:bold; cursor:pointer; font-size:18px;">X</button>
     </div>
     <div id="about-content">
-        <h1>🌌 Gyr-OS | Master Workstation V10.0</h1>
+        <h1>🌌 Gyr-OS | Master Workstation V10.1</h1>
         <p><strong>Authors:</strong> Tim Tesner & Gemini 3 Pro <br> <strong>Date:</strong> February 2026</p>
         
         <h2>About The Engine</h2>
         <p>Gyr-OS is a state-of-the-art spatial audio synthesizer. It maps physical hardware sensor data (accelerometer, gyroscope) and traditional inputs (mouse/touch) directly into an interactive 3D musical space. </p>
 
-        <h2>Key Features & Upgrades (V10.0)</h2>
+        <h2>Key Features & Upgrades (V10.1)</h2>
         <ul>
             <li><strong>Global Silence/Resume Memory:</strong> The [SILENCE] button pauses all synth and custom audio pads, saving their exact microsecond buffer playback position. [RESUME] perfectly picks up where you left off.</li>
             <li><strong>Independent Audio Pads:</strong> Drop any <code>.wav</code> or <code>.mp3</code> onto the screen. Pads have their own Audio Bus, bypassing Master Mutes. They are fully draggable in "EDIT" mode.</li>
@@ -183,6 +183,7 @@
     <div class="gui-header"><span class="gui-toggle">▼</span><span>DIAGNOSTICS</span><span class="gui-toggle">▼</span></div>
     <div class="gui-content" style="padding:10px;">
         <div class="debug-row"><span>Status:</span> <span class="debug-val" id="dbg-status">Active</span></div>
+        <div class="debug-row"><span>Audio Ctx:</span> <span class="debug-val" id="dbg-ctx">--</span></div>
         <div class="debug-row"><span>Polyphony:</span> <span class="debug-val" id="dbg-poly">0</span></div>
         <div class="debug-row"><span>Pointer X/Y:</span> <span class="debug-val" id="dbg-ptr">0, 0</span></div>
         <div class="debug-row"><span>Gyro X/Y/Z:</span> <span class="debug-val" id="dbg-gyro">0, 0, 0</span></div>
@@ -210,15 +211,15 @@
             <button class="sys-btn" id="btn-p3">[P3]</button><button class="sys-btn" id="btn-p4">[P4]</button>
             <span style="color: #666; font-size: 10px; margin: auto 5px;">|</span>
             <button class="sys-btn" id="btn-oct-down">[- OCT]</button><button class="sys-btn" id="btn-oct-up">[+ OCT]</button>
-            <button class="sys-btn" id="btn-hold">⎄ HOLD</button>
+            <button class="sys-btn" id="btn-hold">⎄ HOLD: OFF</button>
             <button class="sys-btn" id="btn-pads-edit" style="border-color:#666; color:#666;">PADS: LOCKED</button>
         </div>
         <div class="hud-row">
-            <button class="sys-btn active" id="btn-sensors">⚡ SENSORS</button>
-            <button class="sys-btn" id="btn-mic">🎙️ MIC</button>
+            <button class="sys-btn active" id="btn-sensors">⚡ SENSORS: ON</button>
+            <button class="sys-btn" id="btn-mic">🎙️ MIC: OFF</button>
             <button class="sys-btn" id="btn-record">⏺ REC</button>
             <button class="sys-btn" id="btn-panic" style="border-color: #ffaa00; color: #ffaa00;">■ PANIC</button>
-            <button class="sys-btn btn-mute-on" id="btn-mute" style="border-color: #ff4444; color: white;">🔇 MUTE</button>
+            <button class="sys-btn btn-mute-on" id="btn-mute" style="border-color: #ff4444; color: white;">🔇 MUTE: ON</button>
         </div>
         <div class="hud-row">
             <button class="sys-btn" id="btn-silence" style="background:#444; color:white;">⏸ SILENCE (PAUSE ALL)</button>
@@ -241,7 +242,7 @@
 
 <script type="module">
 /**
- * GYR-OS WORKSTATION V10.0
+ * GYR-OS WORKSTATION V10.1
  * Author: Tim Tesner
  * Co-Author: Gemini 3 Pro
  */
@@ -270,7 +271,7 @@ window.GyrOS = {
         cfg: {
             sensSwapXY: false, sensInvertX: false, sensInvertY: false,
             gyroScale: 30, impactThresh: 15, playfieldPad: 0,
-            ptrOffsetX: 0, ptrOffsetY: 0, ptrSmoothing: 0.2, // Pointer controls
+            ptrOffsetX: 0, ptrOffsetY: 0, ptrSmoothing: 0.2,
             
             gridCols: 4, gridRows: 3, showGrid: true, perspective: false, colorNotes: true,
             hudColor: 'rgba(10, 10, 15, 0.85)', accentColor: '#00ffcc', waveColor: '#00ffcc',
@@ -306,7 +307,7 @@ window.GyrOS = {
             this.state.mode = this.state.defaultMode;
             this.renderModeButtons();
             
-            this.toggleMute(true); // Start muted and flashing
+            this.toggleMute(true); 
             document.getElementById('init-overlay').style.display = 'none';
             this.loop();
         } catch(err) { document.getElementById('error-msg').innerText = "Failed: " + err.message; }
@@ -369,18 +370,25 @@ window.GyrOS = {
             a.href = URL.createObjectURL(blob); a.download = `GyrOS_Rec_${Date.now()}.webm`; a.click();
         };
 
-        // Routing: Master Mute only affects synths. Pads bypass it straight to limiter.
+        // Routing Matrix
         this.muteNode = new Tone.Volume(-Infinity).connect(this.limiter);
         this.masterBus = new Tone.Volume(0).connect(this.muteNode);
         this.padBus = new Tone.Volume(0).connect(this.limiter); 
         
-        this.meter = new Tone.Meter().connect(this.masterBus); 
+        // Correct Metering Tap (Tap signal, do NOT connect TO source)
+        this.meter = new Tone.Meter();
+        this.masterBus.connect(this.meter); 
         
+        this.padMeter = new Tone.Meter();
+        this.padBus.connect(this.padMeter);
+
         this.eq = new Tone.EQ3(this.state.cfg.eqLow, this.state.cfg.eqMid, this.state.cfg.eqHigh).connect(this.masterBus);
         this.rack = { reverb: new Tone.Freeverb({ roomSize: 0.8 }).connect(this.eq), delay: new Tone.FeedbackDelay("8n", 0.3).connect(this.eq) };
         
+        // V10.1 BUG FIX: Microphone taps meter correctly
         this.mic = new Tone.UserMedia().connect(this.rack.delay);
-        this.micMeter = new Tone.Meter().connect(this.mic);
+        this.micMeter = new Tone.Meter();
+        this.mic.connect(this.micMeter);
 
         this.s1Phaser = new Tone.Phaser({ frequency: 15, octaves: 5, baseFrequency: 1000 }).connect(this.rack.delay);
         this.s1Dist = new Tone.Distortion(0).connect(this.s1Phaser);
@@ -487,9 +495,7 @@ window.GyrOS = {
 
     addCustomSampler(urlOrPath, nameStr) {
         const id = Date.now();
-        // Separate Volume node for this pad connected to independent padBus
         const volNode = new Tone.Volume(0).connect(this.padBus);
-        // Independent mute for just this pad
         const padMuteNode = new Tone.Volume(0).connect(volNode);
         const player = new Tone.Player({ url: urlOrPath, loop: false }).connect(padMuteNode);
         
@@ -630,7 +636,6 @@ window.GyrOS = {
         const now = Tone.now();
         const vol = Math.min(1, force / 40);
         
-        // Custom Haptic Formula by Tim Tesner
         let swingForce = force;
         let vVal = Math.trunc(swingForce * 10 / 2);
         document.getElementById('dbg-vib').innerText = vVal;
@@ -845,7 +850,6 @@ window.GyrOS = {
         btnMute.innerText = this.state.isMuted ? "🔇 MUTE: ON" : "🔊 MUTE: OFF";
     },
 
-    // Global Time-State System (Silence/Resume)
     silenceAll() {
         this.state.isSilenced = true;
         const now = Tone.now();
@@ -853,7 +857,6 @@ window.GyrOS = {
         this.thereminVol.volume.rampTo(-Infinity, 0.05);
         this.state.customSamplers.forEach(pad => {
             if(pad.player.state === 'started') {
-                // Modulo prevents NaN if loop goes past buffer length
                 pad.pausedAt = (now - pad.startTime) % pad.player.buffer.duration;
                 pad.wasPlaying = true;
                 pad.player.stop();
@@ -927,7 +930,6 @@ window.GyrOS = {
     },
 
     bindEvents() {
-        // Drag and Drop Files
         window.addEventListener('dragover', e => e.preventDefault());
         window.addEventListener('drop', e => {
             e.preventDefault();
@@ -937,11 +939,9 @@ window.GyrOS = {
             } else { alert("Please drop a valid audio file."); }
         });
 
-        // About Modal
         document.getElementById('btn-about').addEventListener('click', () => { document.getElementById('about-modal').style.display = 'flex'; });
         document.getElementById('close-about').addEventListener('click', () => { document.getElementById('about-modal').style.display = 'none'; });
 
-        // Preset P1-P4 Hot Swaps
         [1,2,3,4].forEach(n => {
             const b = document.getElementById(`btn-p${n}`);
             b.addEventListener('click', e => { if(e.shiftKey) this.savePreset(n); else this.loadPreset(n); });
@@ -954,8 +954,8 @@ window.GyrOS = {
         btnPads.addEventListener('click', () => {
             this.state.padsEditing = !this.state.padsEditing;
             btnPads.innerText = this.state.padsEditing ? "PADS: EDIT" : "PADS: LOCKED";
-            btnPads.style.borderColor = this.state.padsEditing ? "#ffaa00" : "#666";
-            btnPads.style.color = this.state.padsEditing ? "#ffaa00" : "#666";
+            btnPads.classList.toggle('btn-pads-edit', this.state.padsEditing);
+            btnPads.classList.toggle('btn-pads-locked', !this.state.padsEditing);
             document.getElementById('custom-buttons-layer').classList.toggle('editing', this.state.padsEditing);
         });
 
@@ -1046,13 +1046,11 @@ window.GyrOS = {
 
         const mapMouseTo3D = (cx, cy) => {
             if(!this.state.sensorsActive) return;
-            // Apply offsets and smoothing here to allow fine-tuning
             const x = (cx / window.innerWidth) * 2 - 1 + (this.state.cfg.ptrOffsetX * 0.1); 
             const y = -(cy / window.innerHeight) * 2 + 1 + (this.state.cfg.ptrOffsetY * 0.1);
             this.raycaster.setFromCamera(new THREE.Vector2(x, y), this.cam);
             const target = new THREE.Vector3(); this.raycaster.ray.intersectPlane(this.planeZ0, target);
             
-            // Send to pointer variable
             let targetX = target.x / 8; let targetY = target.y / 5;
             this.state.pointer.x += (targetX - this.state.pointer.x) * this.state.cfg.ptrSmoothing;
             this.state.pointer.y += (targetY - this.state.pointer.y) * this.state.cfg.ptrSmoothing;
@@ -1096,12 +1094,10 @@ window.GyrOS = {
         const { rawSensors, cfg, mode, pointer, isMuted, isAsleep, sensorsActive, isSilenced } = this.state;
         const now = Tone.now();
 
-        // Mute Pulsing (Prove Audio is running silently)
         if (isMuted) {
             const level = this.meter.getValue(); document.getElementById('btn-mute').classList.toggle('mute-active-audio', level > -40);
         } else { document.getElementById('btn-mute').classList.remove('mute-active-audio'); }
 
-        // Mic Threshold Recording
         if (this.state.waitingForRec && this.state.micActive) {
             if (this.micMeter.getValue() > cfg.recThreshold) {
                 this.recorder.start(); this.state.isRecording = true; this.state.waitingForRec = false;
@@ -1109,9 +1105,9 @@ window.GyrOS = {
             }
         }
 
-        // Update Debugger HUD
         if(cfg.showDebugger) {
             document.getElementById('dbg-status').innerText = isAsleep ? "ASLEEP" : (isMuted ? "MUTED" : (isSilenced ? "PAUSED" : "ACTIVE"));
+            document.getElementById('dbg-ctx').innerText = Tone.context.state;
             document.getElementById('dbg-poly').innerText = this.synth1.activeVoices + this.synth2.activeVoices;
             document.getElementById('dbg-ptr').innerText = `${pointer.x.toFixed(2)}, ${pointer.y.toFixed(2)}`;
             document.getElementById('dbg-gyro').innerText = `${rawSensors.x.toFixed(1)}, ${rawSensors.y.toFixed(1)}, ${rawSensors.z.toFixed(1)}`;
@@ -1126,7 +1122,6 @@ window.GyrOS = {
             if(isAsleep) return; 
         }
 
-        // Gyro override logic
         if(this.state.hasGyro && ![6,7].includes(mode)) {
             let inX = rawSensors.x; let inY = rawSensors.y;
             if(cfg.sensSwapXY) { let t = inX; inX = inY; inY = t; }
@@ -1141,7 +1136,6 @@ window.GyrOS = {
 
         this.pointerObj.position.x = pointer.x * 8; this.pointerObj.position.y = pointer.y * 5;
 
-        // Grid Raycast Bounds
         let gridX = Math.floor(mapRange(pointer.x, -1, 1, 0, cfg.gridCols)); let gridY = Math.floor(mapRange(pointer.y, 1, -1, 0, cfg.gridRows)); 
         gridX = Math.max(0, Math.min(cfg.gridCols - 1, gridX)); gridY = Math.max(0, Math.min(cfg.gridRows - 1, gridY));
         let newCell = gridY * cfg.gridCols + gridX;
