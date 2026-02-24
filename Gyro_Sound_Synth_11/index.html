@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <link rel="manifest" href="manifest.json">
+    <title>Gyr-OS | Master Workstation V11.0</title>
+    
+    <!-- 
+      Author: Tim Tesner
+      Co-Author / AI Assistance: Gemini 3 Pro
+      Gyr-OS Workstation Engine V11.0
+    -->
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tonaljs/tonal/browser/tonal.min.js"></script>
+
+    <style>
+        :root { --accent-neon: #00ffcc; --glass-bg: rgba(10, 10, 15, 0.85); --wave-color: #00ffcc; }
+        body, html { margin: 0; padding: 0; overflow: hidden; background: #020202; font-family: sans-serif; color: white; user-select: none; touch-action: none; }
+        
+        /* Splash Screen */
+        #splash-screen { position: fixed; inset: 0; z-index: 9999; background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; }
+        #splash-img { max-width: 300px; max-height: 300px; display: none; margin-bottom: 20px; border-radius: 10px; box-shadow: 0 0 20px var(--accent-neon); }
+        
+        #bg-layer { position: absolute; inset: 0; z-index: 0; background-size: cover; background-position: center; transition: opacity 0.3s; }
+        #canvas-container { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+        #screensaver-layer { position: absolute; inset: 0; z-index: 900; pointer-events: none; opacity: 0; transition: opacity 1s; background: rgba(0,0,0,0.8); }
+        
+        #playfield-wrapper { position: absolute; inset: 0px; z-index: 2; pointer-events: none; transition: 0.3s; }
+        #grid-overlay { position: absolute; inset: 0; display: grid; perspective: 1000px; transition: transform 0.1s; }
+        .grid-cell { border: 1px solid rgba(255,255,255,0.05); transition: all 0.1s; background-size: cover; background-position: center; display: flex; align-items: flex-end; justify-content: flex-end; padding: 5px; box-sizing: border-box; font-family: monospace; font-size: 11px; font-weight: bold; text-shadow: 1px 1px 2px black; pointer-events: auto; }
+        .grid-cell.active { border-color: var(--accent-neon); box-shadow: inset 0 0 30px var(--accent-neon); transform: translateZ(30px); z-index: 3; color: white !important; }
+
+        /* Draggable GUIs & Emergency Dodge */
+        .gui-window { position: absolute; z-index: 100; background: var(--glass-bg); border: 1px solid var(--accent-neon); border-radius: 6px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); transition: opacity 0.2s, transform 0.2s; display: flex; flex-direction: column; max-height: 75vh; min-width: 220px; }
+        .gui-window.dodging { opacity: 0.1 !important; transform: scale(0.8); pointer-events: none !important; }
+        .gui-header { background: var(--accent-neon); color: black; padding: 6px 10px; font-size: 12px; font-weight: bold; display: flex; justify-content: space-between; touch-action: none; cursor: grab; flex-shrink: 0; }
+        .gui-header:active { cursor: grabbing; }
+        .gui-toggle { cursor: pointer; padding: 0 5px; font-size: 14px; }
+        .gui-content { overflow-y: auto; overflow-x: hidden; flex-grow: 1; position: relative; }
+        
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.5); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: var(--accent-neon); border-radius: 4px; }
+
+        #gui-left { top: 40px; left: 20px; } #gui-center { top: 40px; left: 50%; transform: translateX(-50%); } #gui-right { top: 40px; right: 20px; }
+        #debugger-window { top: 40px; right: 280px; width: 220px; display: none; }
+        #visualizer-window { top: 400px; right: 20px; width: 300px; height: 150px; resize: both; overflow: hidden; display: none; }
+        
+        #bottom-hud { top: calc(100vh - 220px); left: 50vw; transform: translateX(-50%); width: 95vw; max-width: 900px; height: auto; resize: both; overflow: hidden; z-index: 150; }
+        
+        /* Custom Pads (Audio & Speech) */
+        #custom-buttons-layer { position: absolute; inset: 0; z-index: 80; pointer-events: none; }
+        #custom-buttons-layer.editing { pointer-events: auto; background: rgba(0, 255, 204, 0.05); }
+        
+        .custom-sampler-btn, .speech-pad-btn { position: absolute; background: rgba(0,0,0,0.8); border: 2px solid var(--accent-neon); color: var(--accent-neon); border-radius: 8px; font-family: monospace; cursor: pointer; touch-action: none; box-shadow: 0 4px 10px rgba(0,0,0,0.5); transition: transform 0.1s; overflow: visible; resize: both; min-width: 120px; min-height: 60px; pointer-events: auto; display: flex; flex-direction: column; justify-content: space-between; }
+        .custom-sampler-btn:active, .speech-pad-btn:active { transform: scale(0.98); }
+        .pad-title { position: relative; z-index: 2; padding: 5px; font-weight: bold; pointer-events: none; text-shadow: 1px 1px 2px black; font-size: 12px; }
+        .pad-react-bg { position: absolute; inset: 0; background: var(--accent-neon); opacity: 0; z-index: 0; pointer-events: none; }
+        
+        .pad-controls { display: flex; gap: 5px; padding: 5px; z-index: 2; background: rgba(0,0,0,0.6); align-items: center; }
+        .pad-controls button { background: #333; color: white; border: 1px solid #666; border-radius: 3px; cursor: pointer; font-size: 10px; padding: 2px 5px; }
+        .pad-controls input[type="range"] { width: 100%; height: 4px; accent-color: var(--accent-neon); }
+
+        @keyframes padPulse { 0% { box-shadow: 0 0 5px var(--accent-neon); } 100% { box-shadow: 0 0 25px var(--accent-neon); } }
+        .pad-pulsing { animation: padPulse 0.4s infinite alternate; }
+
+        .pad-gear { position: absolute; top: -10px; right: -10px; background: #000; border: 1px solid var(--accent-neon); border-radius: 50%; width: 24px; height: 24px; color: var(--accent-neon); cursor: pointer; z-index: 10; font-size: 12px; display: none; justify-content: center; align-items: center; }
+        #custom-buttons-layer.editing .pad-gear { display: flex; }
+        
+        .pad-settings-menu { position: absolute; top: 100%; left: 0; background: rgba(10,10,15,0.95); border: 1px solid var(--accent-neon); padding: 10px; border-radius: 4px; display: none; flex-direction: column; gap: 5px; min-width: 200px; z-index: 1000; cursor: default; }
+        .pad-settings-menu.open { display: flex; }
+        .pad-settings-menu label { font-size: 10px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
+        .pad-settings-menu input, .pad-settings-menu select { background: #000; color: #fff; border: 1px solid #444; padding: 2px; font-size: 10px; max-width: 100px; }
+        
+        .debug-row { display: flex; justify-content: space-between; font-family: monospace; font-size: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); padding: 2px 0; }
+        .debug-val { color: var(--accent-neon); }
+
+        .hud-row { display: flex; gap: 4px; justify-content: center; padding: 4px; flex-wrap: wrap; background: rgba(0,0,0,0.4); }
+        .sys-btn { padding: 6px 10px; background: rgba(0,0,0,0.8); border: 1px solid var(--accent-neon); color: var(--accent-neon); border-radius: 4px; cursor: pointer; font-size: 10px; font-weight: bold; transition: 0.2s; }
+        .sys-btn.active { background: var(--accent-neon); color: #000; box-shadow: 0 0 10px var(--accent-neon); }
+        .sys-btn:hover { background: rgba(0,255,204,0.3); color: white; }
+        
+        /* Emergency Buttons & Mute/Resume states */
+        @keyframes mutePulse { 0% { box-shadow: 0 0 5px red; background: rgba(255,0,0,0.5); color: white; } 100% { box-shadow: 0 0 30px red; background: rgba(255,0,0,1); color: white; } }
+        .btn-mute-on { background: rgba(255,0,0,0.8) !important; color: white !important; border-color: red !important; }
+        .mute-active-audio { animation: mutePulse 0.2s infinite alternate !important; border-color: white !important; }
+        
+        .resume-active { background: #00ffcc !important; color: #000 !important; animation: padPulse 0.5s infinite alternate; }
+        .resume-disabled { background: #333 !important; color: #666 !important; border-color: #444 !important; pointer-events: none; }
+
+        .btn-recording { background: red !important; color: white !important; animation: mutePulse 1s infinite alternate; }
+
+        /* About Modal */
+        #about-modal { position: fixed; inset: 5%; background: rgba(10,10,15,0.95); border: 2px solid var(--accent-neon); border-radius: 12px; z-index: 5000; display: none; flex-direction: column; box-shadow: 0 0 50px rgba(0,0,0,0.8); }
+        #about-header { padding: 15px; background: var(--accent-neon); color: black; font-weight: bold; display: flex; justify-content: space-between; font-size: 18px; }
+        #about-content { padding: 20px; overflow-y: auto; font-family: sans-serif; color: #ddd; line-height: 1.6; }
+        #about-content h1, #about-content h2 { color: var(--accent-neon); }
+        
+        .vfx-layer { position: absolute; pointer-events: none; transform: translate(-50%, -50%); transform-origin: center; z-index: 10; }
+        input[type="file"] { display: none; }
+    </style>
+</head>
+<body>
+
+<!-- SPLASH SCREEN -->
+<div id="splash-screen">
+    <img id="splash-img" src="" alt="Splash Image">
+    <h1 style="color: var(--accent-neon); letter-spacing: 5px; text-shadow: 0 0 20px var(--accent-neon);">GYR-OS V11.0</h1>
+    <p style="color:#aaa;">AUTHOR: TIM TESNER & GEMINI 3 PRO</p>
+    <button id="btn-start" style="padding: 20px 40px; font-size: 1.5rem; background: var(--accent-neon); border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top:20px;">INITIALIZE ENGINE</button>
+    <div id="error-msg" style="color: #ff4444; margin-top: 15px;"></div>
+</div>
+
+<div id="bg-layer"></div>
+<div id="canvas-container"></div>
+<div id="screensaver-layer"></div>
+
+<div id="playfield-wrapper"><div id="grid-overlay"></div></div>
+<div id="custom-buttons-layer"></div>
+
+<!-- About Modal -->
+<div id="about-modal">
+    <div id="about-header">
+        <span>Gyr-OS | About & Documentation</span>
+        <button id="close-about" style="background:transparent; border:none; color:black; font-weight:bold; cursor:pointer; font-size:18px;">X</button>
+    </div>
+    <div id="about-content">
+        <h1>🌌 Gyr-OS | Master Workstation V11.0</h1>
+        <p><strong>Authors:</strong> Tim Tesner & Gemini 3 Pro <br> <strong>Date:</strong> February 2026</p>
+        <h2>Key Features (V11.0)</h2>
+        <ul>
+            <li><strong>True Polyphonic Touch/Strumming:</strong> Modes 6 & 7 instantly snap to touch. Hold notes to sustain them. Drag across the screen to strum multiple pads (polyphony).</li>
+            <li><strong>Emergency UI Dodge:</strong> Floating GUIs will instantly become transparent and shrink if they overlap the critical Stop/Mute/Panic buttons while your mouse/finger approaches them.</li>
+            <li><strong>Global Silence Memory:</strong> [⏸ SILENCE] pauses all samplers precisely at their millisecond position. If audio was paused, [▶ RESUME] flashes and is enabled. If no audio was playing, it safely grays out.</li>
+            <li><strong>Multi Web Speech Pads:</strong> Create infinite draggable text-to-speech pads, each with independent voices, rates, and triggers.</li>
+            <li><strong>Master Config Hot-Swaps:</strong> Hold <code>Shift</code> and click [P1]-[P4] to save the absolute entire state of the engine (GUI positions, folder states, all synth params, colors). Click to load instantly.</li>
+            <li><strong>Independent Audio Pad Ecosystem:</strong> Audio pads bypass the master mute, have individual controls, and accept server-side URL paths directly.</li>
+        </ul>
+        <p><em>"Music is the space between the notes. Gyr-OS lets you physically touch that space."</em></p>
+    </div>
+</div>
+
+<!-- GUIs -->
+<div class="gui-window" id="gui-left">
+    <div class="gui-header"><span class="gui-toggle">▼</span><span>SYSTEM & SENSORS</span><span class="gui-toggle">▼</span></div>
+    <div class="gui-content" id="gui-left-content"></div>
+</div>
+
+<div class="gui-window" id="gui-center">
+    <div class="gui-header"><span class="gui-toggle">▼</span><span>VISUALS & MEDIA</span><span class="gui-toggle">▼</span></div>
+    <div class="gui-content" id="gui-center-content"></div>
+</div>
+
+<div class="gui-window" id="gui-right">
+    <div class="gui-header"><span class="gui-toggle">▼</span><span>SYNTH ENGINE</span><span class="gui-toggle">▼</span></div>
+    <div class="gui-content" id="gui-right-content"></div>
+</div>
+
+<div class="gui-window" id="debugger-window">
+    <div class="gui-header"><span class="gui-toggle">▼</span><span>DIAGNOSTICS</span><span class="gui-toggle">▼</span></div>
+    <div class="gui-content" style="padding:10px;">
+        <div class="debug-row"><span>Status:</span> <span class="debug-val" id="dbg-status">Active</span></div>
+        <div class="debug-row"><span>Audio Ctx:</span> <span class="debug-val" id="dbg-ctx">--</span></div>
+        <div class="debug-row"><span>Polyphony:</span> <span class="debug-val" id="dbg-poly">0</span></div>
+        <div class="debug-row"><span>Pointer X/Y:</span> <span class="debug-val" id="dbg-ptr">0, 0</span></div>
+        <div class="debug-row"><span>Gyro X/Y/Z:</span> <span class="debug-val" id="dbg-gyro">0, 0, 0</span></div>
+        <div class="debug-row"><span>Accel (Raw):</span> <span class="debug-val" id="dbg-acc">0</span></div>
+        <div class="debug-row"><span>Mic Level:</span> <span class="debug-val" id="dbg-mic">0</span></div>
+        <div class="debug-row" style="border-top:1px solid var(--accent-neon); margin-top:5px; padding-top:5px;">
+            <span>Vibrate Value:</span> <span class="debug-val" id="dbg-vib" style="font-weight:bold;">0</span>
+        </div>
+        <div style="font-size:8px; color:#888; text-align:right;">Formula: trunc(acc * 10 / 2)</div>
+    </div>
+</div>
+
+<div class="gui-window" id="visualizer-window">
+    <div class="gui-header"><span class="gui-toggle">▼</span><span>MASTER VISUALS</span><span class="gui-toggle">▼</span></div>
+    <div class="gui-content" style="padding: 0; overflow: hidden;"><canvas id="vis-canvas" style="width:100%; height:100%; background:rgba(0,0,0,0.5);"></canvas></div>
+</div>
+
+<!-- Draggable Bottom HUD with Emergency Buttons -->
+<div class="gui-window" id="bottom-hud">
+    <div class="gui-header"><span class="gui-toggle">▼</span><span>MASTER CONTROL BAR</span><span class="gui-toggle">▼</span></div>
+    <div class="gui-content" style="display:flex; flex-direction:column; padding-bottom:5px;">
+        <div class="hud-row" id="mode-btn-container"></div>
+        <div class="hud-row">
+            <button class="sys-btn" id="btn-p1">[P1]</button><button class="sys-btn" id="btn-p2">[P2]</button>
+            <button class="sys-btn" id="btn-p3">[P3]</button><button class="sys-btn" id="btn-p4">[P4]</button>
+            <span style="color: #666; font-size: 10px; margin: auto 5px;">|</span>
+            <button class="sys-btn" id="btn-oct-down">[- OCT]</button><button class="sys-btn" id="btn-oct-up">[+ OCT]</button>
+            <button class="sys-btn" id="btn-pads-edit" style="border-color:#666; color:#666;">PADS: LOCKED</button>
+            <button class="sys-btn active" id="btn-sensors">⚡ SENSORS: ON</button>
+            <button class="sys-btn" id="btn-mic">🎙️ MIC: OFF</button>
+            <button class="sys-btn" id="btn-record">⏺ REC</button>
+        </div>
+        
+        <!-- THE EMERGENCY ROW (Dodges other GUIs) -->
+        <div class="hud-row" id="emergency-row">
+            <button class="sys-btn btn-mute-on mute-active-audio" id="btn-mute" style="font-size:12px;">🔇 MUTE: ON</button>
+            <button class="sys-btn" id="btn-panic" style="border-color:#ffaa00; color:#ffaa00; font-size:12px;">■ PANIC</button>
+            <button class="sys-btn" id="btn-silence" style="background:#444; color:white; font-size:12px;">⏸ SILENCE ALL</button>
+            <button class="sys-btn resume-disabled" id="btn-resume" style="font-size:12px;">▶ RESUME</button>
+            <button class="sys-btn" id="btn-stopall" style="background:#cc0000; color:white; font-size:12px;">⏹ STOP</button>
+            <button class="sys-btn" id="btn-about" style="border-radius: 50%;">?</button>
+        </div>
+        <canvas id="master-waveform" style="width:100%; height:30px; border-top:1px solid rgba(255,255,255,0.1); margin-top:5px; pointer-events: none;"></canvas>
+    </div>
+</div>
+
+<input type="file" id="up-config" accept=".json">
+<input type="file" id="up-s1" accept=".json">
+<input type="file" id="up-s2" accept=".json">
+<input type="file" id="up-th" accept=".json">
+<input type="file" id="up-bg" accept="image/*">
+<input type="file" id="up-vfx" accept="image/*">
+<input type="file" id="up-note-img" accept="image/*">
+<input type="file" id="up-splash-img" accept="image/*">
+<input type="file" id="up-splash-aud" accept="audio/*">
+
+<script type="importmap">
+    { "imports": { "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.js" } }
+</script>
+
+<script type="module">
+/**
+ * GYR-OS WORKSTATION V11.0
+ * Author: Tim Tesner
+ * Co-Author: Gemini 3 Pro
+ */
+
+import * as THREE from 'three';
+import * as Tone from 'https://esm.sh/tone';
+
+const mapRange = (val, inMin, inMax, outMin, outMax) => ((val - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
+
+const NOTE_COLORS = { 'C': 0, 'C#': 30, 'D': 60, 'D#': 90, 'E': 120, 'F': 150, 'F#': 180, 'G': 210, 'G#': 240, 'A': 270, 'A#': 300, 'B': 330 };
+function getNoteColor(noteStr) {
+    if (!noteStr) return 'rgba(255,255,255,0.1)';
+    let base = noteStr.replace(/\d+/, ''); let oct = parseInt(noteStr.replace(/\D+/g, '')) || 3;
+    let hue = NOTE_COLORS[base] || 0; let light = 20 + (oct * 8); 
+    return `hsla(${hue}, 80%, ${light}%, 0.3)`;
+}
+
+window.GyrOS = {
+    state: {
+        mode: 1, defaultMode: 1, hasGyro: false, uiHidden: false, isMuted: true, isAsleep: false, sensorsActive: true, padsEditing: false, zIndexCounter: 150,
+        micActive: false, isRecording: false, waitingForRec: false, speechVoices: [], isSilenced: false, hasPausedAudio: false,
+        rawSensors: { x: 0, y: 0, z: 0, acc: 0 },
+        pointer: { x: 0, y: 0 }, lastInteraction: Date.now(),
+        activeCellIdx: -1, lastArpTime: 0, customSamplers: [], speechPads: [],
+        activeChords: new Set(), // Tracks sustained polyphonic notes
+        
+        cfg: {
+            showSplash: true, splashImgUrl: null, splashAudioUrl: null,
+
+            sensSwapXY: false, sensInvertX: false, sensInvertY: false,
+            gyroScale: 30, impactThresh: 15, playfieldPad: 0,
+            ptrOffsetX: 0, ptrOffsetY: 0, ptrSmoothing: 0.2, 
+            
+            gridCols: 4, gridRows: 3, showGrid: true, perspective: false, colorNotes: true,
+            hudColor: 'rgba(10, 10, 15, 0.85)', accentColor: '#00ffcc', waveColor: '#00ffcc',
+            bgImageUrl: null, bgOpacity: 1.0, bgSize: 'cover',
+            pointerSize: 1.0, pointerOpac: 1.0, hidePointerTouch: false,
+            showVisualizer: false, showDebugger: false,
+            
+            vfxImageUrl: null, vfxOpac: 0.8, vfxScale: 2.0, vfxSpeed: 0.5, targetNoteForImg: 'C',
+            
+            masterVol: -2, eqLow: 0, eqMid: 0, eqHigh: 0, reverbMix: 0.3, delayMix: 0.2, arpRate: 0.15,
+            scale: 'pentatonic', root: 'C', octave: 3, synthPreset: 'Custom',
+            
+            thOn: true, thereminWave: 'sine', thBaseFreq: 100, thMaxFreq: 2000, thVolMax: 0, thVolMin: -40,
+            s1On: true, s1Type: 'Synth', s1Vol: -4, s1Pan: -0.5, s1Atk: 0.05, s1Dec: 0.2, s1Sus: 0.5, s1Rel: 1.5, s1Dist: 0, s1Phaser: 0,
+            s2On: true, s2Type: 'FMSynth', s2Vol: -6, s2Pan: 0.5, s2Atk: 0.1, s2Dec: 0.3, s2Sus: 0.4, s2Rel: 2.0, s2Dist: 0, s2Phaser: 0,
+
+            recMode: 'Immediate', recThreshold: -20, recTimer: 5,
+            
+            m1: true, m2: true, m3: true, m4: true, m5: true, m6: true, m7: true, m8: true,
+            guiFolders: {}, cells: [], noteImages: {}, windowPositions: {}
+        }
+    },
+
+    modesList: [ { id: 1, name: "1: THEREMIN" }, { id: 2, name: "2: IMPACT" }, { id: 3, name: "3: HYBRID" }, { id: 4, name: "4: HOVER" }, { id: 5, name: "5: ARP" }, { id: 6, name: "6: TOUCH" }, { id: 7, name: "7: TCH+THER" }, { id: 8, name: "8: THER+SYN" } ],
+    scalesList: ['major', 'minor', 'pentatonic', 'chromatic', 'lydian', 'dorian', 'mixolydian', 'phrygian', 'blues'],
+
+    synthPresets: {
+        "Custom": {},
+        "Pluck Bass": { s1Type: 'FMSynth', s1Atk: 0.01, s1Dec: 0.1, s1Sus: 0, s1Rel: 0.5, s2Type: 'AMSynth', s2Atk: 0.01, s2Dec: 0.2, s2Sus: 0, s2Rel: 0.4 },
+        "Ethereal Pad": { s1Type: 'Synth', s1Atk: 1.5, s1Dec: 2, s1Sus: 1, s1Rel: 3, s2Type: 'FMSynth', s2Atk: 2, s2Dec: 1, s2Sus: 0.8, s2Rel: 4, reverbMix: 0.8 },
+        "Harsh Lead": { s1Type: 'Sawtooth', s1Atk: 0.05, s1Dec: 0.1, s1Sus: 0.8, s1Rel: 0.1, s1Dist: 0.8, s2Type: 'Square', s2Dist: 0.5 }
+    },
+
+    async loadSplash() {
+        const splash = document.getElementById('splash-screen');
+        if(!this.state.cfg.showSplash) { splash.style.display = 'none'; return; }
+        
+        if(this.state.cfg.splashImgUrl) {
+            const img = document.getElementById('splash-img');
+            img.src = this.state.cfg.splashImgUrl;
+            img.style.display = 'block';
+        }
+    },
+
+    async init() {
+        try {
+            await Tone.start();
+            if(this.state.cfg.splashAudioUrl) {
+                const splashAudio = new Tone.Player(this.state.cfg.splashAudioUrl).toDestination();
+                splashAudio.autostart = true;
+            }
+
+            try { await this.detectSensors(); this.state.hasGyro = true; } catch(e) { this.state.hasGyro = false; }
+            this.initAudio(); this.initVisuals(); this.initSpeech(); this.initGrid(); this.initGUIs();
+            this.makeGUIsDraggable(); this.bindEvents(); 
+            this.state.mode = this.state.defaultMode;
+            this.renderModeButtons();
+            
+            document.getElementById('splash-screen').style.opacity = 0;
+            setTimeout(() => document.getElementById('splash-screen').style.display = 'none', 500);
+
+            this.toggleMute(true); 
+            this.loop();
+        } catch(err) { document.getElementById('error-msg').innerText = "Failed: " + err.message; }
+    },
+
+    async detectSensors() {
+        if (!window.DeviceOrientationEvent) throw new Error("No hardware");
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+            const p = await DeviceOrientationEvent.requestPermission();
+            if (p !== 'granted') throw new Error("Permission denied");
+        }
+        return new Promise((res, rej) => {
+            const t = setTimeout(() => { window.removeEventListener('deviceorientation', check); rej(); }, 1000);
+            const check = (e) => { if (e.alpha !== null) { clearTimeout(t); res(); } };
+            window.addEventListener('deviceorientation', check);
+        });
+    },
+
+    initSpeech() {
+        if('speechSynthesis' in window) {
+            const populateVoices = () => { this.state.speechVoices = window.speechSynthesis.getVoices(); };
+            populateVoices();
+            window.speechSynthesis.onvoiceschanged = populateVoices;
+        }
+    },
+
+    addSpeechPad() {
+        const id = Date.now();
+        const data = { id, text: 'Hello World', voiceIdx: 0, rate: 1.0, pitch: 1.0, zIndex: 85 };
+        this.state.speechPads.push(data);
+        
+        const btn = document.createElement('div');
+        btn.className = 'speech-pad-btn';
+        btn.style.left = '150px'; btn.style.top = '150px';
+        btn.style.zIndex = data.zIndex;
+        btn.style.borderColor = '#ff00cc';
+        btn.style.color = '#ff00cc';
+        
+        // Build Voices HTML
+        let vHTML = '';
+        this.state.speechVoices.forEach((v, i) => { vHTML += `<option value="${i}">${v.name.substring(0,15)}</option>`; });
+
+        btn.innerHTML = `
+            <div class="pad-gear" style="color:#ff00cc; border-color:#ff00cc;">⚙</div>
+            <div class="pad-title" style="color:white;">🗣️ SPEECH</div>
+            <div class="pad-controls" style="justify-content:center;">
+                <button class="ui-btn-play">▶ PLAY</button>
+            </div>
+            
+            <div class="pad-settings-menu" style="border-color:#ff00cc;">
+                <label>Text: <input type="text" class="set-text" value="${data.text}"></label>
+                <label>Voice: <select class="set-voice">${vHTML}</select></label>
+                <label>Rate: <input type="range" class="set-rate" min="0.1" max="2" step="0.1" value="1"></label>
+                <label>Pitch: <input type="range" class="set-pitch" min="0.1" max="2" step="0.1" value="1"></label>
+                <label>Z-Index: <input type="number" class="set-z" value="85"></label>
+                <button class="set-del-btn" style="border-color:red; color:red; margin-top:5px;">🗑 Delete Pad</button>
+            </div>
+        `;
+        
+        const menu = btn.querySelector('.pad-settings-menu');
+        const gear = btn.querySelector('.pad-gear');
+
+        gear.addEventListener('pointerdown', e => { e.stopPropagation(); menu.classList.toggle('open'); });
+        menu.addEventListener('pointerdown', e => e.stopPropagation()); 
+        
+        btn.querySelector('.set-text').addEventListener('input', e => data.text = e.target.value);
+        btn.querySelector('.set-voice').addEventListener('change', e => data.voiceIdx = e.target.value);
+        btn.querySelector('.set-rate').addEventListener('input', e => data.rate = parseFloat(e.target.value));
+        btn.querySelector('.set-pitch').addEventListener('input', e => data.pitch = parseFloat(e.target.value));
+        btn.querySelector('.set-z').addEventListener('input', e => { data.zIndex = parseInt(e.target.value); btn.style.zIndex = data.zIndex; });
+        
+        btn.querySelector('.set-del-btn').addEventListener('click', () => { btn.remove(); this.state.speechPads = this.state.speechPads.filter(s => s.id !== id); });
+
+        const firePad = () => {
+            window.speechSynthesis.cancel(); // Stop others
+            const ut = new SpeechSynthesisUtterance(data.text);
+            if(this.state.speechVoices[data.voiceIdx]) ut.voice = this.state.speechVoices[data.voiceIdx];
+            ut.rate = data.rate; ut.pitch = data.pitch;
+            window.speechSynthesis.speak(ut);
+            btn.classList.add('pad-pulsing');
+            ut.onend = () => btn.classList.remove('pad-pulsing');
+        };
+
+        btn.querySelector('.ui-btn-play').addEventListener('pointerdown', (e) => { e.stopPropagation(); firePad(); });
+
+        let isDown = false, startX, startY, origX, origY, hasMoved = false;
+        btn.addEventListener('pointerdown', e => {
+            if(e.target.closest('.pad-settings-menu') || e.target.closest('.pad-controls') || e.target === gear) return;
+            e.stopPropagation();
+            if(!this.state.padsEditing) { firePad(); return; } 
+            isDown = true; hasMoved = false; startX = e.clientX; startY = e.clientY; origX = btn.offsetLeft; origY = btn.offsetTop;
+            btn.setPointerCapture(e.pointerId);
+            btn.style.zIndex = data.zIndex + 100; 
+        });
+        
+        btn.addEventListener('pointermove', e => {
+            if(!isDown || !this.state.padsEditing) return;
+            hasMoved = true; btn.style.left = (origX + e.clientX - startX) + 'px'; btn.style.top = (origY + e.clientY - startY) + 'px';
+        });
+        
+        const end = (e) => {
+            if(!isDown) return;
+            isDown = false; btn.releasePointerCapture(e.pointerId);
+            btn.style.zIndex = data.zIndex;
+            if(!hasMoved && this.state.padsEditing) firePad(); 
+        };
+        btn.addEventListener('pointerup', end); btn.addEventListener('pointercancel', end);
+
+        document.getElementById('custom-buttons-layer').appendChild(btn);
+    },
+
+    initAudio() {
+        this.analyser = new Tone.Analyser("waveform", 1024);
+        this.masterVis = new Tone.Analyser("waveform", 512); 
+        this.limiter = new Tone.Limiter(-2).connect(this.analyser).connect(this.masterVis).toDestination();
+        
+        this.streamDest = Tone.context.createMediaStreamDestination();
+        this.limiter.connect(this.streamDest);
+        this.recorder = new MediaRecorder(this.streamDest.stream);
+        this.recChunks = [];
+        this.recorder.ondataavailable = e => { if (e.data.size > 0) this.recChunks.push(e.data); };
+        this.recorder.onstop = () => {
+            const blob = new Blob(this.recChunks, { type: 'audio/webm' });
+            this.recChunks = [];
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob); a.download = `GyrOS_Rec_${Date.now()}.webm`; a.click();
+        };
+
+        this.muteNode = new Tone.Volume(-Infinity).connect(this.limiter);
+        this.masterBus = new Tone.Volume(0).connect(this.muteNode);
+        this.padBus = new Tone.Volume(0).connect(this.limiter); 
+        
+        this.meter = new Tone.Meter(); this.masterBus.connect(this.meter); 
+        this.padMeter = new Tone.Meter(); this.padBus.connect(this.padMeter);
+
+        this.eq = new Tone.EQ3(this.state.cfg.eqLow, this.state.cfg.eqMid, this.state.cfg.eqHigh).connect(this.masterBus);
+        this.rack = { reverb: new Tone.Freeverb({ roomSize: 0.8 }).connect(this.eq), delay: new Tone.FeedbackDelay("8n", 0.3).connect(this.eq) };
+        
+        this.mic = new Tone.UserMedia().connect(this.rack.delay);
+        this.micMeter = new Tone.Meter(); this.mic.connect(this.micMeter);
+
+        this.s1Phaser = new Tone.Phaser({ frequency: 15, octaves: 5, baseFrequency: 1000 }).connect(this.rack.delay);
+        this.s1Dist = new Tone.Distortion(0).connect(this.s1Phaser);
+        this.s1Pan = new Tone.Panner(this.state.cfg.s1Pan).connect(this.s1Dist);
+        this.synth1 = new Tone.PolySynth(Tone[this.state.cfg.s1Type], { maxPolyphony: 12 }).connect(this.s1Pan);
+        
+        this.s2Phaser = new Tone.Phaser({ frequency: 15, octaves: 5, baseFrequency: 1000 }).connect(this.rack.delay);
+        this.s2Dist = new Tone.Distortion(0).connect(this.s2Phaser);
+        this.s2Pan = new Tone.Panner(this.state.cfg.s2Pan).connect(this.s2Dist);
+        this.synth2 = new Tone.PolySynth(Tone[this.state.cfg.s2Type], { maxPolyphony: 12 }).connect(this.s2Pan);
+        
+        this.theremin = new Tone.Oscillator(this.state.cfg.thBaseFreq, this.state.cfg.thereminWave).start();
+        this.thereminVol = new Tone.Volume(-Infinity).connect(this.rack.reverb);
+        this.theremin.connect(this.thereminVol);
+
+        this.updateSynths();
+    },
+
+    updateSynths() {
+        this.synth1.volume.value = this.state.cfg.s1Vol; this.s1Pan.pan.value = this.state.cfg.s1Pan;
+        this.s1Dist.distortion = this.state.cfg.s1Dist; this.s1Phaser.wet.value = this.state.cfg.s1Phaser;
+        this.synth1.set({ envelope: { attack: this.state.cfg.s1Atk, decay: this.state.cfg.s1Dec, sustain: this.state.cfg.s1Sus, release: this.state.cfg.s1Rel } });
+        
+        this.synth2.volume.value = this.state.cfg.s2Vol; this.s2Pan.pan.value = this.state.cfg.s2Pan;
+        this.s2Dist.distortion = this.state.cfg.s2Dist; this.s2Phaser.wet.value = this.state.cfg.s2Phaser;
+        this.synth2.set({ envelope: { attack: this.state.cfg.s2Atk, decay: this.state.cfg.s2Dec, sustain: this.state.cfg.s2Sus, release: this.state.cfg.s2Rel } });
+        
+        this.theremin.type = this.state.cfg.thereminWave;
+    },
+
+    applySynthPreset() {
+        const p = this.synthPresets[this.state.cfg.synthPreset];
+        if(p) {
+            Object.keys(p).forEach(k => this.state.cfg[k] = p[k]);
+            this.updateSynths();
+            // Update GUI displays safely
+            if(this.guiSnd) {
+                for(var f in this.guiSnd.__folders) {
+                    for(var i in this.guiSnd.__folders[f].__controllers) {
+                        this.guiSnd.__folders[f].__controllers[i].updateDisplay();
+                    }
+                }
+            }
+        }
+    },
+
+    initVisuals() {
+        this.scene = new THREE.Scene();
+        this.cam = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('canvas-container').appendChild(this.renderer.domElement);
+
+        this.pointerMaterial = new THREE.MeshBasicMaterial({ color: this.state.cfg.accentColor, wireframe: true, transparent: true });
+        this.pointerObj = new THREE.Mesh(new THREE.SphereGeometry(0.8, 16, 16), this.pointerMaterial);
+        this.scene.add(this.pointerObj);
+        
+        this.gridHelper = new THREE.GridHelper(100, 50, 0x222222, 0x111111);
+        this.gridHelper.rotation.x = Math.PI / 2; this.gridHelper.position.z = -5;
+        this.scene.add(this.gridHelper);
+        this.cam.position.z = 10;
+        
+        this.ssScene = new THREE.Scene(); this.ssCam = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000); this.ssCam.position.z = 50;
+        this.ssRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); this.ssRenderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('screensaver-layer').appendChild(this.ssRenderer.domElement);
+        
+        const geom = new THREE.BufferGeometry(); const verts = [];
+        for(let i=0; i<2000; i++) verts.push(THREE.MathUtils.randFloatSpread(200), THREE.MathUtils.randFloatSpread(200), THREE.MathUtils.randFloatSpread(200));
+        geom.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+        this.particles = new THREE.Points(geom, new THREE.PointsMaterial({ color: 0x00ffcc, size: 0.5 }));
+        this.ssScene.add(this.particles);
+
+        this.raycaster = new THREE.Raycaster();
+        this.planeZ0 = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+        this.applyTheme();
+    },
+
+    applyTheme() {
+        document.documentElement.style.setProperty('--accent-neon', this.state.cfg.accentColor);
+        document.documentElement.style.setProperty('--glass-bg', this.state.cfg.hudColor);
+        document.documentElement.style.setProperty('--wave-color', this.state.cfg.waveColor);
+        this.pointerMaterial.color.set(this.state.cfg.accentColor);
+        this.pointerMaterial.opacity = this.state.cfg.pointerOpac;
+        this.pointerObj.scale.setScalar(this.state.cfg.pointerSize);
+        this.pointerObj.visible = (!this.state.cfg.hidePointerTouch || ![6,7].includes(this.state.mode));
+        this.particles.material.color.set(this.state.cfg.accentColor);
+        
+        const bg = document.getElementById('bg-layer');
+        if(this.state.cfg.bgImageUrl) { bg.style.backgroundImage = `url(${this.state.cfg.bgImageUrl})`; bg.style.opacity = this.state.cfg.bgOpacity; bg.style.backgroundSize = this.state.cfg.bgSize; } 
+        else { bg.style.backgroundImage = 'none'; }
+
+        document.getElementById('playfield-wrapper').style.padding = `${this.state.cfg.playfieldPad}px`;
+        document.getElementById('visualizer-window').style.display = this.state.cfg.showVisualizer ? 'flex' : 'none';
+        document.getElementById('debugger-window').style.display = this.state.cfg.showDebugger ? 'flex' : 'none';
+    },
+
+    // True Polyphonic Chord Strumming for Mode 6 & 7
+    handleCellPointerEnter(note, e) {
+        if(![6,7].includes(this.state.mode) || this.state.isSilenced) return;
+        if(e.buttons > 0) { // If mouse/finger is held down while entering
+            this.state.activeChords.add(note);
+            if(this.state.cfg.s1On) this.synth1.triggerAttack(note);
+            if(this.state.cfg.s2On) this.synth2.triggerAttack(note);
+            e.target.classList.add('active');
+            this.triggerVisualReaction(note);
+        }
+    },
+    handleCellPointerDown(note, e) {
+        if(![6,7].includes(this.state.mode) || this.state.isSilenced) return;
+        e.target.setPointerCapture(e.pointerId);
+        this.state.activeChords.add(note);
+        if(this.state.cfg.s1On) this.synth1.triggerAttack(note);
+        if(this.state.cfg.s2On) this.synth2.triggerAttack(note);
+        e.target.classList.add('active');
+        this.triggerVisualReaction(note);
+    },
+    handleCellPointerUp(note, e) {
+        if(![6,7].includes(this.state.mode)) return;
+        this.state.activeChords.delete(note);
+        if(this.state.cfg.s1On) this.synth1.triggerRelease(note);
+        if(this.state.cfg.s2On) this.synth2.triggerRelease(note);
+        e.target.classList.remove('active');
+        e.target.releasePointerCapture(e.pointerId);
+    },
+    handleCellPointerLeave(note, e) {
+        if(![6,7].includes(this.state.mode)) return;
+        if(this.state.activeChords.has(note)) {
+            this.state.activeChords.delete(note);
+            if(this.state.cfg.s1On) this.synth1.triggerRelease(note);
+            if(this.state.cfg.s2On) this.synth2.triggerRelease(note);
+            e.target.classList.remove('active');
+        }
+    },
+
+    initGrid() {
+        const overlay = document.getElementById('grid-overlay');
+        overlay.innerHTML = '';
+        overlay.style.gridTemplateColumns = `repeat(${this.state.cfg.gridCols}, 1fr)`;
+        overlay.style.gridTemplateRows = `repeat(${this.state.cfg.gridRows}, 1fr)`;
+        overlay.style.opacity = this.state.cfg.showGrid ? "1" : "0";
+
+        const total = this.state.cfg.gridCols * this.state.cfg.gridRows;
+        if (this.state.cfg.cells.length !== total) this.state.cfg.cells = Array.from({length: total}, (_, i) => ({ id: i }));
+
+        const s = Tonal.Scale.get(`${this.state.cfg.root} ${this.state.cfg.scale}`).notes;
+        let currOct = parseInt(this.state.cfg.octave);
+
+        for(let i=0; i<total; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'grid-cell'; cell.id = `cell-${i}`;
+            let note = s[i % s.length] + currOct; if ((i + 1) % s.length === 0) currOct++;
+            this.state.cfg.cells[i].defaultNote = note; cell.innerText = note;
+            if(this.state.cfg.colorNotes) cell.style.backgroundColor = getNoteColor(note);
+            
+            // True Touch/Strumming events
+            cell.addEventListener('pointerdown', e => this.handleCellPointerDown(note, e));
+            cell.addEventListener('pointerenter', e => this.handleCellPointerEnter(note, e));
+            cell.addEventListener('pointerup', e => this.handleCellPointerUp(note, e));
+            cell.addEventListener('pointerleave', e => this.handleCellPointerLeave(note, e));
+
+            overlay.appendChild(cell);
+        }
+    },
+
+    addCustomSampler(urlOrPath, nameStr) {
+        const id = Date.now();
+        const volNode = new Tone.Volume(0).connect(this.padBus);
+        const padMuteNode = new Tone.Volume(0).connect(volNode);
+        const player = new Tone.Player({ url: urlOrPath, loop: false }).connect(padMuteNode);
+        
+        const data = { 
+            id, player, padMuteNode, volNode,
+            name: nameStr.substring(0,12), vol: 0, isPadMuted: false,
+            playMode: 'Retrigger', uiShowPlay: true, uiShowTime: true, doPulse: true, zIndex: 80,
+            impactEnabled: false, impactThresh: 15,
+            pausedAt: 0, wasPlaying: false, startTime: 0
+        };
+        this.state.customSamplers.push(data);
+        
+        const btn = document.createElement('div');
+        btn.className = 'custom-sampler-btn';
+        btn.id = `pad-${id}`;
+        btn.style.left = '100px'; btn.style.top = '100px';
+        btn.style.zIndex = data.zIndex;
+        
+        btn.innerHTML = `
+            <div class="pad-react-bg"></div>
+            <div class="pad-gear">⚙</div>
+            <div class="pad-title">${data.name}</div>
+            <div class="pad-controls ui-time">
+                <input type="range" class="ui-scrub" min="0" max="100" value="0">
+            </div>
+            <div class="pad-controls ui-playvol" style="justify-content:space-between;">
+                <div>
+                    <button class="ui-btn-play">▶</button>
+                    <button class="ui-btn-stop">■</button>
+                    <button class="ui-btn-mute">🔊</button>
+                </div>
+                <input type="range" class="ui-vol" min="-40" max="10" value="0" style="width:50px;">
+            </div>
+            
+            <div class="pad-settings-menu">
+                <label>Name: <input type="text" class="set-name" value="${data.name}"></label>
+                <label>Mode: <select class="set-mode"><option>Retrigger</option><option>Layered</option><option>Single</option></select></label>
+                <label>Loop: <input type="checkbox" class="set-loop"></label>
+                <label>Z-Index: <input type="number" class="set-z" value="80"></label>
+                <hr style="border:0; border-top:1px solid #444; width:100%; margin:2px 0;">
+                <label>Show Time: <input type="checkbox" class="set-uitime" checked></label>
+                <label>Show Ctrls: <input type="checkbox" class="set-uictl" checked></label>
+                <label>Shake Trig: <input type="checkbox" class="set-shake"></label>
+                <label>Load Path: <input type="text" class="set-path" placeholder="/sounds/file.wav"></label>
+                <button class="set-load-btn">Load URL/Path</button>
+                <button class="set-del-btn" style="border-color:red; color:red;">🗑 Delete Pad</button>
+            </div>
+        `;
+        
+        const menu = btn.querySelector('.pad-settings-menu');
+        const gear = btn.querySelector('.pad-gear');
+        const title = btn.querySelector('.pad-title');
+        const scrub = btn.querySelector('.ui-scrub');
+        const cTime = btn.querySelector('.ui-time');
+        const cPlay = btn.querySelector('.ui-playvol');
+
+        gear.addEventListener('pointerdown', e => { e.stopPropagation(); menu.classList.toggle('open'); });
+        menu.addEventListener('pointerdown', e => e.stopPropagation()); 
+        
+        btn.querySelector('.set-name').addEventListener('input', e => { data.name = e.target.value; title.innerText = data.name; });
+        btn.querySelector('.ui-vol').addEventListener('input', e => { data.vol = parseFloat(e.target.value); volNode.volume.value = data.vol; });
+        btn.querySelector('.set-mode').addEventListener('change', e => data.playMode = e.target.value);
+        btn.querySelector('.set-z').addEventListener('input', e => { data.zIndex = parseInt(e.target.value); btn.style.zIndex = data.zIndex; });
+        btn.querySelector('.set-loop').addEventListener('change', e => player.loop = e.target.checked);
+        btn.querySelector('.set-uitime').addEventListener('change', e => { data.uiShowTime = e.target.checked; cTime.style.display = data.uiShowTime ? 'flex' : 'none'; });
+        btn.querySelector('.set-uictl').addEventListener('change', e => { data.uiShowPlay = e.target.checked; cPlay.style.display = data.uiShowPlay ? 'flex' : 'none'; });
+        btn.querySelector('.set-shake').addEventListener('change', e => data.impactEnabled = e.target.checked);
+        
+        btn.querySelector('.set-load-btn').addEventListener('click', async () => {
+            const val = btn.querySelector('.set-path').value;
+            if(val) { await player.load(val); title.innerText = val.split('/').pop().substring(0,12); }
+        });
+        
+        const stopPad = () => { player.stop(); btn.classList.remove('playing', 'pad-pulsing'); data.wasPlaying = false; scrub.value=0; };
+        btn.querySelector('.set-del-btn').addEventListener('click', () => { player.dispose(); btn.remove(); this.state.customSamplers = this.state.customSamplers.filter(s => s.id !== id); });
+        btn.querySelector('.ui-btn-stop').addEventListener('pointerdown', (e) => { e.stopPropagation(); stopPad(); });
+
+        const btnMuteUI = btn.querySelector('.ui-btn-mute');
+        btnMuteUI.addEventListener('pointerdown', e => {
+            e.stopPropagation(); data.isPadMuted = !data.isPadMuted;
+            padMuteNode.volume.value = data.isPadMuted ? -Infinity : 0;
+            btnMuteUI.innerText = data.isPadMuted ? '🔇' : '🔊'; btnMuteUI.style.color = data.isPadMuted ? 'red' : 'white';
+        });
+
+        const firePad = () => {
+            if(!player.loaded || this.state.isSilenced) return;
+            if(data.playMode === 'Single' && player.state === 'started') return; 
+            if(data.playMode === 'Retrigger') player.stop(); 
+            data.startTime = Tone.now();
+            player.start(data.startTime); 
+            if(data.doPulse) btn.classList.add('pad-pulsing'); else btn.classList.add('playing');
+        };
+        btn.querySelector('.ui-btn-play').addEventListener('pointerdown', (e) => { e.stopPropagation(); firePad(); });
+
+        let isDown = false, startX, startY, origX, origY, hasMoved = false;
+        
+        btn.addEventListener('pointerdown', e => {
+            if(e.target.closest('.pad-settings-menu') || e.target.closest('.pad-controls') || e.target === gear) return;
+            e.stopPropagation();
+            if(!this.state.padsEditing) { firePad(); return; } 
+            isDown = true; hasMoved = false; startX = e.clientX; startY = e.clientY; origX = btn.offsetLeft; origY = btn.offsetTop;
+            btn.setPointerCapture(e.pointerId); btn.style.zIndex = data.zIndex + 100; 
+        });
+        
+        btn.addEventListener('pointermove', e => {
+            if(!isDown || !this.state.padsEditing) return;
+            hasMoved = true; btn.style.left = (origX + e.clientX - startX) + 'px'; btn.style.top = (origY + e.clientY - startY) + 'px';
+        });
+        
+        const end = (e) => {
+            if(!isDown) return;
+            isDown = false; btn.releasePointerCapture(e.pointerId); btn.style.zIndex = data.zIndex;
+            if(!hasMoved && this.state.padsEditing) firePad(); 
+        };
+        btn.addEventListener('pointerup', end); btn.addEventListener('pointercancel', end);
+
+        data.updateVisuals = () => {
+            if(player.state === 'started') {
+                if(data.uiShowTime && player.buffer) scrub.value = (player.position / player.buffer.duration) * 100;
+            } else {
+                btn.classList.remove('playing', 'pad-pulsing'); if(data.uiShowTime) scrub.value = 0;
+            }
+        };
+        document.getElementById('custom-buttons-layer').appendChild(btn);
+    },
+
+    triggerVisualReaction(noteStr) {
+        // Shared visual pop for all triggers
+        this.pointerObj.scale.setScalar(this.state.cfg.pointerSize * 1.8);
+        setTimeout(() => this.pointerObj.scale.setScalar(this.state.cfg.pointerSize), 100);
+
+        const baseNote = noteStr.replace(/\d+/, '');
+        let match = this.state.cfg.noteImages[noteStr] || this.state.cfg.noteImages[baseNote];
+        if (match) this.spawnVFX(this.state.pointer.x, this.state.pointer.y, match.url, match.opac);
+        else this.spawnVFX(this.state.pointer.x, this.state.pointer.y);
+    },
+
+    triggerNote(noteStr, force = 30) {
+        if((!this.state.cfg.s1On && !this.state.cfg.s2On) || this.state.isSilenced) return;
+        const now = Tone.now();
+        const vol = Math.min(1, force / 40);
+        
+        // Custom Haptic Formula by Tim Tesner
+        let swingForce = force;
+        let vVal = Math.trunc(swingForce * 10 / 2);
+        document.getElementById('dbg-vib').innerText = vVal;
+        if(navigator.vibrate) navigator.vibrate(vVal);
+
+        this.triggerVisualReaction(noteStr);
+        
+        const dur = this.state.holdMode ? "100m" : "8n";
+        if(this.state.cfg.s1On) this.synth1.triggerAttackRelease(noteStr, dur, now, vol);
+        if(this.state.cfg.s2On) this.synth2.triggerAttackRelease(noteStr, dur, now, vol);
+    },
+
+    renderModeButtons() {
+        const c = document.getElementById('mode-btn-container'); c.innerHTML = '';
+        this.modesList.forEach(m => {
+            if(this.state.cfg[`m${m.id}`]) {
+                const b = document.createElement('button');
+                b.className = `sys-btn ${this.state.mode === m.id ? 'active' : ''}`; b.innerText = m.name;
+                b.onclick = () => {
+                    document.querySelectorAll('#mode-btn-container .sys-btn').forEach(btn => btn.classList.remove('active'));
+                    b.classList.add('active'); this.state.mode = m.id;
+                    if(m.id !== 4 && m.id !== 5 && !this.state.holdMode) { this.synth1.releaseAll(); this.synth2.releaseAll(); }
+                    this.applyTheme();
+                };
+                c.appendChild(b);
+            }
+        });
+    },
+
+    downloadConfig(prefix, filename) {
+        document.querySelectorAll('.gui-window').forEach(el => { if(el.id) this.state.cfg.windowPositions[el.id] = { left: el.style.left, top: el.style.top }; });
+        const sub = {}; Object.keys(this.state.cfg).forEach(k => { if(k.startsWith(prefix)) sub[k] = this.state.cfg[k]; });
+        const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(sub));
+        a.download = filename; a.click();
+    },
+
+    savePreset(num) {
+        document.querySelectorAll('.gui-window').forEach(el => { if(el.id) this.state.cfg.windowPositions[el.id] = { left: el.style.left, top: el.style.top }; });
+        localStorage.setItem(`gyros_preset_${num}`, JSON.stringify(this.state.cfg));
+        alert(`Master Config Saved to [P${num}]!`);
+    },
+    
+    loadPreset(num) {
+        const data = localStorage.getItem(`gyros_preset_${num}`);
+        if(data) {
+            Object.assign(this.state.cfg, JSON.parse(data));
+            this.initGrid(); this.updateSynths(); this.applyTheme(); this.renderModeButtons();
+            
+            if(this.state.cfg.windowPositions) {
+                Object.keys(this.state.cfg.windowPositions).forEach(id => {
+                    const el = document.getElementById(id);
+                    if(el) { el.style.left = this.state.cfg.windowPositions[id].left; el.style.top = this.state.cfg.windowPositions[id].top; el.style.transform = 'none'; }
+                });
+            }
+            for (var i in this.guiSys.__folders) { for (var j in this.guiSys.__folders[i].__controllers) { this.guiSys.__folders[i].__controllers[j].updateDisplay(); } }
+            for (var i in this.guiCenter.__folders) { for (var j in this.guiCenter.__folders[i].__controllers) { this.guiCenter.__folders[i].__controllers[j].updateDisplay(); } }
+            for (var i in this.guiSnd.__folders) { for (var j in this.guiSnd.__folders[i].__controllers) { this.guiSnd.__folders[i].__controllers[j].updateDisplay(); } }
+        } else { alert(`Preset [P${num}] is empty.`); }
+    },
+
+    initGUIs() {
+        document.getElementById('gui-left-content').innerHTML = ''; document.getElementById('gui-center-content').innerHTML = ''; document.getElementById('gui-right-content').innerHTML = '';
+        const guiOpts = { autoPlace: false, closed: false, width: '100%' };
+
+        // LEFT
+        this.guiSys = new dat.GUI(guiOpts); document.getElementById('gui-left-content').appendChild(this.guiSys.domElement);
+        
+        const gStart = this.guiSys.addFolder('Startup & Saves');
+        gStart.add(this.state.cfg, 'showSplash').name('Show Splash');
+        gStart.add({ img: () => document.getElementById('up-splash-img').click() }, 'img').name('🖼️ Splash Img');
+        gStart.add({ aud: () => document.getElementById('up-splash-aud').click() }, 'aud').name('🎵 Splash Audio');
+        gStart.add(this.state, 'defaultMode', 1, 8).step(1).name('Default Mode');
+        gStart.add({ export: () => this.downloadConfig('', 'GyrOS_Master.json') }, 'export').name('💾 Save MASTER');
+        gStart.add({ import: () => document.getElementById('up-config').click() }, 'import').name('📂 Load MASTER');
+        
+        const gSen = this.guiSys.addFolder('Sensors & Haptics');
+        gSen.add(this.state.cfg, 'sensSwapXY'); gSen.add(this.state.cfg, 'sensInvertX'); gSen.add(this.state.cfg, 'sensInvertY');
+        gSen.add(this.state.cfg, 'gyroScale', 10, 90); gSen.add(this.state.cfg, 'impactThresh', 5, 50);
+
+        const gRec = this.guiSys.addFolder('Recording Settings');
+        gRec.add(this.state.cfg, 'recMode', ['Immediate', 'Click Track', 'Threshold', 'Timer']);
+        gRec.add(this.state.cfg, 'recThreshold', -60, 0).name('Thresh (dB)');
+        gRec.add(this.state.cfg, 'recTimer', 1, 10).name('Timer (s)');
+
+        // CENTER
+        this.guiCenter = new dat.GUI(guiOpts); document.getElementById('gui-center-content').appendChild(this.guiCenter.domElement);
+        const gVis = this.guiCenter.addFolder('Colors & Theme');
+        gVis.addColor(this.state.cfg, 'accentColor').onChange(()=>this.applyTheme());
+        gVis.addColor(this.state.cfg, 'hudColor').onChange(()=>this.applyTheme());
+        gVis.add({ b: () => document.getElementById('up-bg').click() }, 'b').name('🖼️ BG Image');
+        gVis.add(this.state.cfg, 'bgOpacity', 0, 1).onChange(()=>this.applyTheme());
+        gVis.add(this.state.cfg, 'bgSize', ['cover', 'contain']).onChange(()=>this.applyTheme());
+        
+        const gPtr = this.guiCenter.addFolder('Pointer & Offsets');
+        gPtr.add(this.state.cfg, 'pointerSize', 0.1, 5).onChange(()=>this.applyTheme());
+        gPtr.add(this.state.cfg, 'pointerOpac', 0, 1).onChange(()=>this.applyTheme());
+        gPtr.add(this.state.cfg, 'ptrOffsetX', -10, 10).name('Offset X');
+        gPtr.add(this.state.cfg, 'ptrOffsetY', -10, 10).name('Offset Y');
+        gPtr.add(this.state.cfg, 'ptrSmoothing', 0.01, 1).name('Smoothing');
+        gPtr.add(this.state.cfg, 'hidePointerTouch').onChange(()=>this.applyTheme());
+        
+        const gWin = this.guiCenter.addFolder('Windows & HUDs');
+        gWin.add(this.state.cfg, 'showVisualizer').name('Show Visualizer').onChange(()=>this.applyTheme());
+        gWin.add(this.state.cfg, 'showDebugger').name('Show Debugger').onChange(()=>this.applyTheme());
+        gWin.add({ spk: () => this.addSpeechPad() }, 'spk').name('🗣️ Add Speech Pad');
+
+        const gVfx = this.guiCenter.addFolder('VFX & Note Images');
+        gVfx.add({ v: () => document.getElementById('up-vfx').click() }, 'v').name('💥 Global VFX Img');
+        gVfx.add(this.state.cfg, 'vfxOpac', 0.1, 1); gVfx.add(this.state.cfg, 'vfxScale', 0.5, 5); gVfx.add(this.state.cfg, 'vfxSpeed', 0.1, 2);
+        gVfx.add(this.state.cfg, 'targetNoteForImg').name('Target Note (e.g. C or D#4)');
+        gVfx.add({ n: () => document.getElementById('up-note-img').click() }, 'n').name('🎵 Map Image to Note');
+
+        const gGrd = this.guiCenter.addFolder('Grid Setup');
+        gGrd.add(this.state.cfg, 'gridCols', 1, 16).step(1).onChange(()=>this.initGrid());
+        gGrd.add(this.state.cfg, 'gridRows', 1, 16).step(1).onChange(()=>this.initGrid());
+        gGrd.add(this.state.cfg, 'showGrid').onChange(()=>this.initGrid());
+        gGrd.add(this.state.cfg, 'perspective').onChange(()=>this.initGrid());
+        gGrd.add(this.state.cfg, 'playfieldPad', 0, 200).name('Grid Margin (px)').onChange(()=>this.applyTheme());
+
+        const gUI = this.guiCenter.addFolder('UI Mode Toggles');
+        this.modesList.forEach(m => gUI.add(this.state.cfg, `m${m.id}`).name(m.name).onChange(()=>this.renderModeButtons()));
+
+        // RIGHT
+        this.guiSnd = new dat.GUI(guiOpts); document.getElementById('gui-right-content').appendChild(this.guiSnd.domElement);
+        const sMix = this.guiSnd.addFolder('Master Mixer');
+        sMix.add(this.state.cfg, 'masterVol', -60, 10).onChange(v => this.masterVol.volume.value = v);
+        sMix.add(this.state.cfg, 'eqLow', -10, 10).onChange(v => this.eq.low.value = v);
+        sMix.add(this.state.cfg, 'eqMid', -10, 10).onChange(v => this.eq.mid.value = v);
+        sMix.add(this.state.cfg, 'eqHigh', -10, 10).onChange(v => this.eq.high.value = v);
+        sMix.add(this.state.cfg, 'reverbMix', 0, 1).onChange(v => this.rack.reverb.wet.value = v);
+        sMix.add(this.state.cfg, 'delayMix', 0, 1).onChange(v => this.rack.delay.wet.value = v);
+        sMix.add({ s: () => document.getElementById('up-sample').click() }, 's').name('🎵 Add Custom Pad');
+        
+        const sTh = this.guiSnd.addFolder('Theremin Settings');
+        sTh.add(this.state.cfg, 'thOn').name('Power On');
+        sTh.add({ s: () => this.downloadConfig('th', 'GyrOS_Theremin.json') }, 's').name('💾 Save Theremin');
+        sTh.add({ l: () => document.getElementById('up-th').click() }, 'l').name('📂 Load Theremin');
+        sTh.add(this.state.cfg, 'thereminWave', ['sine', 'square', 'sawtooth', 'triangle']).onChange(()=>this.updateSynths());
+        sTh.add(this.state.cfg, 'thBaseFreq', 20, 500); sTh.add(this.state.cfg, 'thMaxFreq', 500, 5000);
+        
+        const buildSynthGUI = (fName, pfx, synthObj, panObj, upId) => {
+            const f = this.guiSnd.addFolder(fName);
+            f.add(this.state.cfg, `${pfx}On`).name('Power On');
+            f.add({ s: () => this.downloadConfig(pfx, `GyrOS_${fName}.json`) }, 's').name('💾 Save Preset');
+            f.add({ l: () => document.getElementById(upId).click() }, 'l').name('📂 Load Preset');
+            f.add(this.state.cfg, `${pfx}Type`, ['Synth', 'AMSynth', 'FMSynth', 'MembraneSynth']).onChange(v => {
+                synthObj.dispose();
+                if(pfx==='s1') { this.synth1 = new Tone.PolySynth(Tone[v],{maxPolyphony:8}).connect(panObj); this.updateSynths(); }
+                else { this.synth2 = new Tone.PolySynth(Tone[v],{maxPolyphony:8}).connect(panObj); this.updateSynths(); }
+            });
+            f.add(this.state.cfg, `${pfx}Dist`, 0, 1).onChange(()=>this.updateSynths());
+            f.add(this.state.cfg, `${pfx}Phaser`, 0, 1).onChange(()=>this.updateSynths());
+            f.add(this.state.cfg, `${pfx}Vol`, -60, 10).onChange(()=>this.updateSynths());
+            f.add(this.state.cfg, `${pfx}Atk`, 0.01, 2).onChange(()=>this.updateSynths());
+            f.add(this.state.cfg, `${pfx}Rel`, 0.1, 5).onChange(()=>this.updateSynths());
+        };
+
+        const sPr = this.guiSnd.addFolder('Synth Presets');
+        sPr.add(this.state.cfg, 'synthPreset', Object.keys(this.synthPresets)).onChange(() => this.applySynthPreset());
+
+        buildSynthGUI('Synth 1', 's1', this.synth1, this.s1Pan, 'up-s1');
+        buildSynthGUI('Synth 2', 's2', this.synth2, this.s2Pan, 'up-s2');
+
+        const sScl = this.guiSnd.addFolder('Scales & Arp');
+        sScl.add(this.state.cfg, 'arpRate', 0.05, 1).name('Arp Rate (s)');
+        sScl.add(this.state.cfg, 'scale', this.scalesList).onChange(()=>this.initGrid());
+        sScl.add(this.state.cfg, 'root', ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']).onChange(()=>this.initGrid());
+    },
+
+    makeGUIsDraggable() {
+        document.querySelectorAll('.gui-window').forEach(el => {
+            el.addEventListener('pointerdown', () => { el.style.zIndex = ++this.state.zIndexCounter; });
+
+            let isDown = false, startX, startY, origX, origY;
+            const header = el.querySelector('.gui-header');
+            
+            if(!header) return;
+
+            header.addEventListener('pointerdown', e => {
+                if(e.target.closest('.gui-toggle')) return;
+                e.stopPropagation();
+                el.setPointerCapture(e.pointerId);
+                isDown = true; startX = e.clientX; startY = e.clientY; origX = el.offsetLeft; origY = el.offsetTop;
+                el.style.left = origX + 'px'; el.style.right = 'auto'; el.style.bottom = 'auto'; 
+            });
+
+            el.addEventListener('pointermove', e => {
+                if(!isDown) return;
+                let newX = origX + (e.clientX - startX); let newY = origY + (e.clientY - startY);
+                newX = Math.max(0, Math.min(newX, window.innerWidth - 60));
+                newY = Math.max(0, Math.min(newY, window.innerHeight - 30));
+                el.style.left = newX + "px"; el.style.top = newY + "px";
+            });
+
+            const endDrag = (e) => { if(isDown) { el.releasePointerCapture(e.pointerId); isDown = false; } };
+            el.addEventListener('pointerup', endDrag); el.addEventListener('pointercancel', endDrag);
+            
+            const toggles = el.querySelectorAll('.gui-toggle');
+            toggles.forEach(t => {
+                t.addEventListener('pointerdown', e => {
+                    e.stopPropagation();
+                    const content = el.querySelector('.gui-content');
+                    if(content) {
+                        const isHidden = content.style.display === 'none';
+                        content.style.display = isHidden ? 'flex' : 'none';
+                        toggles.forEach(tg => tg.innerText = isHidden ? '▼' : '▲');
+                    }
+                });
+            });
+        });
+    },
+
+    toggleMute(forceState = null) {
+        this.state.isMuted = forceState !== null ? forceState : !this.state.isMuted;
+        this.muteNode.volume.value = this.state.isMuted ? -Infinity : 0;
+        const btnMute = document.getElementById('btn-mute');
+        btnMute.classList.toggle('btn-mute-on', this.state.isMuted);
+        btnMute.innerText = this.state.isMuted ? "🔇 MUTE: ON" : "🔊 MUTE: OFF";
+    },
+
+    silenceAll() {
+        this.state.isSilenced = true;
+        const now = Tone.now();
+        this.synth1.releaseAll(); this.synth2.releaseAll();
+        this.thereminVol.volume.rampTo(-Infinity, 0.05);
+        
+        let pausedAny = false;
+        this.state.customSamplers.forEach(pad => {
+            if(pad.player.state === 'started') {
+                pad.pausedAt = (now - pad.startTime) % pad.player.buffer.duration;
+                pad.wasPlaying = true;
+                pad.player.stop();
+                pausedAny = true;
+            }
+        });
+        window.speechSynthesis.cancel();
+        
+        this.toggleMute(true);
+        
+        const btnRes = document.getElementById('btn-resume');
+        if(pausedAny) {
+            btnRes.classList.add('resume-active'); btnRes.classList.remove('resume-disabled');
+        } else {
+            btnRes.classList.remove('resume-active'); btnRes.classList.add('resume-disabled');
+        }
+    },
+
+    resumeAll() {
+        this.state.isSilenced = false;
+        const now = Tone.now();
+        this.state.customSamplers.forEach(pad => {
+            if(pad.wasPlaying && pad.player.loaded) {
+                pad.startTime = now - pad.pausedAt;
+                pad.player.start(now, pad.pausedAt);
+                pad.wasPlaying = false;
+            }
+        });
+        const btnRes = document.getElementById('btn-resume');
+        btnRes.classList.remove('resume-active'); btnRes.classList.add('resume-disabled');
+    },
+
+    stopAll() {
+        this.state.isSilenced = false;
+        this.synth1.releaseAll(); this.synth2.releaseAll();
+        this.thereminVol.volume.rampTo(-Infinity, 0.05);
+        window.speechSynthesis.cancel();
+        this.state.customSamplers.forEach(pad => { pad.player.stop(); pad.wasPlaying = false; pad.pausedAt = 0; });
+        const btnRes = document.getElementById('btn-resume');
+        btnRes.classList.remove('resume-active'); btnRes.classList.add('resume-disabled');
+    },
+
+    startRecordingLogic() {
+        if(this.state.isRecording) {
+            this.recorder.stop(); this.state.isRecording = false; this.state.waitingForRec = false;
+            document.getElementById('btn-record').innerText = "⏺ REC"; document.getElementById('btn-record').classList.remove('btn-recording');
+            return;
+        }
+
+        const mode = this.state.cfg.recMode;
+        document.getElementById('btn-record').classList.add('btn-recording');
+        
+        if (mode === 'Immediate') {
+            this.recorder.start(); this.state.isRecording = true;
+            document.getElementById('btn-record').innerText = "⏹ STOP REC";
+        } 
+        else if (mode === 'Click Track') {
+            document.getElementById('btn-record').innerText = "CLICK...";
+            let count = 4;
+            const clickSynth = new Tone.MembraneSynth().toDestination();
+            Tone.Transport.scheduleRepeat((time) => {
+                clickSynth.triggerAttackRelease("C4", "32n", time);
+                count--;
+                if(count <= 0) {
+                    Tone.Transport.stop(); Tone.Transport.cancel();
+                    this.recorder.start(); this.state.isRecording = true;
+                    document.getElementById('btn-record').innerText = "⏹ STOP REC";
+                }
+            }, "4n");
+            Tone.Transport.start();
+        } 
+        else if (mode === 'Timer') {
+            document.getElementById('btn-record').innerText = `WAIT ${this.state.cfg.recTimer}s`;
+            setTimeout(() => {
+                this.recorder.start(); this.state.isRecording = true;
+                document.getElementById('btn-record').innerText = "⏹ STOP REC";
+            }, this.state.cfg.recTimer * 1000);
+        }
+        else if (mode === 'Threshold') {
+            document.getElementById('btn-record').innerText = "WAIT SOUND...";
+            this.state.waitingForRec = true;
+        }
+    },
+
+    bindEvents() {
+        window.addEventListener('dragover', e => e.preventDefault());
+        window.addEventListener('drop', e => {
+            e.preventDefault();
+            const file = e.dataTransfer.files[0]; if(!file) return;
+            if(file.type.startsWith('audio/') || file.name.match(/\.(mp3|wav|ogg|webm|flac|m4a)$/i)) {
+                this.addCustomSampler(URL.createObjectURL(file), file.name);
+            } else { alert("Please drop a valid audio file."); }
+        });
+
+        const handleUp = (e, callback) => {
+            const file = e.target.files[0]; if(!file) return;
+            const reader = new FileReader(); reader.onload = (ev) => callback(ev.target.result, file);
+            file.type.startsWith('image') || file.type.startsWith('audio') ? callback(URL.createObjectURL(file), file) : reader.readAsText(file);
+        };
+        
+        document.getElementById('up-config').addEventListener('change', e => handleUp(e, res => { Object.assign(this.state.cfg, JSON.parse(res)); this.initGrid(); this.initGUIs(); this.applyTheme(); }));
+        document.getElementById('up-s1').addEventListener('change', e => handleUp(e, res => { Object.assign(this.state.cfg, JSON.parse(res)); this.updateSynths(); this.initGUIs(); }));
+        document.getElementById('up-s2').addEventListener('change', e => handleUp(e, res => { Object.assign(this.state.cfg, JSON.parse(res)); this.updateSynths(); this.initGUIs(); }));
+        document.getElementById('up-th').addEventListener('change', e => handleUp(e, res => { Object.assign(this.state.cfg, JSON.parse(res)); this.updateSynths(); this.initGUIs(); }));
+        document.getElementById('up-bg').addEventListener('change', e => handleUp(e, url => { this.state.cfg.bgImageUrl = url; this.applyTheme(); }));
+        document.getElementById('up-vfx').addEventListener('change', e => handleUp(e, url => { this.state.cfg.vfxImageUrl = url; }));
+        document.getElementById('up-note-img').addEventListener('change', e => handleUp(e, url => { this.state.cfg.noteImages[this.state.cfg.targetNoteForImg] = { url: url, opac: 0.8 }; alert(`Image Mapped to ${this.state.cfg.targetNoteForImg}`); }));
+        document.getElementById('up-sample').addEventListener('change', e => handleUp(e, (url, file) => this.addCustomSampler(url, file.name)));
+        
+        document.getElementById('up-splash-img').addEventListener('change', e => handleUp(e, url => { this.state.cfg.splashImgUrl = url; }));
+        document.getElementById('up-splash-aud').addEventListener('change', e => handleUp(e, url => { this.state.cfg.splashAudioUrl = url; }));
+
+        document.getElementById('btn-about').addEventListener('click', () => { document.getElementById('about-modal').style.display = 'flex'; });
+        document.getElementById('close-about').addEventListener('click', () => { document.getElementById('about-modal').style.display = 'none'; });
+
+        [1,2,3,4].forEach(n => {
+            const b = document.getElementById(`btn-p${n}`);
+            b.addEventListener('click', e => { if(e.shiftKey) this.savePreset(n); else this.loadPreset(n); });
+        });
+
+        document.getElementById('btn-oct-up').addEventListener('click', () => { if(this.state.cfg.octave < 6) { this.state.cfg.octave++; this.initGrid(); this.guiSnd.updateDisplay(); } });
+        document.getElementById('btn-oct-down').addEventListener('click', () => { if(this.state.cfg.octave > 1) { this.state.cfg.octave--; this.initGrid(); this.guiSnd.updateDisplay(); } });
+
+        const btnPads = document.getElementById('btn-pads-edit');
+        btnPads.addEventListener('click', () => {
+            this.state.padsEditing = !this.state.padsEditing;
+            btnPads.innerText = this.state.padsEditing ? "PADS: EDIT" : "PADS: LOCKED";
+            btnPads.style.borderColor = this.state.padsEditing ? "#ffaa00" : "#666";
+            btnPads.style.color = this.state.padsEditing ? "#ffaa00" : "#666";
+            document.getElementById('custom-buttons-layer').classList.toggle('editing', this.state.padsEditing);
+        });
+
+        const btnSen = document.getElementById('btn-sensors');
+        btnSen.addEventListener('click', () => {
+            this.state.sensorsActive = !this.state.sensorsActive;
+            btnSen.innerText = this.state.sensorsActive ? "⚡ SENSORS: ON" : "❌ SENSORS: OFF";
+            btnSen.style.color = this.state.sensorsActive ? "#000" : "#666";
+            btnSen.style.background = this.state.sensorsActive ? "var(--accent-neon)" : "rgba(0,0,0,0.5)";
+        });
+
+        const btnMic = document.getElementById('btn-mic');
+        btnMic.addEventListener('click', async () => {
+            if(!this.state.micActive) {
+                await this.mic.open(); this.state.micActive = true;
+                btnMic.innerText = "🎙️ MIC: ON"; btnMic.classList.add('active');
+            } else {
+                this.mic.close(); this.state.micActive = false;
+                btnMic.innerText = "🎙️ MIC: OFF"; btnMic.classList.remove('active');
+            }
+        });
+
+        document.getElementById('btn-record').addEventListener('click', () => this.startRecordingLogic());
+
+        document.getElementById('btn-panic').addEventListener('click', () => {
+            Tone.Transport.stop(); this.synth1.releaseAll(); this.synth2.releaseAll();
+            this.thereminVol.volume.rampTo(-Infinity, 0.05);
+            this.state.holdMode = false; document.getElementById('btn-hold').classList.remove('active');
+            document.getElementById('btn-hold').innerText = "⎄ HOLD: OFF";
+        });
+        
+        document.getElementById('btn-mute').addEventListener('click', e => { e.target.blur(); this.toggleMute(); });
+        
+        document.getElementById('btn-silence').addEventListener('click', () => this.silenceAll());
+        document.getElementById('btn-resume').addEventListener('click', () => this.resumeAll());
+        document.getElementById('btn-stopall').addEventListener('click', () => this.stopAll());
+
+        const btnHold = document.getElementById('btn-hold');
+        btnHold.addEventListener('click', () => { 
+            this.state.holdMode = !this.state.holdMode; 
+            btnHold.classList.toggle('active', this.state.holdMode); 
+            btnHold.innerText = this.state.holdMode ? "⎄ HOLD: ON" : "⎄ HOLD: OFF";
+        });
+
+        let cpTimer;
+        document.querySelectorAll('.secret-corner').forEach(c => {
+            const toggleUI = () => {
+                this.state.uiHidden = !this.state.uiHidden;
+                document.querySelectorAll('.gui-window, #live-dashboard').forEach(el => {
+                    if(el.id !== 'bottom-hud') el.style.opacity = this.state.uiHidden ? '0' : '1';
+                });
+                document.getElementById('bottom-hud').classList.toggle('hidden', this.state.uiHidden);
+            };
+            c.onmousedown = c.ontouchstart = () => { cpTimer = setTimeout(toggleUI, 1500); c.style.background = 'white'; c.style.opacity = '0.5'; };
+            c.onmouseup = c.ontouchend = c.onmouseleave = () => { clearTimeout(cpTimer); c.style.background = 'transparent'; };
+        });
+
+        const markActive = () => { 
+            this.state.lastInteraction = Date.now();
+            if(this.state.isAsleep) {
+                this.state.isAsleep = false; document.getElementById('screensaver-layer').style.opacity = 0;
+            }
+        };
+
+        if(this.state.hasGyro) {
+            window.addEventListener("deviceorientation", e => { if(!this.state.sensorsActive) return; this.state.rawSensors = { x: e.gamma||0, y: e.beta||0, z: e.alpha||0 }; markActive(); });
+            window.addEventListener("devicemotion", e => {
+                if(!this.state.sensorsActive) return;
+                let a = e.acceleration || e.accelerationIncludingGravity; if (!a || a.x === null) return;
+                const force = Math.sqrt(a.x**2 + a.y**2 + a.z**2); this.state.rawSensors.acc = force;
+                if (force > 10) {
+                    this.state.customSamplers.forEach(pad => {
+                        if (pad.impactEnabled && force > pad.impactThresh && pad.player.state !== 'started') {
+                            if(pad.playMode === 'Retrigger') pad.player.stop();
+                            pad.startTime = Tone.now();
+                            pad.player.start(pad.startTime); 
+                            document.getElementById(`pad-${pad.id}`).classList.add(pad.doPulse ? 'pad-pulsing' : 'playing');
+                        }
+                    });
+                    if (force > this.state.cfg.impactThresh && [2,3,8].includes(this.state.mode) && this.state.cfg.cells[this.state.activeCellIdx]) {
+                        this.triggerNote(this.state.cfg.cells[this.state.activeCellIdx].defaultNote, force);
+                    }
+                }
+            });
+        }
+
+        const mapMouseTo3D = (cx, cy) => {
+            if(!this.state.sensorsActive) return;
+            let targetX = (cx / window.innerWidth) * 2 - 1 + (this.state.cfg.ptrOffsetX * 0.1); 
+            let targetY = -(cy / window.innerHeight) * 2 + 1 + (this.state.cfg.ptrOffsetY * 0.1);
+            
+            // In touch modes, snap instantly, otherwise smooth
+            if([6,7].includes(this.state.mode)) {
+                this.state.pointer.x = targetX;
+                this.state.pointer.y = targetY;
+            } else {
+                this.raycaster.setFromCamera(new THREE.Vector2(targetX, targetY), this.cam);
+                const target = new THREE.Vector3(); this.raycaster.ray.intersectPlane(this.planeZ0, target);
+                let tx = target.x / 8; let ty = target.y / 5;
+                this.state.pointer.x += (tx - this.state.pointer.x) * this.state.cfg.ptrSmoothing;
+                this.state.pointer.y += (ty - this.state.pointer.y) * this.state.cfg.ptrSmoothing;
+            }
+        };
+
+        window.addEventListener('pointermove', e => {
+            if(!this.state.sensorsActive) return; markActive();
+            if(!this.state.hasGyro || [6,7].includes(this.state.mode)) mapMouseTo3D(e.clientX, e.clientY);
+            
+            // EMERGENCY DODGE LOGIC
+            const emRect = document.getElementById('emergency-row').getBoundingClientRect();
+            // Expanded hit box to dodge early
+            if(e.clientY > emRect.top - 50 && e.clientX > emRect.left - 50 && e.clientX < emRect.right + 50) {
+                document.querySelectorAll('.gui-window').forEach(w => {
+                    if(w.id === 'bottom-hud') return;
+                    const wRect = w.getBoundingClientRect();
+                    if(wRect.bottom > emRect.top - 50 && wRect.right > emRect.left - 50 && wRect.left < emRect.right + 50) {
+                        w.classList.add('dodging');
+                    }
+                });
+            } else {
+                document.querySelectorAll('.gui-window').forEach(w => w.classList.remove('dodging'));
+            }
+        });
+
+        document.body.addEventListener('mouseleave', () => { if(!this.state.hasGyro) this.toggleMute(true); });
+
+        setInterval(() => {
+            if(!this.state.isAsleep && Date.now() - this.state.lastInteraction > 30000) { 
+                this.state.isAsleep = true; 
+                this.state.customSamplers.forEach(s => { s.player.loop = false; }); 
+                this.synth1.releaseAll(); this.synth2.releaseAll();
+                this.thereminVol.volume.rampTo(-Infinity, 0.05);
+                this.toggleMute(true);
+                document.getElementById('screensaver-layer').style.opacity = 1;
+            }
+        }, 1000);
+    },
+
+    loop() {
+        requestAnimationFrame(() => this.loop());
+        const { rawSensors, cfg, mode, pointer, isMuted, isAsleep, sensorsActive, isSilenced } = this.state;
+        const now = Tone.now();
+
+        if (isMuted) {
+            const level = this.meter.getValue(); document.getElementById('btn-mute').classList.toggle('mute-active-audio', level > -40);
+        } else { document.getElementById('btn-mute').classList.remove('mute-active-audio'); }
+
+        if (this.state.waitingForRec && this.state.micActive) {
+            if (this.micMeter.getValue() > cfg.recThreshold) {
+                this.recorder.start(); this.state.isRecording = true; this.state.waitingForRec = false;
+                document.getElementById('btn-record').innerText = "⏹ STOP REC";
+            }
+        }
+
+        if(cfg.showDebugger) {
+            document.getElementById('dbg-status').innerText = isAsleep ? "ASLEEP" : (isMuted ? "MUTED" : (isSilenced ? "PAUSED" : "ACTIVE"));
+            document.getElementById('dbg-ctx').innerText = Tone.context.state;
+            document.getElementById('dbg-poly').innerText = this.synth1.activeVoices + this.synth2.activeVoices;
+            document.getElementById('dbg-ptr').innerText = `${pointer.x.toFixed(2)}, ${pointer.y.toFixed(2)}`;
+            document.getElementById('dbg-gyro').innerText = `${rawSensors.x.toFixed(1)}, ${rawSensors.y.toFixed(1)}, ${rawSensors.z.toFixed(1)}`;
+            document.getElementById('dbg-acc').innerText = rawSensors.acc.toFixed(2);
+            document.getElementById('dbg-mic').innerText = this.state.micActive ? this.micMeter.getValue().toFixed(1) + " dB" : "OFF";
+        }
+
+        if (isAsleep || !sensorsActive) {
+            this.particles.rotation.x += 0.001; this.particles.rotation.y += 0.002;
+            this.ssRenderer.render(this.ssScene, this.ssCam);
+            this.renderVisualizer(); 
+            if(isAsleep) return; 
+        }
+
+        if(this.state.hasGyro && ![6,7].includes(mode)) {
+            let inX = rawSensors.x; let inY = rawSensors.y;
+            if(cfg.sensSwapXY) { let t = inX; inX = inY; inY = t; }
+            if(cfg.sensInvertX) inX *= -1; if(cfg.sensInvertY) inY *= -1;
+            
+            let targetX = Math.max(-1, Math.min(1, inX / cfg.gyroScale)) + (cfg.ptrOffsetX * 0.1);
+            let targetY = Math.max(-1, Math.min(1, inY / cfg.gyroScale)) + (cfg.ptrOffsetY * 0.1);
+            
+            pointer.x += (targetX - pointer.x) * cfg.ptrSmoothing;
+            pointer.y += (targetY - pointer.y) * cfg.ptrSmoothing;
+        }
+
+        this.pointerObj.position.x = pointer.x * 8; this.pointerObj.position.y = pointer.y * 5;
+
+        // Skip Hover & Arp logic if in pure touch mode, handled by Pointer events directly on Grid Cells
+        if(![6,7].includes(mode)) {
+            let gridX = Math.floor(mapRange(pointer.x, -1, 1, 0, cfg.gridCols)); let gridY = Math.floor(mapRange(pointer.y, 1, -1, 0, cfg.gridRows)); 
+            gridX = Math.max(0, Math.min(cfg.gridCols - 1, gridX)); gridY = Math.max(0, Math.min(cfg.gridRows - 1, gridY));
+            let newCell = gridY * cfg.gridCols + gridX;
+
+            if (newCell !== this.state.activeCellIdx) {
+                if (this.state.activeCellIdx !== -1) {
+                    const old = document.getElementById(`cell-${this.state.activeCellIdx}`); if (old) old.classList.remove('active');
+                    if (mode === 4 && !this.state.holdMode && !isSilenced) { this.synth1.releaseAll(); this.synth2.releaseAll(); }
+                }
+                const cur = document.getElementById(`cell-${newCell}`); if (cur) cur.classList.add('active');
+                this.state.activeCellIdx = newCell;
+                
+                if (mode === 4 && cfg.cells[newCell] && !isSilenced) {
+                    if(cfg.s1On) this.synth1.triggerAttack(cfg.cells[newCell].defaultNote, now);
+                    if(cfg.s2On) this.synth2.triggerAttack(cfg.cells[newCell].defaultNote, now);
+                }
+            }
+
+            if (mode === 5 && cfg.cells[newCell] && !isSilenced) {
+                if (now > this.state.lastArpTime + cfg.arpRate) {
+                    this.state.lastArpTime = now;
+                    this.triggerNote(cfg.cells[newCell].defaultNote, 20);
+                }
+            }
+        }
+
+        if (cfg.thOn && [1, 3, 7, 8].includes(mode) && !isSilenced) {
+            let tFreq = mapRange(pointer.y, -1, 1, cfg.thBaseFreq, cfg.thMaxFreq); tFreq = Math.max(20, Math.min(5000, tFreq));
+            let tVol = mapRange(pointer.x, -1, 1, cfg.thVolMin, cfg.thVolMax);
+            this.theremin.frequency.setTargetAtTime(tFreq, now, 0.05); this.thereminVol.volume.setTargetAtTime(tVol, now, 0.05);
+        } else { this.thereminVol.volume.setTargetAtTime(-Infinity, now, 0.1); }
+
+        this.renderWaveform();
+        this.renderVisualizer();
+        this.renderer.render(this.scene, this.cam);
+    },
+
+    renderWaveform() {
+        const cvs = document.getElementById('master-waveform'); const ctx = cvs.getContext('2d');
+        if (cvs.width !== cvs.clientWidth) { cvs.width = cvs.clientWidth; cvs.height = cvs.clientHeight; }
+        const data = this.analyser.getValue();
+        ctx.clearRect(0, 0, cvs.width, cvs.height);
+        ctx.beginPath(); ctx.strokeStyle = this.state.cfg.waveColor; ctx.lineWidth = 2;
+        for(let i=0; i<data.length; i++) {
+            const x = (i/data.length) * cvs.width; const y = ((data[i]+1)/2) * cvs.height; i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+        }
+        ctx.stroke();
+    },
+
+    renderVisualizer() {
+        if(!this.state.cfg.showVisualizer) return;
+        const cvs = document.getElementById('vis-canvas'); const ctx = cvs.getContext('2d');
+        if (cvs.width !== cvs.clientWidth) { cvs.width = cvs.clientWidth; cvs.height = cvs.clientHeight; }
+        const data = this.masterVis.getValue();
+        ctx.clearRect(0, 0, cvs.width, cvs.height);
+        ctx.beginPath(); ctx.strokeStyle = this.state.cfg.accentColor; ctx.lineWidth = 3;
+        for(let i=0; i<data.length; i++) {
+            const x = (i/data.length) * cvs.width; const y = ((data[i]+1)/2) * cvs.height; i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+        }
+        ctx.stroke();
+    }
+};
+
+document.getElementById('btn-start').onclick = () => { GyrOS.loadSplash(); GyrOS.init(); }
+</script>
+</body>
+</html>
