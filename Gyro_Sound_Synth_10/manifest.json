@@ -1,0 +1,11 @@
+{
+  "name": "Gyr-OS Master Workstation V10.0",
+  "short_name": "Gyr-OS",
+  "description": "Spatial Audio Synthesizer & Performance Matrix",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#020202",
+  "theme_color": "#00ffcc",
+  "orientation": "portrait",
+  "icons": [{ "src": "https://cdn-icons-png.flaticon.com/512/3659/3659795.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }]
+}
