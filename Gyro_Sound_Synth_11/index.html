@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <link rel="manifest" href="manifest.json">
-    <title>Gyr-OS | Master Workstation V11.0</title>
+    <title>Gyr-OS | Master Workstation V11.1</title>
     
     <!-- 
       Author: Tim Tesner
       Co-Author / AI Assistance: Gemini 3 Pro
-      Gyr-OS Workstation Engine V11.0
+      Gyr-OS Workstation Engine V11.1
     -->
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
@@ -107,7 +107,7 @@
 <!-- SPLASH SCREEN -->
 <div id="splash-screen">
     <img id="splash-img" src="" alt="Splash Image">
-    <h1 style="color: var(--accent-neon); letter-spacing: 5px; text-shadow: 0 0 20px var(--accent-neon);">GYR-OS V11.0</h1>
+    <h1 style="color: var(--accent-neon); letter-spacing: 5px; text-shadow: 0 0 20px var(--accent-neon);">GYR-OS V11.1</h1>
     <p style="color:#aaa;">AUTHOR: TIM TESNER & GEMINI 3 PRO</p>
     <button id="btn-start" style="padding: 20px 40px; font-size: 1.5rem; background: var(--accent-neon); border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top:20px;">INITIALIZE ENGINE</button>
     <div id="error-msg" style="color: #ff4444; margin-top: 15px;"></div>
@@ -127,18 +127,17 @@
         <button id="close-about" style="background:transparent; border:none; color:black; font-weight:bold; cursor:pointer; font-size:18px;">X</button>
     </div>
     <div id="about-content">
-        <h1>🌌 Gyr-OS | Master Workstation V11.0</h1>
+        <h1>🌌 Gyr-OS | Master Workstation V11.1</h1>
         <p><strong>Authors:</strong> Tim Tesner & Gemini 3 Pro <br> <strong>Date:</strong> February 2026</p>
-        <h2>Key Features (V11.0)</h2>
+        <h2>Key Features (V11.1)</h2>
         <ul>
+            <li><strong>PC Mouse Fling Emulation:</strong> Left-click and rapidly swipe/fling your mouse to perfectly mimic device accelerometer swings for Impact Modes!</li>
+            <li><strong>Mobile Touch Saving:</strong> Use the <code>[P-MODE: LOAD/SAVE]</code> toggle to save Master Configs to P1-P4 directly on touchscreens!</li>
             <li><strong>True Polyphonic Touch/Strumming:</strong> Modes 6 & 7 instantly snap to touch. Hold notes to sustain them. Drag across the screen to strum multiple pads (polyphony).</li>
             <li><strong>Emergency UI Dodge:</strong> Floating GUIs will instantly become transparent and shrink if they overlap the critical Stop/Mute/Panic buttons while your mouse/finger approaches them.</li>
-            <li><strong>Global Silence Memory:</strong> [⏸ SILENCE] pauses all samplers precisely at their millisecond position. If audio was paused, [▶ RESUME] flashes and is enabled. If no audio was playing, it safely grays out.</li>
-            <li><strong>Multi Web Speech Pads:</strong> Create infinite draggable text-to-speech pads, each with independent voices, rates, and triggers.</li>
-            <li><strong>Master Config Hot-Swaps:</strong> Hold <code>Shift</code> and click [P1]-[P4] to save the absolute entire state of the engine (GUI positions, folder states, all synth params, colors). Click to load instantly.</li>
+            <li><strong>Global Silence Memory:</strong> [⏸ SILENCE] pauses all samplers precisely at their millisecond position.</li>
             <li><strong>Independent Audio Pad Ecosystem:</strong> Audio pads bypass the master mute, have individual controls, and accept server-side URL paths directly.</li>
         </ul>
-        <p><em>"Music is the space between the notes. Gyr-OS lets you physically touch that space."</em></p>
     </div>
 </div>
 
@@ -175,17 +174,29 @@
     </div>
 </div>
 
+<div class="gui-window" id="speech-window">
+    <div class="gui-header"><span class="gui-toggle">▼</span><span>WEB SPEECH API</span><span class="gui-toggle">▼</span></div>
+    <div class="gui-content" id="speech-content" style="padding:10px; display:flex; flex-direction:column; gap:5px;">
+        <input type="text" id="speech-text" value="System Online" style="width:100%; background:#000; color:var(--accent-neon); border:1px solid #444;">
+        <select id="speech-voice" style="width:100%; background:#000; color:#fff;"></select>
+        <label style="font-size:10px;">Rate: <input type="range" id="speech-rate" min="0.1" max="2" step="0.1" value="1"></label>
+        <label style="font-size:10px;">Pitch: <input type="range" id="speech-pitch" min="0.1" max="2" step="0.1" value="1"></label>
+        <button class="sys-btn" id="btn-speak" style="margin-top:5px;">📢 SPEAK</button>
+    </div>
+</div>
+
 <div class="gui-window" id="visualizer-window">
     <div class="gui-header"><span class="gui-toggle">▼</span><span>MASTER VISUALS</span><span class="gui-toggle">▼</span></div>
     <div class="gui-content" style="padding: 0; overflow: hidden;"><canvas id="vis-canvas" style="width:100%; height:100%; background:rgba(0,0,0,0.5);"></canvas></div>
 </div>
 
-<!-- Draggable Bottom HUD with Emergency Buttons -->
+<!-- Draggable Bottom HUD -->
 <div class="gui-window" id="bottom-hud">
     <div class="gui-header"><span class="gui-toggle">▼</span><span>MASTER CONTROL BAR</span><span class="gui-toggle">▼</span></div>
     <div class="gui-content" style="display:flex; flex-direction:column; padding-bottom:5px;">
         <div class="hud-row" id="mode-btn-container"></div>
         <div class="hud-row">
+            <button class="sys-btn" id="btn-preset-mode" style="background:#444; color:white;">P-MODE: LOAD</button>
             <button class="sys-btn" id="btn-p1">[P1]</button><button class="sys-btn" id="btn-p2">[P2]</button>
             <button class="sys-btn" id="btn-p3">[P3]</button><button class="sys-btn" id="btn-p4">[P4]</button>
             <span style="color: #666; font-size: 10px; margin: auto 5px;">|</span>
@@ -198,6 +209,7 @@
         
         <!-- THE EMERGENCY ROW (Dodges other GUIs) -->
         <div class="hud-row" id="emergency-row">
+            <button class="sys-btn" id="btn-hold" style="font-size:12px;">⎄ HOLD: OFF</button>
             <button class="sys-btn btn-mute-on mute-active-audio" id="btn-mute" style="font-size:12px;">🔇 MUTE: ON</button>
             <button class="sys-btn" id="btn-panic" style="border-color:#ffaa00; color:#ffaa00; font-size:12px;">■ PANIC</button>
             <button class="sys-btn" id="btn-silence" style="background:#444; color:white; font-size:12px;">⏸ SILENCE ALL</button>
@@ -209,6 +221,8 @@
     </div>
 </div>
 
+<!-- MISSING INPUT FIX APPLIED HERE -->
+<input type="file" id="up-sample" accept="audio/*">
 <input type="file" id="up-config" accept=".json">
 <input type="file" id="up-s1" accept=".json">
 <input type="file" id="up-s2" accept=".json">
@@ -225,7 +239,7 @@
 
 <script type="module">
 /**
- * GYR-OS WORKSTATION V11.0
+ * GYR-OS WORKSTATION V11.1
  * Author: Tim Tesner
  * Co-Author: Gemini 3 Pro
  */
@@ -250,13 +264,20 @@ window.GyrOS = {
         rawSensors: { x: 0, y: 0, z: 0, acc: 0 },
         pointer: { x: 0, y: 0 }, lastInteraction: Date.now(),
         activeCellIdx: -1, lastArpTime: 0, customSamplers: [], speechPads: [],
-        activeChords: new Set(), // Tracks sustained polyphonic notes
+        activeChords: new Set(),
+        
+        // Touch/Mouse Swipe Emulation tracking
+        presetAction: 'LOAD',
+        swipeActive: false,
+        lastSwipePos: { x: 0, y: 0 },
+        lastSwipeTime: 0,
+        lastFakeHit: 0,
         
         cfg: {
             showSplash: true, splashImgUrl: null, splashAudioUrl: null,
 
             sensSwapXY: false, sensInvertX: false, sensInvertY: false,
-            gyroScale: 30, impactThresh: 15, playfieldPad: 0,
+            gyroScale: 30, impactThresh: 15, mouseSwipeScale: 25, playfieldPad: 0,
             ptrOffsetX: 0, ptrOffsetY: 0, ptrSmoothing: 0.2, 
             
             gridCols: 4, gridRows: 3, showGrid: true, perspective: false, colorNotes: true,
@@ -357,7 +378,6 @@ window.GyrOS = {
         btn.style.borderColor = '#ff00cc';
         btn.style.color = '#ff00cc';
         
-        // Build Voices HTML
         let vHTML = '';
         this.state.speechVoices.forEach((v, i) => { vHTML += `<option value="${i}">${v.name.substring(0,15)}</option>`; });
 
@@ -393,7 +413,7 @@ window.GyrOS = {
         btn.querySelector('.set-del-btn').addEventListener('click', () => { btn.remove(); this.state.speechPads = this.state.speechPads.filter(s => s.id !== id); });
 
         const firePad = () => {
-            window.speechSynthesis.cancel(); // Stop others
+            window.speechSynthesis.cancel();
             const ut = new SpeechSynthesisUtterance(data.text);
             if(this.state.speechVoices[data.voiceIdx]) ut.voice = this.state.speechVoices[data.voiceIdx];
             ut.rate = data.rate; ut.pitch = data.pitch;
@@ -463,12 +483,12 @@ window.GyrOS = {
         this.s1Phaser = new Tone.Phaser({ frequency: 15, octaves: 5, baseFrequency: 1000 }).connect(this.rack.delay);
         this.s1Dist = new Tone.Distortion(0).connect(this.s1Phaser);
         this.s1Pan = new Tone.Panner(this.state.cfg.s1Pan).connect(this.s1Dist);
-        this.synth1 = new Tone.PolySynth(Tone[this.state.cfg.s1Type], { maxPolyphony: 12 }).connect(this.s1Pan);
+        this.synth1 = new Tone.PolySynth(Tone[this.state.cfg.s1Type], { maxPolyphony: 8 }).connect(this.s1Pan);
         
         this.s2Phaser = new Tone.Phaser({ frequency: 15, octaves: 5, baseFrequency: 1000 }).connect(this.rack.delay);
         this.s2Dist = new Tone.Distortion(0).connect(this.s2Phaser);
         this.s2Pan = new Tone.Panner(this.state.cfg.s2Pan).connect(this.s2Dist);
-        this.synth2 = new Tone.PolySynth(Tone[this.state.cfg.s2Type], { maxPolyphony: 12 }).connect(this.s2Pan);
+        this.synth2 = new Tone.PolySynth(Tone[this.state.cfg.s2Type], { maxPolyphony: 8 }).connect(this.s2Pan);
         
         this.theremin = new Tone.Oscillator(this.state.cfg.thBaseFreq, this.state.cfg.thereminWave).start();
         this.thereminVol = new Tone.Volume(-Infinity).connect(this.rack.reverb);
@@ -494,12 +514,9 @@ window.GyrOS = {
         if(p) {
             Object.keys(p).forEach(k => this.state.cfg[k] = p[k]);
             this.updateSynths();
-            // Update GUI displays safely
             if(this.guiSnd) {
                 for(var f in this.guiSnd.__folders) {
-                    for(var i in this.guiSnd.__folders[f].__controllers) {
-                        this.guiSnd.__folders[f].__controllers[i].updateDisplay();
-                    }
+                    for(var i in this.guiSnd.__folders[f].__controllers) { this.guiSnd.__folders[f].__controllers[i].updateDisplay(); }
                 }
             }
         }
@@ -553,12 +570,12 @@ window.GyrOS = {
         document.getElementById('playfield-wrapper').style.padding = `${this.state.cfg.playfieldPad}px`;
         document.getElementById('visualizer-window').style.display = this.state.cfg.showVisualizer ? 'flex' : 'none';
         document.getElementById('debugger-window').style.display = this.state.cfg.showDebugger ? 'flex' : 'none';
+        document.getElementById('speech-window').style.display = this.state.cfg.showSpeech ? 'flex' : 'none';
     },
 
-    // True Polyphonic Chord Strumming for Mode 6 & 7
     handleCellPointerEnter(note, e) {
         if(![6,7].includes(this.state.mode) || this.state.isSilenced) return;
-        if(e.buttons > 0) { // If mouse/finger is held down while entering
+        if(e.buttons > 0) { 
             this.state.activeChords.add(note);
             if(this.state.cfg.s1On) this.synth1.triggerAttack(note);
             if(this.state.cfg.s2On) this.synth2.triggerAttack(note);
@@ -578,8 +595,8 @@ window.GyrOS = {
     handleCellPointerUp(note, e) {
         if(![6,7].includes(this.state.mode)) return;
         this.state.activeChords.delete(note);
-        if(this.state.cfg.s1On) this.synth1.triggerRelease(note);
-        if(this.state.cfg.s2On) this.synth2.triggerRelease(note);
+        if(this.state.cfg.s1On && !this.state.holdMode) this.synth1.triggerRelease(note);
+        if(this.state.cfg.s2On && !this.state.holdMode) this.synth2.triggerRelease(note);
         e.target.classList.remove('active');
         e.target.releasePointerCapture(e.pointerId);
     },
@@ -587,8 +604,8 @@ window.GyrOS = {
         if(![6,7].includes(this.state.mode)) return;
         if(this.state.activeChords.has(note)) {
             this.state.activeChords.delete(note);
-            if(this.state.cfg.s1On) this.synth1.triggerRelease(note);
-            if(this.state.cfg.s2On) this.synth2.triggerRelease(note);
+            if(this.state.cfg.s1On && !this.state.holdMode) this.synth1.triggerRelease(note);
+            if(this.state.cfg.s2On && !this.state.holdMode) this.synth2.triggerRelease(note);
             e.target.classList.remove('active');
         }
     },
@@ -613,7 +630,6 @@ window.GyrOS = {
             this.state.cfg.cells[i].defaultNote = note; cell.innerText = note;
             if(this.state.cfg.colorNotes) cell.style.backgroundColor = getNoteColor(note);
             
-            // True Touch/Strumming events
             cell.addEventListener('pointerdown', e => this.handleCellPointerDown(note, e));
             cell.addEventListener('pointerenter', e => this.handleCellPointerEnter(note, e));
             cell.addEventListener('pointerup', e => this.handleCellPointerUp(note, e));
@@ -726,6 +742,7 @@ window.GyrOS = {
             if(e.target.closest('.pad-settings-menu') || e.target.closest('.pad-controls') || e.target === gear) return;
             e.stopPropagation();
             if(!this.state.padsEditing) { firePad(); return; } 
+            
             isDown = true; hasMoved = false; startX = e.clientX; startY = e.clientY; origX = btn.offsetLeft; origY = btn.offsetTop;
             btn.setPointerCapture(e.pointerId); btn.style.zIndex = data.zIndex + 100; 
         });
@@ -749,11 +766,31 @@ window.GyrOS = {
                 btn.classList.remove('playing', 'pad-pulsing'); if(data.uiShowTime) scrub.value = 0;
             }
         };
+
         document.getElementById('custom-buttons-layer').appendChild(btn);
     },
 
+    spawnVFX(xNorm, yNorm, customImg = null, customOpac = null) {
+        const imgUrl = customImg || this.state.cfg.vfxImageUrl;
+        if (!imgUrl) return;
+        const vfx = document.createElement('img');
+        vfx.src = imgUrl; vfx.className = 'vfx-layer';
+        vfx.style.left = `${(xNorm + 1) / 2 * window.innerWidth}px`;
+        vfx.style.top = `${(-yNorm + 1) / 2 * window.innerHeight}px`;
+        
+        const opac = customOpac || this.state.cfg.vfxOpac;
+        const scale = this.state.cfg.vfxScale; const speed = this.state.cfg.vfxSpeed;
+        
+        vfx.animate([
+            { opacity: opac, transform: `translate(-50%, -50%) scale(0.1)` },
+            { opacity: 0, transform: `translate(-50%, -50%) scale(${scale})` }
+        ], { duration: speed * 1000, easing: 'ease-out' });
+        
+        document.body.appendChild(vfx);
+        setTimeout(() => vfx.remove(), speed * 1000);
+    },
+
     triggerVisualReaction(noteStr) {
-        // Shared visual pop for all triggers
         this.pointerObj.scale.setScalar(this.state.cfg.pointerSize * 1.8);
         setTimeout(() => this.pointerObj.scale.setScalar(this.state.cfg.pointerSize), 100);
 
@@ -790,7 +827,7 @@ window.GyrOS = {
                 b.onclick = () => {
                     document.querySelectorAll('#mode-btn-container .sys-btn').forEach(btn => btn.classList.remove('active'));
                     b.classList.add('active'); this.state.mode = m.id;
-                    if(m.id !== 4 && m.id !== 5 && !this.state.holdMode) { this.synth1.releaseAll(); this.synth2.releaseAll(); }
+                    if(![4,6,7].includes(m.id) && !this.state.holdMode) { this.synth1.releaseAll(); this.synth2.releaseAll(); }
                     this.applyTheme();
                 };
                 c.appendChild(b);
@@ -847,6 +884,7 @@ window.GyrOS = {
         const gSen = this.guiSys.addFolder('Sensors & Haptics');
         gSen.add(this.state.cfg, 'sensSwapXY'); gSen.add(this.state.cfg, 'sensInvertX'); gSen.add(this.state.cfg, 'sensInvertY');
         gSen.add(this.state.cfg, 'gyroScale', 10, 90); gSen.add(this.state.cfg, 'impactThresh', 5, 50);
+        gSen.add(this.state.cfg, 'mouseSwipeScale', 1, 50).name('PC Swipe Force');
 
         const gRec = this.guiSys.addFolder('Recording Settings');
         gRec.add(this.state.cfg, 'recMode', ['Immediate', 'Click Track', 'Threshold', 'Timer']);
@@ -1113,9 +1151,24 @@ window.GyrOS = {
         document.getElementById('btn-about').addEventListener('click', () => { document.getElementById('about-modal').style.display = 'flex'; });
         document.getElementById('close-about').addEventListener('click', () => { document.getElementById('about-modal').style.display = 'none'; });
 
+        // Preset Saving Toggle Logic
+        const btnPMode = document.getElementById('btn-preset-mode');
+        btnPMode.addEventListener('click', () => {
+            this.state.presetAction = this.state.presetAction === 'LOAD' ? 'SAVE' : 'LOAD';
+            btnPMode.innerText = `P-MODE: ${this.state.presetAction}`;
+            btnPMode.style.background = this.state.presetAction === 'SAVE' ? '#ff00cc' : '#444';
+            btnPMode.style.color = 'white';
+        });
+
         [1,2,3,4].forEach(n => {
             const b = document.getElementById(`btn-p${n}`);
-            b.addEventListener('click', e => { if(e.shiftKey) this.savePreset(n); else this.loadPreset(n); });
+            b.addEventListener('click', e => { 
+                if(this.state.presetAction === 'SAVE' || e.shiftKey) {
+                    this.savePreset(n);
+                    this.state.presetAction = 'LOAD';
+                    btnPMode.innerText = 'P-MODE: LOAD'; btnPMode.style.background = '#444';
+                } else { this.loadPreset(n); }
+            });
         });
 
         document.getElementById('btn-oct-up').addEventListener('click', () => { if(this.state.cfg.octave < 6) { this.state.cfg.octave++; this.initGrid(); this.guiSnd.updateDisplay(); } });
@@ -1125,8 +1178,8 @@ window.GyrOS = {
         btnPads.addEventListener('click', () => {
             this.state.padsEditing = !this.state.padsEditing;
             btnPads.innerText = this.state.padsEditing ? "PADS: EDIT" : "PADS: LOCKED";
-            btnPads.style.borderColor = this.state.padsEditing ? "#ffaa00" : "#666";
-            btnPads.style.color = this.state.padsEditing ? "#ffaa00" : "#666";
+            btnPads.classList.toggle('btn-pads-edit', this.state.padsEditing);
+            btnPads.classList.toggle('btn-pads-locked', !this.state.padsEditing);
             document.getElementById('custom-buttons-layer').classList.toggle('editing', this.state.padsEditing);
         });
 
@@ -1201,8 +1254,7 @@ window.GyrOS = {
                     this.state.customSamplers.forEach(pad => {
                         if (pad.impactEnabled && force > pad.impactThresh && pad.player.state !== 'started') {
                             if(pad.playMode === 'Retrigger') pad.player.stop();
-                            pad.startTime = Tone.now();
-                            pad.player.start(pad.startTime); 
+                            pad.startTime = Tone.now(); pad.player.start(pad.startTime); 
                             document.getElementById(`pad-${pad.id}`).classList.add(pad.doPulse ? 'pad-pulsing' : 'playing');
                         }
                     });
@@ -1218,10 +1270,8 @@ window.GyrOS = {
             let targetX = (cx / window.innerWidth) * 2 - 1 + (this.state.cfg.ptrOffsetX * 0.1); 
             let targetY = -(cy / window.innerHeight) * 2 + 1 + (this.state.cfg.ptrOffsetY * 0.1);
             
-            // In touch modes, snap instantly, otherwise smooth
             if([6,7].includes(this.state.mode)) {
-                this.state.pointer.x = targetX;
-                this.state.pointer.y = targetY;
+                this.state.pointer.x = targetX; this.state.pointer.y = targetY;
             } else {
                 this.raycaster.setFromCamera(new THREE.Vector2(targetX, targetY), this.cam);
                 const target = new THREE.Vector3(); this.raycaster.ray.intersectPlane(this.planeZ0, target);
@@ -1231,28 +1281,58 @@ window.GyrOS = {
             }
         };
 
+        // PC Mouse/Touch Swipe to Impact Logic
+        window.addEventListener('pointerdown', e => {
+            if(e.target.closest('.gui-window') || e.target.closest('.custom-sampler-btn') || e.target.closest('#bottom-hud')) return;
+            this.state.swipeActive = true;
+            this.state.lastSwipePos = { x: e.clientX, y: e.clientY };
+            this.state.lastSwipeTime = performance.now();
+        });
+        window.addEventListener('pointerup', () => { this.state.swipeActive = false; if(!this.state.hasGyro) this.state.rawSensors.acc = 0; });
+        window.addEventListener('pointercancel', () => { this.state.swipeActive = false; if(!this.state.hasGyro) this.state.rawSensors.acc = 0; });
+
         window.addEventListener('pointermove', e => {
             if(!this.state.sensorsActive) return; markActive();
             if(!this.state.hasGyro || [6,7].includes(this.state.mode)) mapMouseTo3D(e.clientX, e.clientY);
             
-            // EMERGENCY DODGE LOGIC
+            // Fling/Swipe Emulation
+            if(this.state.swipeActive && this.state.sensorsActive) {
+                const now = performance.now(); const dt = now - this.state.lastSwipeTime;
+                if(dt > 16) {
+                    const dx = e.clientX - this.state.lastSwipePos.x; const dy = e.clientY - this.state.lastSwipePos.y;
+                    const vel = (Math.hypot(dx, dy) / dt) * this.state.cfg.mouseSwipeScale;
+                    
+                    if(!this.state.hasGyro) this.state.rawSensors.acc = vel;
+                    
+                    if(vel > this.state.cfg.impactThresh && vel > 10 && (now - this.state.lastFakeHit > 150)) {
+                        this.state.lastFakeHit = now;
+                        this.state.customSamplers.forEach(pad => {
+                            if (pad.impactEnabled && vel > pad.impactThresh && pad.player.state !== 'started') {
+                                if(pad.playMode === 'Retrigger') pad.player.stop();
+                                pad.startTime = Tone.now(); pad.player.start(pad.startTime); 
+                                document.getElementById(`pad-${pad.id}`).classList.add(pad.doPulse ? 'pad-pulsing' : 'playing');
+                            }
+                        });
+                        if ([2,3,8].includes(this.state.mode) && this.state.cfg.cells[this.state.activeCellIdx]) {
+                            this.triggerNote(this.state.cfg.cells[this.state.activeCellIdx].defaultNote, vel);
+                        }
+                    }
+                    this.state.lastSwipePos = { x: e.clientX, y: e.clientY }; this.state.lastSwipeTime = now;
+                }
+            }
+
             const emRect = document.getElementById('emergency-row').getBoundingClientRect();
-            // Expanded hit box to dodge early
             if(e.clientY > emRect.top - 50 && e.clientX > emRect.left - 50 && e.clientX < emRect.right + 50) {
                 document.querySelectorAll('.gui-window').forEach(w => {
                     if(w.id === 'bottom-hud') return;
                     const wRect = w.getBoundingClientRect();
-                    if(wRect.bottom > emRect.top - 50 && wRect.right > emRect.left - 50 && wRect.left < emRect.right + 50) {
-                        w.classList.add('dodging');
-                    }
+                    if(wRect.bottom > emRect.top - 50 && wRect.right > emRect.left - 50 && wRect.left < emRect.right + 50) w.classList.add('dodging');
                 });
-            } else {
-                document.querySelectorAll('.gui-window').forEach(w => w.classList.remove('dodging'));
-            }
+            } else { document.querySelectorAll('.gui-window').forEach(w => w.classList.remove('dodging')); }
         });
 
         document.body.addEventListener('mouseleave', () => { if(!this.state.hasGyro) this.toggleMute(true); });
-
+        
         setInterval(() => {
             if(!this.state.isAsleep && Date.now() - this.state.lastInteraction > 30000) { 
                 this.state.isAsleep = true; 
@@ -1312,7 +1392,6 @@ window.GyrOS = {
 
         this.pointerObj.position.x = pointer.x * 8; this.pointerObj.position.y = pointer.y * 5;
 
-        // Skip Hover & Arp logic if in pure touch mode, handled by Pointer events directly on Grid Cells
         if(![6,7].includes(mode)) {
             let gridX = Math.floor(mapRange(pointer.x, -1, 1, 0, cfg.gridCols)); let gridY = Math.floor(mapRange(pointer.y, 1, -1, 0, cfg.gridRows)); 
             gridX = Math.max(0, Math.min(cfg.gridCols - 1, gridX)); gridY = Math.max(0, Math.min(cfg.gridRows - 1, gridY));
