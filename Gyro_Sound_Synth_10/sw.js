@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gyros-v10-cache';
+const CACHE_NAME = 'gyros-v10.1-cache';
 const APP_SHELL = ['./', './index.html', './manifest.json', './sw.js'];
 
 self.addEventListener('install', event => {
