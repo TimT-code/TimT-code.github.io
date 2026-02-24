@@ -1116,5 +1116,20 @@ window.GyrOS = {
 
 document.getElementById('btn-start').onclick = () => GyrOS.init();
 </script>
+
+<!-- Service Worker Registration -->
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+            .then(registration => {
+                console.log('Gyr-OS Service Worker registered with scope:', registration.scope);
+            })
+            .catch(error => {
+                console.error('Service Worker registration failed:', error);
+            });
+        });
+    }
+</script>
 </body>
 </html>
