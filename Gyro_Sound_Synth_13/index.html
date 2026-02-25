@@ -272,7 +272,7 @@
 <script type="importmap">
     { "imports": { "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.js" } }
 </script>
-    
+
 <script type="module">
 import * as THREE from 'three';
 import * as Tone from 'https://esm.sh/tone';
@@ -295,28 +295,40 @@ window.GyrOS = {
         micActive: false, isRecording: false, waitingForRec: false, speechVoices:[], isSilenced: false, hasPausedAudio: false,
         rawSensors: { x: 0, y: 0, z: 0, acc: 0 }, pointer: { x: 0, y: 0 }, lastInteraction: Date.now(),
         activeCellIdx: -1, lastArpTime: 0, customSamplers:[], speechPads:[], activeChords: new Set(),
-        presetAction: 'LOAD', swipeActive: false, lastSwipePos: { x: 0, y: 0 }, lastSwipeTime: 0, lastFakeHit: 0,
+        
+        presetAction: 'LOAD',
+        swipeActive: false, lastSwipePos: { x: 0, y: 0 }, lastSwipeTime: 0, lastFakeHit: 0,
         hudTab: 1, assets:[],
         
         cfg: {
             showSplash: true, splashImgUrl: null, splashAudioUrl: null,
+
             sensSwapXY: false, sensInvertX: false, sensInvertY: false,
             ptrDisableX: false, ptrDisableY: false, ptrSwapXY: false, ptrInvertX: false, ptrInvertY: false,
             gyroScale: 30, impactThresh: 15, mouseSwipeScale: 25, playfieldPad: 0,
             ptrOffsetX: 0, ptrOffsetY: 0, ptrSmoothing: 0.2, 
+            
             gridCols: 4, gridRows: 3, showGrid: true, perspective: false, colorNotes: true,
             hudColor: 'rgba(10, 10, 15, 0.85)', accentColor: '#00ffcc', waveColor: '#00ffcc',
-            bgImageUrl: null, bgOpacity: 1.0, bgSize: 'cover', pointerSize: 1.0, pointerOpac: 1.0, hidePointerTouch: false,
-            showPresetWin: true, showAssetWin: false, showVisualizer: false, showDebugger: false, showSpeech: false, // <-- FIXED BUG HERE
+            bgImageUrl: null, bgOpacity: 1.0, bgSize: 'cover',
+            pointerSize: 1.0, pointerOpac: 1.0, hidePointerTouch: false,
+            
+            showPresetWin: true, showAssetWin: false, showVisualizer: false, showDebugger: false, showSpeech: false,
+            
             vfxImageUrl: null, vfxOpac: 0.8, vfxScale: 2.0, vfxSpeed: 0.5, targetNoteForImg: 'C',
+            
             masterVol: -2, eqLow: 0, eqMid: 0, eqHigh: 0, reverbMix: 0.3, delayMix: 0.2, arpRate: 0.15,
             scale: 'pentatonic', root: 'C', octave: 3, synthPreset: 'Custom',
+            
             thOn: true, thereminWave: 'sine', thBaseFreq: 100, thMaxFreq: 2000, thVolMax: 0, thVolMin: -40,
             s1On: true, s1Type: 'Synth', s1Vol: -4, s1Pan: -0.5, s1Atk: 0.05, s1Dec: 0.2, s1Sus: 0.5, s1Rel: 1.5, s1Dist: 0, s1Phaser: 0,
             s2On: true, s2Type: 'FMSynth', s2Vol: -6, s2Pan: 0.5, s2Atk: 0.1, s2Dec: 0.3, s2Sus: 0.4, s2Rel: 2.0, s2Dist: 0, s2Phaser: 0,
-            recMode: 'Immediate', recThreshold: -20, recTimer: 5,
+
+            recMode: 'Immediate', recThreshold: -20, recTimer: 5, presetCount: 4, warnPresetLoad: true,
+            
             m1: true, m2: true, m3: true, m4: true, m5: true, m6: true, m7: true, m8: true,
             guiFolders: {}, cells:[], noteImages: {}, windowPositions: {},
+            
             hudGroups: {
                 1: { bg: 'rgba(10,10,15,0.85)', btnBg: 'rgba(0,0,0,0.8)', txtCol: '#00ffcc', btns:['btn-oct-down','btn-oct-up','btn-pads-edit','btn-sensors','btn-hold','btn-mute','btn-panic','btn-silence','btn-resume','btn-stopall'] },
                 2: { bg: 'rgba(20,10,10,0.85)', btnBg: 'rgba(30,0,0,0.8)', txtCol: '#ff0055', btns:['btn-oct-down','btn-oct-up','btn-mute','btn-panic'] },
@@ -965,6 +977,25 @@ window.GyrOS = {
         if(this.state.cfg.s2On) this.synth2.triggerAttackRelease(noteStr, dur, now, vol);
     },
 
+    buildPresetGrid() {
+        const c = $('preset-grid');
+        if(!c) return;
+        c.innerHTML = '';
+        for(let n=1; n<=this.state.cfg.presetCount; n++) {
+            const b = document.createElement('button');
+            b.className = 'sys-btn'; b.innerText = `[P${n}]`; b.style.width = '100%';
+            b.onclick = (e) => {
+                if(this.state.presetAction === 'SAVE' || e.shiftKey) {
+                    this.savePreset(n);
+                    this.state.presetAction = 'LOAD'; 
+                    const pb = $('pmode-btn');
+                    if(pb) { pb.innerText = 'MODE: LOAD'; pb.style.background = '#444'; }
+                } else { this.loadPreset(n); }
+            };
+            c.appendChild(b);
+        }
+    },
+
     makeButtonCloneable(btnId) {
         const btn = $(btnId); if(!btn) return;
         
@@ -1076,7 +1107,7 @@ window.GyrOS = {
             if(cb && cb.checked && !confirm(`Overwrite Preset P${num} with current entire configuration?`)) return;
         }
         localStorage.setItem(`gyros_preset_${num}`, JSON.stringify(this.state.cfg));
-        alert(`Master Config Saved to[P${num}]!`);
+        alert(`Master Config Saved to [P${num}]!`);
     },
     
     loadPreset(num) {
@@ -1187,7 +1218,7 @@ window.GyrOS = {
         sTh.add(this.state.cfg, 'thOn').name('Power On');
         sTh.add({ s: () => this.downloadConfig('th', 'GyrOS_Theremin.json') }, 's').name('💾 Save Theremin');
         sTh.add({ l: () => $('up-th').click() }, 'l').name('📂 Load Theremin');
-        sTh.add(this.state.cfg, 'thereminWave', ['sine', 'square', 'sawtooth', 'triangle']).onChange(()=>this.updateSynths());
+        sTh.add(this.state.cfg, 'thereminWave',['sine', 'square', 'sawtooth', 'triangle']).onChange(()=>this.updateSynths());
         sTh.add(this.state.cfg, 'thBaseFreq', 20, 500); sTh.add(this.state.cfg, 'thMaxFreq', 500, 5000);
         
         const buildSynthGUI = (fName, pfx, synthObj, panObj, upId) => {
@@ -1254,7 +1285,7 @@ window.GyrOS = {
                     const content = el.querySelector('.gui-content');
                     if(content) {
                         const isHidden = content.style.display === 'none';
-                        content.style.display = isHidden ? 'block' : 'none'; // Fixed back to block instead of flex for standard dat.gui wrapping
+                        content.style.display = isHidden ? 'flex' : 'none';
                         toggles.forEach(tg => tg.innerText = isHidden ? '▼' : '▲');
                     }
                 });
@@ -1556,7 +1587,7 @@ window.GyrOS = {
 
         window.addEventListener('pointermove', e => {
             if(!this.state.sensorsActive) return; markActive();
-            if(!this.state.hasGyro || [6,7].includes(this.state.mode)) mapMouseTo3D(e.clientX, e.clientY);
+            if(!this.state.hasGyro ||[6,7].includes(this.state.mode)) mapMouseTo3D(e.clientX, e.clientY);
             
             if(this.state.swipeActive && this.state.sensorsActive) {
                 const now = performance.now(); const dt = now - this.state.lastSwipeTime;
@@ -1583,17 +1614,14 @@ window.GyrOS = {
                 }
             }
 
-            const bh = $('bottom-hud');
-            if(bh) {
-                const emRect = bh.getBoundingClientRect();
-                if(e.clientY > emRect.top - 50 && e.clientX > emRect.left - 50 && e.clientX < emRect.right + 50) {
-                    $$('.gui-window').forEach(w => {
-                        if(w.id === 'bottom-hud') return;
-                        const wRect = w.getBoundingClientRect();
-                        if(wRect.bottom > emRect.top - 50 && wRect.right > emRect.left - 50 && wRect.left < emRect.right + 50) w.classList.add('dodging');
-                    });
-                } else { $$('.gui-window').forEach(w => w.classList.remove('dodging')); }
-            }
+            const emRect = $('hud-row-emerg').getBoundingClientRect();
+            if(e.clientY > emRect.top - 50 && e.clientX > emRect.left - 50 && e.clientX < emRect.right + 50) {
+                $$('.gui-window').forEach(w => {
+                    if(w.id === 'bottom-hud') return;
+                    const wRect = w.getBoundingClientRect();
+                    if(wRect.bottom > emRect.top - 50 && wRect.right > emRect.left - 50 && wRect.left < emRect.right + 50) w.classList.add('dodging');
+                });
+            } else { $$('.gui-window').forEach(w => w.classList.remove('dodging')); }
         });
 
         document.body.addEventListener('mouseleave', () => { if(!this.state.hasGyro) this.toggleMute(true); });
@@ -1605,7 +1633,7 @@ window.GyrOS = {
                 this.synth1.releaseAll(); this.synth2.releaseAll();
                 this.thereminVol.volume.rampTo(-Infinity, 0.05);
                 this.toggleMute(true);
-                if($('screensaver-layer')) $('screensaver-layer').style.opacity = 1;
+                $('screensaver-layer').style.opacity = 1;
             }
         }, 1000);
     },
@@ -1698,7 +1726,7 @@ window.GyrOS = {
             }
         }
 
-        if (cfg.thOn &&[1, 3, 7, 8].includes(mode) && !isSilenced) {
+        if (cfg.thOn && [1, 3, 7, 8].includes(mode) && !isSilenced) {
             let tFreq = mapRange(pointer.y, -1, 1, cfg.thBaseFreq, cfg.thMaxFreq); tFreq = Math.max(20, Math.min(5000, tFreq));
             let tVol = mapRange(pointer.x, -1, 1, cfg.thVolMin, cfg.thVolMax);
             this.theremin.frequency.setTargetAtTime(tFreq, now, 0.05); this.thereminVol.volume.setTargetAtTime(tVol, now, 0.05);
