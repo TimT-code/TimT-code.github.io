@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <link rel="manifest" href="manifest.json">
-    <title>Gyr-OS | Master Workstation V12.1</title>
+    <title>Gyr-OS | Master Workstation V12.2</title>
     
     <!-- 
       Author: Tim Tesner
       Co-Author / AI Assistance: Gemini 3 Pro
-      Gyr-OS Workstation Engine V12.1
+      Gyr-OS Workstation Engine V12.2
     -->
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
@@ -40,19 +40,10 @@
         ::-webkit-scrollbar-track { background: rgba(0,0,0,0.5); border-radius: 4px; }
         ::-webkit-scrollbar-thumb { background: var(--accent-neon); border-radius: 4px; }
 
-        #gui-left { top: 40px; left: 20px; } 
-        #gui-center { top: 40px; left: 50%; transform: translateX(-50%); } 
-        #gui-right { top: 40px; right: 20px; }
-        
+        #gui-left { top: 40px; left: 20px; } #gui-center { top: 40px; left: 50%; transform: translateX(-50%); } #gui-right { top: 40px; right: 20px; }
         #preset-window { top: 40px; right: 300px; width: 220px; display: none; }
         #asset-window { top: 300px; left: 20px; width: 260px; display: none; }
         #visualizer-window { top: 400px; right: 20px; width: 300px; height: 150px; resize: both; overflow: hidden; display: none; }
-        #debugger-window { top: 40px; right: 280px; width: 220px; display: none; }
-        #speech-window { top: 400px; left: 20px; width: 250px; display: none; }
-
-        /* Dashboard & Indicators */
-        #live-dashboard { position: absolute; bottom: 22vh; left: 20px; background: var(--glass-bg); padding: 10px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; font-family: monospace; font-size: 11px; z-index: 50; pointer-events: none; color: var(--accent-neon); transition: opacity 0.3s; }
-        .sleep-indicator { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); color: #ffaa00; font-family: monospace; font-weight: bold; font-size: 14px; z-index: 1000; display: none; background: rgba(0,0,0,0.8); padding: 5px 15px; border-radius: 20px; border: 1px solid #ffaa00; }
 
         /* Bottom Master Control Bar */
         #bottom-hud { top: calc(100vh - 220px); left: 50vw; transform: translateX(-50%); width: 95vw; max-width: 900px; height: auto; resize: both; overflow: hidden; z-index: 150; background: var(--hud-bg); }
@@ -78,8 +69,8 @@
         #custom-buttons-layer { position: absolute; inset: 0; z-index: 80; pointer-events: none; }
         #custom-buttons-layer.editing { pointer-events: auto; background: rgba(0, 255, 204, 0.05); }
         
-        .custom-sampler-btn, .speech-pad-btn { position: absolute; background: rgba(0,0,0,0.8); border: 2px solid var(--accent-neon); color: var(--accent-neon); border-radius: 8px; font-family: monospace; cursor: pointer; touch-action: none; box-shadow: 0 4px 10px rgba(0,0,0,0.5); transition: transform 0.1s; overflow: visible; resize: both; min-width: 140px; min-height: 80px; pointer-events: auto; display: flex; flex-direction: column; justify-content: space-between; }
-        .custom-sampler-btn:active, .speech-pad-btn:active { transform: scale(0.98); }
+        .custom-sampler-btn { position: absolute; background: rgba(0,0,0,0.8); border: 2px solid var(--accent-neon); color: var(--accent-neon); border-radius: 8px; font-family: monospace; cursor: pointer; touch-action: none; box-shadow: 0 4px 10px rgba(0,0,0,0.5); transition: transform 0.1s; overflow: visible; resize: both; min-width: 140px; min-height: 80px; pointer-events: auto; display: flex; flex-direction: column; justify-content: space-between; }
+        .custom-sampler-btn:active { transform: scale(0.98); }
         .pad-title { position: relative; z-index: 2; padding: 5px; font-weight: bold; pointer-events: none; text-shadow: 1px 1px 2px black; font-size: 12px; }
         .pad-react-bg { position: absolute; inset: 0; background: var(--accent-neon); opacity: 0; z-index: 0; pointer-events: none; transition: opacity 0.05s; }
         
@@ -87,7 +78,7 @@
         .pad-controls button { background: #333; color: white; border: 1px solid #666; border-radius: 3px; cursor: pointer; font-size: 10px; padding: 2px 5px; }
         .pad-controls input[type="range"] { width: 100%; height: 4px; accent-color: var(--accent-neon); }
 
-        @keyframes padPulse { 0% { box-shadow: 0 0 5px var(--accent-neon); filter: brightness(1); } 100% { box-shadow: 0 0 25px var(--accent-neon); filter: brightness(1.5); } }
+        @keyframes padPulse { 0% { box-shadow: 0 0 5px var(--accent-neon); } 100% { box-shadow: 0 0 25px var(--accent-neon); filter: brightness(1.5); } }
         .pad-pulsing { animation: padPulse 0.4s infinite alternate; }
 
         .pad-gear { position: absolute; top: -10px; right: -10px; background: #000; border: 1px solid var(--accent-neon); border-radius: 50%; width: 24px; height: 24px; color: var(--accent-neon); cursor: pointer; z-index: 10; font-size: 12px; display: none; justify-content: center; align-items: center; }
@@ -98,12 +89,9 @@
         .pad-settings-menu label { font-size: 10px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
         .pad-settings-menu input, .pad-settings-menu select { background: #000; color: #fff; border: 1px solid #444; padding: 2px; font-size: 10px; max-width: 100px; }
 
-        /* Debugger & Assets */
+        /* Asset Manager */
         .asset-item { font-size: 10px; padding: 4px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
         .asset-item button { background: var(--accent-neon); color: black; border: none; cursor: pointer; font-size: 9px; padding: 2px 4px; border-radius: 2px; }
-        
-        .debug-row { display: flex; justify-content: space-between; font-family: monospace; font-size: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); padding: 2px 0; }
-        .debug-val { color: var(--accent-neon); }
 
         /* Splash & About */
         #splash-screen { position: fixed; inset: 0; z-index: 9999; background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; }
@@ -124,13 +112,12 @@
 <!-- Splash Screen -->
 <div id="splash-screen">
     <img id="splash-img" src="" alt="Splash Image">
-    <h1 style="color: var(--accent-neon); letter-spacing: 5px; text-shadow: 0 0 20px var(--accent-neon);">GYR-OS V12.1</h1>
+    <h1 style="color: var(--accent-neon); letter-spacing: 5px; text-shadow: 0 0 20px var(--accent-neon);">GYR-OS V12.2</h1>
     <p style="color:#aaa;">AUTHOR: TIM TESNER & GEMINI 3 PRO</p>
     <button id="btn-start" style="padding: 20px 40px; font-size: 1.5rem; background: var(--accent-neon); border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top:20px;">INITIALIZE ENGINE</button>
     <div id="error-msg" style="color: #ff4444; margin-top: 15px;"></div>
 </div>
 
-<div id="sleep-indicator" class="sleep-indicator">💤 SYSTEM ASLEEP / MUTED</div>
 <div id="bg-layer"></div>
 <div id="canvas-container"></div>
 <div id="screensaver-layer"></div>
@@ -143,24 +130,18 @@
 
 <!-- About Modal -->
 <div id="about-modal">
-    <div id="about-header"><span>Gyr-OS | Documentation V12.1</span><button id="close-about" style="background:transparent; border:none; color:black; font-weight:bold; cursor:pointer;">X</button></div>
+    <div id="about-header"><span>Gyr-OS | Documentation V12.2</span><button id="close-about" style="background:transparent; border:none; color:black; font-weight:bold; cursor:pointer;">X</button></div>
     <div id="about-content">
         <h2 style="color:var(--accent-neon);">Authors: Tim Tesner & Gemini 3 Pro</h2>
-        <p><strong>V12.1 Hotfix Upgrades:</strong><br>
-        - <strong>HTML Restoration:</strong> Fixed the missing HTML DOM elements that caused styling crashes upon boot.<br>
+        <p><strong>V12.2 Upgrades & Fixes:</strong><br>
+        - <strong>Critical Boot Fix:</strong> Restored hidden HTML file inputs that caused the engine initialization to crash.<br>
         - <strong>Detachable Master Control Buttons:</strong> Click and drag buttons like [PANIC] or [MUTE] off the control bar to place them permanently on the playfield for quick access.<br>
-        - <strong>Group Tabs:</strong> The bottom HUD now supports Tabs [1-5]. You can switch groups instantly.<br>
+        - <strong>Group Tabs:</strong> The bottom HUD now supports Tabs [1-5]. You can switch groups instantly. Change the HUD background color via the Visuals menu.<br>
         - <strong>Asset Manager & Directory Loading:</strong> Use the [ASSETS] window to upload entire folders of sounds. Click "Spawn Pad" to generate a pad from the list.<br>
-        - <strong>Perspective Engine:</strong> Check "Perspective" in Grid Setup to make the entire playfield visually tilt and swell with your sensor movements.<br>
+        - <strong>Advanced Pad Mixing:</strong> Every custom pad now has its own EQ (Low/Mid/High), Reverb/Delay Sends, and advanced looping (Loop X times).<br>
+        - <strong>Perspective Engine:</strong> Check "Perspective" in Grid Setup to make the entire playfield and background visually tilt and swell with your sensor movements.<br>
         - <strong>True P-Mode Presets:</strong> The Preset Manager is now its own window, expandable up to 20 slots, with "Warn Before Load" safety checks.</p>
     </div>
-</div>
-
-<!-- Dashboard & Indicators -->
-<div id="live-dashboard">
-    <div>POS: <span id="rd-pos">0, 0</span></div>
-    <div>ACC: <span id="rd-acc">0</span></div>
-    <div>AIM: <span id="rd-cell">None</span></div>
 </div>
 
 <!-- Floating GUIs -->
@@ -196,41 +177,6 @@
     </div>
 </div>
 
-<!-- Visualizer & Debugger Windows -->
-<div class="gui-window" id="visualizer-window">
-    <div class="gui-header"><span class="gui-toggle">▼</span><span>MASTER VISUALS</span><span class="gui-toggle">▼</span></div>
-    <div class="gui-content" style="padding: 0; overflow: hidden;"><canvas id="vis-canvas" style="width:100%; height:100%; background:rgba(0,0,0,0.5);"></canvas></div>
-</div>
-
-<div class="gui-window" id="debugger-window">
-    <div class="gui-header"><span class="gui-toggle">▼</span><span>DIAGNOSTICS</span><span class="gui-toggle">▼</span></div>
-    <div class="gui-content" style="padding:10px;">
-        <div class="debug-row"><span>Status:</span> <span class="debug-val" id="dbg-status">Active</span></div>
-        <div class="debug-row"><span>Audio Ctx:</span> <span class="debug-val" id="dbg-ctx">--</span></div>
-        <div class="debug-row"><span>Polyphony:</span> <span class="debug-val" id="dbg-poly">0</span></div>
-        <div class="debug-row"><span>Pointer X/Y:</span> <span class="debug-val" id="dbg-ptr">0, 0</span></div>
-        <div class="debug-row"><span>Gyro X/Y/Z:</span> <span class="debug-val" id="dbg-gyro">0, 0, 0</span></div>
-        <div class="debug-row"><span>Accel (Raw):</span> <span class="debug-val" id="dbg-acc">0</span></div>
-        <div class="debug-row"><span>Mic Level:</span> <span class="debug-val" id="dbg-mic">0</span></div>
-        <div class="debug-row" style="border-top:1px solid var(--accent-neon); margin-top:5px; padding-top:5px;">
-            <span>Vibrate Value:</span> <span class="debug-val" id="dbg-vib" style="font-weight:bold;">0</span>
-        </div>
-        <div style="font-size:8px; color:#888; text-align:right;">Formula: trunc(acc * 10 / 2)</div>
-    </div>
-</div>
-
-<div class="gui-window" id="speech-window">
-    <div class="gui-header"><span class="gui-toggle">▼</span><span>WEB SPEECH API</span><span class="gui-toggle">▼</span></div>
-    <div class="gui-content" style="padding:10px; display:flex; flex-direction:column; gap:5px;">
-        <input type="text" id="speech-text" value="System Online" style="width:100%; background:#000; color:var(--accent-neon); border:1px solid #444;">
-        <select id="speech-voice" style="width:100%; background:#000; color:#fff;"></select>
-        <label style="font-size:10px;">Rate: <input type="range" id="speech-rate" min="0.1" max="2" step="0.1" value="1"></label>
-        <label style="font-size:10px;">Pitch: <input type="range" id="speech-pitch" min="0.1" max="2" step="0.1" value="1"></label>
-        <button class="sys-btn" id="btn-speak" style="margin-top:5px;">📢 SPEAK</button>
-    </div>
-</div>
-
-
 <!-- Master Control Bar (Modular) -->
 <div class="gui-window" id="bottom-hud">
     <div class="gui-header"><span class="gui-toggle">▼</span><span id="hud-title">MASTER CONTROL BAR</span><span class="gui-toggle">▼</span></div>
@@ -255,11 +201,13 @@
 <input type="file" id="up-config" accept=".json">
 <input type="file" id="up-s1" accept=".json">
 <input type="file" id="up-s2" accept=".json">
+<input type="file" id="up-th" accept=".json">
 <input type="file" id="up-bg" accept="image/*">
 <input type="file" id="up-vfx" accept="image/*">
 <input type="file" id="up-note-img" accept="image/*">
 <input type="file" id="up-splash-img" accept="image/*">
 <input type="file" id="up-splash-aud" accept="audio/*">
+<input type="file" id="up-sample" accept="audio/*">
 <input type="file" id="up-folder" multiple webkitdirectory directory>
 
 <!-- The Library Buttons (Hidden, cloned into HUD/Playfield) -->
@@ -285,7 +233,7 @@
 
 <script type="module">
 /**
- * GYR-OS WORKSTATION V12.1
+ * GYR-OS WORKSTATION V12.2
  * Author: Tim Tesner
  * Co-Author: Gemini 3 Pro
  */
@@ -309,7 +257,7 @@ window.GyrOS = {
         micActive: false, isRecording: false, isSilenced: false,
         rawSensors: { x: 0, y: 0, z: 0, acc: 0 },
         pointer: { x: 0, y: 0 }, lastInteraction: Date.now(),
-        activeCellIdx: -1, customSamplers: [], activeChords: new Set(), speechPads: [], speechVoices: [],
+        activeCellIdx: -1, customSamplers: [], activeChords: new Set(),
         
         presetAction: 'LOAD', presetCount: 4, warnPresetLoad: true,
         swipeActive: false, lastSwipePos: { x: 0, y: 0 }, lastSwipeTime: 0, lastFakeHit: 0,
@@ -329,7 +277,7 @@ window.GyrOS = {
             bgImageUrl: null, bgOpacity: 1.0, bgSize: 'cover',
             pointerSize: 1.0, pointerOpac: 1.0, hidePointerTouch: false,
             
-            showPresetWin: false, showAssetWin: false, showVisualizer: false, showDebugger: false, showSpeech: false,
+            showPresetWin: false, showAssetWin: false, showVisualizer: false, showDebugger: false,
             
             vfxImageUrl: null, vfxOpac: 0.8, vfxScale: 2.0, vfxSpeed: 0.5, targetNoteForImg: 'C',
             
@@ -381,7 +329,7 @@ window.GyrOS = {
             }
 
             try { await this.detectSensors(); this.state.hasGyro = true; } catch(e) { this.state.hasGyro = false; }
-            this.initAudio(); this.initVisuals(); this.initGrid(); this.initSpeech(); this.initGUIs();
+            this.initAudio(); this.initVisuals(); this.initGrid(); this.initGUIs();
             this.buildPresetGrid(); this.makeGUIsDraggable(); this.bindEvents(); 
             this.state.mode = this.state.defaultMode;
             
@@ -418,122 +366,6 @@ window.GyrOS = {
         });
     },
 
-    initSpeech() {
-        if('speechSynthesis' in window) {
-            const populateVoices = () => {
-                this.state.speechVoices = window.speechSynthesis.getVoices();
-                const sel = document.getElementById('speech-voice');
-                if(sel) {
-                    sel.innerHTML = '';
-                    this.state.speechVoices.forEach((v, i) => {
-                        const opt = document.createElement('option');
-                        opt.value = i; opt.innerText = `${v.name} (${v.lang})`;
-                        sel.appendChild(opt);
-                    });
-                }
-            };
-            populateVoices();
-            window.speechSynthesis.onvoiceschanged = populateVoices;
-            
-            const btnSpk = document.getElementById('btn-speak');
-            if(btnSpk) {
-                btnSpk.onclick = () => {
-                    const text = document.getElementById('speech-text').value;
-                    const ut = new SpeechSynthesisUtterance(text);
-                    const vIdx = document.getElementById('speech-voice').value;
-                    if(this.state.speechVoices[vIdx]) ut.voice = this.state.speechVoices[vIdx];
-                    ut.rate = parseFloat(document.getElementById('speech-rate').value);
-                    ut.pitch = parseFloat(document.getElementById('speech-pitch').value);
-                    window.speechSynthesis.speak(ut);
-                };
-            }
-        }
-    },
-
-    addSpeechPad() {
-        const id = Date.now();
-        const data = { id, text: 'Hello World', voiceIdx: 0, rate: 1.0, pitch: 1.0, zIndex: 85 };
-        this.state.speechPads.push(data);
-        
-        const btn = document.createElement('div');
-        btn.className = 'speech-pad-btn';
-        btn.style.left = '150px'; btn.style.top = '150px';
-        btn.style.zIndex = data.zIndex;
-        btn.style.borderColor = '#ff00cc';
-        btn.style.color = '#ff00cc';
-        
-        let vHTML = '';
-        this.state.speechVoices.forEach((v, i) => { vHTML += `<option value="${i}">${v.name.substring(0,15)}</option>`; });
-
-        btn.innerHTML = `
-            <div class="pad-gear" style="color:#ff00cc; border-color:#ff00cc;">⚙</div>
-            <div class="pad-title" style="color:white;">🗣️ SPEECH</div>
-            <div class="pad-controls" style="justify-content:center;">
-                <button class="ui-btn-play">▶ PLAY</button>
-            </div>
-            
-            <div class="pad-settings-menu" style="border-color:#ff00cc;">
-                <label>Text: <input type="text" class="set-text" value="${data.text}"></label>
-                <label>Voice: <select class="set-voice">${vHTML}</select></label>
-                <label>Rate: <input type="range" class="set-rate" min="0.1" max="2" step="0.1" value="1"></label>
-                <label>Pitch: <input type="range" class="set-pitch" min="0.1" max="2" step="0.1" value="1"></label>
-                <label>Z-Index: <input type="number" class="set-z" value="85"></label>
-                <button class="set-del-btn" style="border-color:red; color:red; margin-top:5px;">🗑 Delete Pad</button>
-            </div>
-        `;
-        
-        const menu = btn.querySelector('.pad-settings-menu');
-        const gear = btn.querySelector('.pad-gear');
-
-        gear.addEventListener('pointerdown', e => { e.stopPropagation(); menu.classList.toggle('open'); });
-        menu.addEventListener('pointerdown', e => e.stopPropagation()); 
-        
-        btn.querySelector('.set-text').addEventListener('input', e => data.text = e.target.value);
-        btn.querySelector('.set-voice').addEventListener('change', e => data.voiceIdx = e.target.value);
-        btn.querySelector('.set-rate').addEventListener('input', e => data.rate = parseFloat(e.target.value));
-        btn.querySelector('.set-pitch').addEventListener('input', e => data.pitch = parseFloat(e.target.value));
-        btn.querySelector('.set-z').addEventListener('input', e => { data.zIndex = parseInt(e.target.value); btn.style.zIndex = data.zIndex; });
-        
-        btn.querySelector('.set-del-btn').addEventListener('click', () => { btn.remove(); this.state.speechPads = this.state.speechPads.filter(s => s.id !== id); });
-
-        const firePad = () => {
-            window.speechSynthesis.cancel();
-            const ut = new SpeechSynthesisUtterance(data.text);
-            if(this.state.speechVoices[data.voiceIdx]) ut.voice = this.state.speechVoices[data.voiceIdx];
-            ut.rate = data.rate; ut.pitch = data.pitch;
-            window.speechSynthesis.speak(ut);
-            btn.classList.add('pad-pulsing');
-            ut.onend = () => btn.classList.remove('pad-pulsing');
-        };
-
-        btn.querySelector('.ui-btn-play').addEventListener('pointerdown', (e) => { e.stopPropagation(); firePad(); });
-
-        let isDown = false, startX, startY, origX, origY, hasMoved = false;
-        btn.addEventListener('pointerdown', e => {
-            if(e.target.closest('.pad-settings-menu') || e.target.closest('.pad-controls') || e.target === gear) return;
-            e.stopPropagation();
-            if(!this.state.padsEditing) { firePad(); return; } 
-            isDown = true; hasMoved = false; startX = e.clientX; startY = e.clientY; origX = btn.offsetLeft; origY = btn.offsetTop;
-            btn.setPointerCapture(e.pointerId);
-            btn.style.zIndex = data.zIndex + 100; 
-        });
-        
-        btn.addEventListener('pointermove', e => {
-            if(!isDown || !this.state.padsEditing) return;
-            hasMoved = true; btn.style.left = (origX + e.clientX - startX) + 'px'; btn.style.top = (origY + e.clientY - startY) + 'px';
-        });
-        
-        const end = (e) => {
-            if(!isDown) return;
-            isDown = false; btn.releasePointerCapture(e.pointerId);
-            btn.style.zIndex = data.zIndex;
-            if(!hasMoved && this.state.padsEditing) firePad(); 
-        };
-        btn.addEventListener('pointerup', end); btn.addEventListener('pointercancel', end);
-
-        document.getElementById('custom-buttons-layer').appendChild(btn);
-    },
-
     initAudio() {
         this.analyser = new Tone.Analyser("waveform", 1024);
         this.masterVis = new Tone.Analyser("waveform", 512); 
@@ -553,11 +385,11 @@ window.GyrOS = {
 
         this.muteNode = new Tone.Volume(-Infinity).connect(this.limiter);
         this.masterBus = new Tone.Volume(0).connect(this.muteNode);
-        // Pads bypass master mute
         this.padBus = new Tone.Volume(0).connect(this.limiter); 
         
         this.meter = new Tone.Meter(); this.masterBus.connect(this.meter); 
-        
+        this.padMeter = new Tone.Meter(); this.padBus.connect(this.padMeter);
+
         this.eq = new Tone.EQ3(this.state.cfg.eqLow, this.state.cfg.eqMid, this.state.cfg.eqHigh).connect(this.masterBus);
         this.rack = { reverb: new Tone.Freeverb({ roomSize: 0.8 }).connect(this.eq), delay: new Tone.FeedbackDelay("8n", 0.3).connect(this.eq) };
         
@@ -660,8 +492,6 @@ window.GyrOS = {
         const pw = document.getElementById('preset-window'); if(pw) pw.style.display = this.state.cfg.showPresetWin ? 'flex' : 'none';
         const aw = document.getElementById('asset-window'); if(aw) aw.style.display = this.state.cfg.showAssetWin ? 'flex' : 'none';
         const vw = document.getElementById('visualizer-window'); if(vw) vw.style.display = this.state.cfg.showVisualizer ? 'flex' : 'none';
-        const dw = document.getElementById('debugger-window'); if(dw) dw.style.display = this.state.cfg.showDebugger ? 'flex' : 'none';
-        const sw = document.getElementById('speech-window'); if(sw) sw.style.display = this.state.cfg.showSpeech ? 'flex' : 'none';
     },
 
     handleCellPointerEnter(note, e) {
@@ -976,7 +806,9 @@ window.GyrOS = {
             b.onclick = (e) => {
                 if(this.state.presetAction === 'SAVE' || e.shiftKey) {
                     this.savePreset(n);
-                    this.state.presetAction = 'LOAD'; document.getElementById('pmode-btn').innerText = 'MODE: LOAD'; document.getElementById('pmode-btn').style.background = '#444';
+                    this.state.presetAction = 'LOAD'; 
+                    const pb = document.getElementById('pmode-btn');
+                    if(pb) { pb.innerText = 'MODE: LOAD'; pb.style.background = '#444'; }
                 } else { this.loadPreset(n); }
             };
             c.appendChild(b);
@@ -1096,8 +928,9 @@ window.GyrOS = {
 
     savePreset(num) {
         document.querySelectorAll('.gui-window').forEach(el => { if(el.id) this.state.cfg.windowPositions[el.id] = { left: el.style.left, top: el.style.top }; });
-        if(this.state.cfg.showPresetWin && document.getElementById('preset-warn').checked) {
-            if(!confirm(`Overwrite Preset P${num} with current entire configuration?`)) return;
+        if(this.state.cfg.showPresetWin) {
+            const cb = document.getElementById('preset-warn');
+            if(cb && cb.checked && !confirm(`Overwrite Preset P${num} with current entire configuration?`)) return;
         }
         localStorage.setItem(`gyros_preset_${num}`, JSON.stringify(this.state.cfg));
         alert(`Master Config Saved to [P${num}]!`);
@@ -1106,8 +939,9 @@ window.GyrOS = {
     loadPreset(num) {
         const data = localStorage.getItem(`gyros_preset_${num}`);
         if(data) {
-            if(this.state.cfg.showPresetWin && document.getElementById('preset-warn').checked) {
-                if(!confirm(`Load Preset P${num}? Unsaved changes will be lost.`)) return;
+            if(this.state.cfg.showPresetWin) {
+                const cb = document.getElementById('preset-warn');
+                if(cb && cb.checked && !confirm(`Load Preset P${num}? Unsaved changes will be lost.`)) return;
             }
             Object.assign(this.state.cfg, JSON.parse(data));
             this.initGrid(); this.updateSynths(); this.applyTheme(); this.renderHUDGroup();
@@ -1178,7 +1012,6 @@ window.GyrOS = {
         gWin.add(this.state.cfg, 'showDebugger').name('Show Debugger').onChange(()=>this.applyTheme());
         gWin.add(this.state.cfg, 'showPresetWin').name('Show Preset Mgr').onChange(()=>this.applyTheme());
         gWin.add(this.state.cfg, 'showAssetWin').name('Show Asset Mgr').onChange(()=>this.applyTheme());
-        gWin.add(this.state.cfg, 'showSpeech').name('Show Web Speech').onChange(()=>this.applyTheme());
 
         const gVfx = this.guiCenter.addFolder('VFX & Note Images');
         gVfx.add({ v: () => document.getElementById('up-vfx').click() }, 'v').name('💥 Global VFX Img');
@@ -1308,7 +1141,8 @@ window.GyrOS = {
                 pad.wasPlaying = true; pad.player.stop(); pausedAny = true;
             }
         });
-        window.speechSynthesis.cancel();
+        
+        if(window.speechSynthesis) window.speechSynthesis.cancel();
         this.toggleMute(true);
         
         const btnRes = document.getElementById('btn-resume');
@@ -1334,7 +1168,7 @@ window.GyrOS = {
         this.state.isSilenced = false;
         this.synth1.releaseAll(); this.synth2.releaseAll();
         this.thereminVol.volume.rampTo(-Infinity, 0.05);
-        window.speechSynthesis.cancel();
+        if(window.speechSynthesis) window.speechSynthesis.cancel();
         this.state.customSamplers.forEach(pad => { pad.player.stop(); pad.wasPlaying = false; pad.pausedAt = 0; });
         const btnRes = document.getElementById('btn-resume');
         if(btnRes) { btnRes.classList.remove('resume-active'); btnRes.classList.add('resume-disabled'); }
@@ -1403,6 +1237,9 @@ window.GyrOS = {
         document.getElementById('up-note-img').addEventListener('change', e => handleUp(e, url => { this.state.cfg.noteImages[this.state.cfg.targetNoteForImg] = { url: url, opac: 0.8 }; alert(`Image Mapped to ${this.state.cfg.targetNoteForImg}`); }));
         document.getElementById('up-splash-img').addEventListener('change', e => handleUp(e, url => { this.state.cfg.splashImgUrl = url; }));
         document.getElementById('up-splash-aud').addEventListener('change', e => handleUp(e, url => { this.state.cfg.splashAudioUrl = url; }));
+        
+        const fileSample = document.getElementById('up-sample');
+        if(fileSample) fileSample.addEventListener('change', e => handleUp(e, (url, file) => this.addCustomSampler(url, file.name)));
 
         document.getElementById('btn-about').addEventListener('click', () => { document.getElementById('about-modal').style.display = 'flex'; });
         document.getElementById('close-about').addEventListener('click', () => { document.getElementById('about-modal').style.display = 'none'; });
@@ -1472,6 +1309,7 @@ window.GyrOS = {
         document.getElementById('btn-panic').addEventListener('click', doPanic);
         
         document.getElementById('btn-mute').addEventListener('click', e => { e.target.blur(); this.toggleMute(); });
+        
         document.getElementById('btn-silence').addEventListener('click', () => this.silenceAll());
         document.getElementById('btn-resume').addEventListener('click', () => this.resumeAll());
         document.getElementById('btn-stopall').addEventListener('click', () => this.stopAll());
@@ -1515,7 +1353,8 @@ window.GyrOS = {
                         if (pad.impactEnabled && force > pad.impactThresh && pad.player.state !== 'started') {
                             if(pad.playMode === 'Retrigger') pad.player.stop();
                             pad.startTime = Tone.now(); pad.player.start(pad.startTime); 
-                            document.getElementById(`pad-${pad.id}`).classList.add(pad.doPulse ? 'pad-pulsing' : 'playing');
+                            const pb = document.getElementById(`pad-${pad.id}`);
+                            if(pb) pb.classList.add(pad.doPulse ? 'pad-pulsing' : 'playing');
                         }
                     });
                     if (force > this.state.cfg.impactThresh && [2,3,8].includes(this.state.mode) && this.state.cfg.cells[this.state.activeCellIdx]) {
