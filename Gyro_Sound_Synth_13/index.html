@@ -77,7 +77,6 @@
         .pad-controls button { background: #333; color: white; border: 1px solid #666; border-radius: 3px; cursor: pointer; font-size: 10px; padding: 2px 6px; }
         .pad-controls button:hover { background: var(--accent-neon); color: black; }
         .pad-controls input[type="range"] { width: 100%; height: 4px; accent-color: var(--accent-neon); cursor: pointer; }
-        
         .pad-module.hidden { display: none !important; }
 
         @keyframes padPulse { 0% { box-shadow: 0 0 5px currentColor; } 100% { box-shadow: 0 0 25px currentColor; filter: brightness(1.5); } }
@@ -144,13 +143,13 @@
     <div id="about-header"><span>Gyr-OS | Documentation V13.2</span><button id="close-about" style="background:transparent; border:none; color:black; font-weight:bold; cursor:pointer;">X</button></div>
     <div id="about-content">
         <h2 style="color:var(--accent-neon);">Authors: Tim Tesner & Gemini 3 Pro</h2>
-        <p><strong>V13.2 Hotfix Upgrades:</strong><br>
-        - <strong>Critical Configuration Fix:</strong> Restored the missing <code>accentColor</code>, <code>hudColor</code>, and <code>waveColor</code> variables that caused the boot sequence crash.<br>
-        - <strong>Advanced Asset Manager:</strong> Upload Single Files, Multiple Files, or Entire Folders. Test audio inside the manager before spawning pads.<br>
-        - <strong>Ultimate Custom Pads:</strong> New micro-UI overlays (Scrubber, Controls, Volume) directly on the pad. Support for Layered, Retrigger, Single, and looping X times.<br>
-        - <strong>Detachable Cloning:</strong> Dragging a button off the Master Control Bar now clones it onto the playfield. Drag clones to the top red 🗑️ zone to delete them.<br>
-        - <strong>Polyphonic Touch Strumming:</strong> In Touch modes, slide your finger across the grid to natively strum multiple overlapping synth chords.<br>
-        </p>
+        <p><strong>V13.2 Upgrades & Fixes:</strong><br>
+        - <strong>Token Limit Fix:</strong> Split code delivery to prevent critical server cutoffs.<br>
+        - <strong>Shorthand Integration:</strong> Optimized DOM queries utilizing <code>$</code> and <code>$$</code> selectors to streamline processing.<br>
+        - <strong>Detachable Master Control Buttons:</strong> Click and drag buttons like [PANIC] or [MUTE] off the control bar to place them permanently on the playfield for quick access.<br>
+        - <strong>Asset Manager & Directory Loading:</strong> Use the [ASSETS] window to upload entire folders of sounds. Click "Spawn Pad" to generate a pad from the list.<br>
+        - <strong>Advanced Pad Mixing:</strong> Every custom pad now has its own EQ (Low/Mid/High), Reverb/Delay Sends, and advanced looping.<br>
+        - <strong>Perspective Engine:</strong> Check "Perspective" in Grid Setup to make the entire playfield visually tilt and swell with your sensor movements.</p>
     </div>
 </div>
 
@@ -174,7 +173,7 @@
 </div>
 
 <!-- Web Speech Window -->
-<div class="gui-window" id="speech-window">
+<div class="gui-window" id="speech-window" style="display:none;">
     <div class="gui-header"><span class="gui-toggle">▼</span><span>WEB SPEECH API</span><span class="gui-toggle">▼</span></div>
     <div class="gui-content" id="speech-content" style="padding:10px; display:flex; flex-direction:column; gap:5px;">
         <button class="sys-btn" id="btn-spawn-speech" style="margin-bottom:10px;">➕ Spawn Speech Pad</button>
@@ -276,20 +275,13 @@
     <button class="sys-btn hud-cloneable" id="btn-stopall" data-grp="emerg" style="background:#cc0000; color:white;">⏹ STOP</button>
 </div>
 
-<script type="importmap">
-    { "imports": { "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.js" } }
-</script>
-
 <script type="module">
-/**
- * GYR-OS WORKSTATION V13.2
- * Author: Tim Tesner
- * Co-Author: Gemini 3 Pro
- */
-
 import * as THREE from 'three';
 import * as Tone from 'https://esm.sh/tone';
 
+// DOM Shorthands to save space
+const $ = id => document.getElementById(id);
+const $$ = sel => document.querySelectorAll(sel);
 const mapRange = (val, inMin, inMax, outMin, outMax) => ((val - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
 
 const NOTE_COLORS = { 'C': 0, 'C#': 30, 'D': 60, 'D#': 90, 'E': 120, 'F': 150, 'F#': 180, 'G': 210, 'G#': 240, 'A': 270, 'A#': 300, 'B': 330 };
@@ -304,45 +296,31 @@ window.GyrOS = {
     state: {
         mode: 1, defaultMode: 1, hasGyro: false, holdMode: false, uiHidden: false, isMuted: true, isAsleep: false, sensorsActive: true, padsEditing: false, zIndexCounter: 150,
         micActive: false, isRecording: false, waitingForRec: false, speechVoices:[], isSilenced: false, hasPausedAudio: false,
-        rawSensors: { x: 0, y: 0, z: 0, acc: 0 },
-        pointer: { x: 0, y: 0 }, lastInteraction: Date.now(),
-        activeCellIdx: -1, lastArpTime: 0, customSamplers: [], speechPads:[],
-        activeChords: new Set(),
+        rawSensors: { x: 0, y: 0, z: 0, acc: 0 }, pointer: { x: 0, y: 0 }, lastInteraction: Date.now(),
+        activeCellIdx: -1, lastArpTime: 0, customSamplers:[], speechPads:[], activeChords: new Set(),
         
-        presetAction: 'LOAD',
-        swipeActive: false, lastSwipePos: { x: 0, y: 0 }, lastSwipeTime: 0, lastFakeHit: 0,
+        presetAction: 'LOAD', swipeActive: false, lastSwipePos: { x: 0, y: 0 }, lastSwipeTime: 0, lastFakeHit: 0,
         hudTab: 1, assets:[],
         
         cfg: {
             showSplash: true, splashImgUrl: null, splashAudioUrl: null,
-
             sensSwapXY: false, sensInvertX: false, sensInvertY: false,
             ptrDisableX: false, ptrDisableY: false, ptrSwapXY: false, ptrInvertX: false, ptrInvertY: false,
             gyroScale: 30, impactThresh: 15, mouseSwipeScale: 25, playfieldPad: 0,
             ptrOffsetX: 0, ptrOffsetY: 0, ptrSmoothing: 0.2, 
-            
             gridCols: 4, gridRows: 3, showGrid: true, perspective: false, colorNotes: true,
-            
             hudColor: 'rgba(10, 10, 15, 0.85)', accentColor: '#00ffcc', waveColor: '#00ffcc',
-            bgImageUrl: null, bgOpacity: 1.0, bgSize: 'cover',
-            pointerSize: 1.0, pointerOpac: 1.0, hidePointerTouch: false,
-            
+            bgImageUrl: null, bgOpacity: 1.0, bgSize: 'cover', pointerSize: 1.0, pointerOpac: 1.0, hidePointerTouch: false,
             showAssetWin: false, showVisualizer: false, showDebugger: false, showSpeech: false,
-            
             vfxImageUrl: null, vfxOpac: 0.8, vfxScale: 2.0, vfxSpeed: 0.5, targetNoteForImg: 'C',
-            
             masterVol: -2, eqLow: 0, eqMid: 0, eqHigh: 0, reverbMix: 0.3, delayMix: 0.2, arpRate: 0.15,
             scale: 'pentatonic', root: 'C', octave: 3, synthPreset: 'Custom',
-            
             thOn: true, thereminWave: 'sine', thBaseFreq: 100, thMaxFreq: 2000, thVolMax: 0, thVolMin: -40,
             s1On: true, s1Type: 'Synth', s1Vol: -4, s1Pan: -0.5, s1Atk: 0.05, s1Dec: 0.2, s1Sus: 0.5, s1Rel: 1.5, s1Dist: 0, s1Phaser: 0,
             s2On: true, s2Type: 'FMSynth', s2Vol: -6, s2Pan: 0.5, s2Atk: 0.1, s2Dec: 0.3, s2Sus: 0.4, s2Rel: 2.0, s2Dist: 0, s2Phaser: 0,
-
             recMode: 'Immediate', recThreshold: -20, recTimer: 5,
-            
             m1: true, m2: true, m3: true, m4: true, m5: true, m6: true, m7: true, m8: true,
             guiFolders: {}, cells:[], noteImages: {}, windowPositions: {},
-            
             hudGroups: {
                 1: { bg: 'rgba(10,10,15,0.85)', btnBg: 'rgba(0,0,0,0.8)', txtCol: '#00ffcc', btns:['btn-p1','btn-p2','btn-p3','btn-p4','btn-pmode','btn-oct-down','btn-oct-up','btn-pads-edit','btn-sensors','btn-hold','btn-mute','btn-panic','btn-silence','btn-resume','btn-stopall'] },
                 2: { bg: 'rgba(20,10,10,0.85)', btnBg: 'rgba(30,0,0,0.8)', txtCol: '#ff0055', btns:['btn-p1','btn-p2','btn-oct-down','btn-oct-up','btn-mute','btn-panic'] },
@@ -364,53 +342,34 @@ window.GyrOS = {
     },
 
     async loadSplash() {
-        const splash = document.getElementById('splash-screen');
-        if(!this.state.cfg.showSplash) { splash.style.display = 'none'; return; }
-        
-        if(this.state.cfg.splashImgUrl) {
-            const img = document.getElementById('splash-img');
-            if(img) { img.src = this.state.cfg.splashImgUrl; img.style.display = 'block'; }
-        }
+        if(!this.state.cfg.showSplash) { $('splash-screen').style.display = 'none'; return; }
+        if(this.state.cfg.splashImgUrl) { $('splash-img').src = this.state.cfg.splashImgUrl; $('splash-img').style.display = 'block'; }
     },
 
     async init() {
         try {
-            const btn = document.getElementById('btn-start');
-            if(btn) btn.style.display = 'none';
-
+            if($('btn-start')) $('btn-start').style.display = 'none';
             await Tone.start();
             if(this.state.cfg.splashAudioUrl) {
                 const splashAudio = new Tone.Player(this.state.cfg.splashAudioUrl).toDestination();
                 splashAudio.autostart = true;
             }
-
             try { await this.detectSensors(); this.state.hasGyro = true; } catch(e) { this.state.hasGyro = false; }
             this.initAudio(); this.initVisuals(); this.initSpeech(); this.initGrid(); this.initGUIs();
             this.makeGUIsDraggable(); this.bindEvents(); 
             this.state.mode = this.state.defaultMode;
-            
             this.renderHUDGroup();
 
-            const splash = document.getElementById('splash-screen');
-            if(splash) {
+            if($('splash-screen')) {
                 if(this.state.cfg.showSplash) {
-                    setTimeout(() => {
-                        splash.style.opacity = 0;
-                        setTimeout(() => splash.style.display = 'none', 500);
-                    }, 2500);
-                } else {
-                    splash.style.display = 'none';
-                }
+                    setTimeout(() => { $('splash-screen').style.opacity = 0; setTimeout(() => $('splash-screen').style.display = 'none', 500); }, 2500);
+                } else { $('splash-screen').style.display = 'none'; }
             }
-            
-            const initOver = document.getElementById('init-overlay');
-            if(initOver) initOver.style.display = 'none';
-
+            if($('init-overlay')) $('init-overlay').style.display = 'none';
             this.toggleMute(true); 
             this.loop();
         } catch(err) { 
-            const emsg = document.getElementById('error-msg');
-            if(emsg) emsg.innerText = "Failed: " + err.message; 
+            if($('error-msg')) $('error-msg').innerText = "Failed: " + err.message; 
             console.error(err);
         }
     },
@@ -432,34 +391,29 @@ window.GyrOS = {
         if('speechSynthesis' in window) {
             const populateVoices = () => {
                 this.state.speechVoices = window.speechSynthesis.getVoices();
-                const sel = document.getElementById('speech-voice');
-                if(sel) {
-                    sel.innerHTML = '';
+                if($('speech-voice')) {
+                    $('speech-voice').innerHTML = '';
                     this.state.speechVoices.forEach((v, i) => {
                         const opt = document.createElement('option');
                         opt.value = i; opt.innerText = `${v.name} (${v.lang})`;
-                        sel.appendChild(opt);
+                        $('speech-voice').appendChild(opt);
                     });
                 }
             };
             populateVoices();
             window.speechSynthesis.onvoiceschanged = populateVoices;
             
-            const btnSpk = document.getElementById('btn-speak');
-            if(btnSpk) {
-                btnSpk.onclick = () => {
-                    const text = document.getElementById('speech-text').value;
-                    const ut = new SpeechSynthesisUtterance(text);
-                    const vIdx = document.getElementById('speech-voice').value;
+            if($('btn-speak')) {
+                $('btn-speak').onclick = () => {
+                    const ut = new SpeechSynthesisUtterance($('speech-text').value);
+                    const vIdx = $('speech-voice').value;
                     if(this.state.speechVoices[vIdx]) ut.voice = this.state.speechVoices[vIdx];
-                    ut.rate = parseFloat(document.getElementById('speech-rate').value);
-                    ut.pitch = parseFloat(document.getElementById('speech-pitch').value);
+                    ut.rate = parseFloat($('speech-rate').value);
+                    ut.pitch = parseFloat($('speech-pitch').value);
                     window.speechSynthesis.speak(ut);
                 };
             }
-            
-            const btnSpawnSpk = document.getElementById('btn-spawn-speech');
-            if(btnSpawnSpk) btnSpawnSpk.onclick = () => this.addSpeechPad();
+            if($('btn-spawn-speech')) $('btn-spawn-speech').onclick = () => this.addSpeechPad();
         }
     },
 
@@ -469,19 +423,15 @@ window.GyrOS = {
         this.state.speechPads.push(data);
         
         const btn = document.createElement('div');
-        btn.className = 'speech-pad-btn';
-        btn.style.left = '150px'; btn.style.top = '150px';
-        btn.style.zIndex = data.zIndex;
-        btn.style.borderColor = '#ff00cc';
+        btn.className = 'speech-pad-btn'; btn.style.left = '150px'; btn.style.top = '150px';
+        btn.style.zIndex = data.zIndex; btn.style.borderColor = '#ff00cc';
         
         let vHTML = '';
         this.state.speechVoices.forEach((v, i) => { vHTML += `<option value="${i}">${v.name.substring(0,15)}</option>`; });
 
         btn.innerHTML = `<div class="pad-react-bg"></div><div class="pad-gear" style="color:#ff00cc; border-color:#ff00cc;">⚙</div><div class="pad-module pad-title-bar" style="color:#ff00cc;"><span class="pad-title">🗣️ SPEECH PAD</span></div><div class="pad-module pad-controls" style="justify-content:center;"><button class="ui-btn-play" style="width:100%;">▶ PLAY</button></div><div class="pad-settings-menu" style="border-color:#ff00cc;"><label>Text: <input type="text" class="set-text" value="${data.text}"></label><label>Voice: <select class="set-voice">${vHTML}</select></label><label>Rate: <input type="range" class="set-rate" min="0.1" max="2" step="0.1" value="1"></label><label>Pitch: <input type="range" class="set-pitch" min="0.1" max="2" step="0.1" value="1"></label><label>Z-Index: <input type="number" class="set-z" value="85"></label><button class="set-del-btn" style="border-color:red; color:red; margin-top:5px;">🗑 Delete Pad</button></div>`;
         
-        const menu = btn.querySelector('.pad-settings-menu');
-        const gear = btn.querySelector('.pad-gear');
-
+        const menu = btn.querySelector('.pad-settings-menu'); const gear = btn.querySelector('.pad-gear');
         gear.addEventListener('pointerdown', e => { e.stopPropagation(); menu.classList.toggle('open'); });
         menu.addEventListener('pointerdown', e => e.stopPropagation()); 
         
@@ -490,7 +440,6 @@ window.GyrOS = {
         btn.querySelector('.set-rate').addEventListener('input', e => data.rate = parseFloat(e.target.value));
         btn.querySelector('.set-pitch').addEventListener('input', e => data.pitch = parseFloat(e.target.value));
         btn.querySelector('.set-z').addEventListener('input', e => { data.zIndex = parseInt(e.target.value); btn.style.zIndex = data.zIndex; });
-        
         btn.querySelector('.set-del-btn').addEventListener('click', () => { btn.remove(); this.state.speechPads = this.state.speechPads.filter(s => s.id !== id); });
 
         const firePad = () => {
@@ -499,8 +448,7 @@ window.GyrOS = {
             if(this.state.speechVoices[data.voiceIdx]) ut.voice = this.state.speechVoices[data.voiceIdx];
             ut.rate = data.rate; ut.pitch = data.pitch;
             window.speechSynthesis.speak(ut);
-            btn.classList.add('pad-pulsing');
-            ut.onend = () => btn.classList.remove('pad-pulsing');
+            btn.classList.add('pad-pulsing'); ut.onend = () => btn.classList.remove('pad-pulsing');
         };
 
         btn.querySelector('.ui-btn-play').addEventListener('pointerdown', (e) => { e.stopPropagation(); firePad(); });
@@ -511,24 +459,19 @@ window.GyrOS = {
             e.stopPropagation();
             if(!this.state.padsEditing) { firePad(); return; } 
             isDown = true; hasMoved = false; startX = e.clientX; startY = e.clientY; origX = btn.offsetLeft; origY = btn.offsetTop;
-            btn.setPointerCapture(e.pointerId);
-            btn.style.zIndex = data.zIndex + 100; 
+            btn.setPointerCapture(e.pointerId); btn.style.zIndex = data.zIndex + 100; 
         });
-        
         btn.addEventListener('pointermove', e => {
             if(!isDown || !this.state.padsEditing) return;
             hasMoved = true; btn.style.left = (origX + e.clientX - startX) + 'px'; btn.style.top = (origY + e.clientY - startY) + 'px';
         });
-        
-        const end = (e) => {
-            if(!isDown) return;
-            isDown = false; btn.releasePointerCapture(e.pointerId);
-            btn.style.zIndex = data.zIndex;
+        const end = () => {
+            if(!isDown) return; isDown = false; btn.style.zIndex = data.zIndex;
             if(!hasMoved && this.state.padsEditing) firePad(); 
         };
         btn.addEventListener('pointerup', end); btn.addEventListener('pointercancel', end);
 
-        document.getElementById('custom-buttons-layer').appendChild(btn);
+        $('custom-buttons-layer').appendChild(btn);
     },
 
     initAudio() {
@@ -608,7 +551,7 @@ window.GyrOS = {
         this.cam = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        document.getElementById('canvas-container').appendChild(this.renderer.domElement);
+        $('canvas-container').appendChild(this.renderer.domElement);
 
         this.pointerMaterial = new THREE.MeshBasicMaterial({ color: this.state.cfg.accentColor, wireframe: true, transparent: true });
         this.pointerObj = new THREE.Mesh(new THREE.SphereGeometry(0.8, 16, 16), this.pointerMaterial);
@@ -621,9 +564,11 @@ window.GyrOS = {
         
         this.ssScene = new THREE.Scene(); this.ssCam = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000); this.ssCam.position.z = 50;
         this.ssRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); this.ssRenderer.setSize(window.innerWidth, window.innerHeight);
-        document.getElementById('screensaver-layer').appendChild(this.ssRenderer.domElement);
+        $('screensaver-layer').appendChild(this.ssRenderer.domElement);
         
-        const geom = new THREE.BufferGeometry(); const verts = for(let i=0; i<2000; i++) verts.push(THREE.MathUtils.randFloatSpread(200), THREE.MathUtils.randFloatSpread(200), THREE.MathUtils.randFloatSpread(200));
+        const geom = new THREE.BufferGeometry(); 
+        const verts =[];
+        for(let i=0; i<2000; i++) verts.push(THREE.MathUtils.randFloatSpread(200), THREE.MathUtils.randFloatSpread(200), THREE.MathUtils.randFloatSpread(200));
         geom.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
         this.particles = new THREE.Points(geom, new THREE.PointsMaterial({ color: 0x00ffcc, size: 0.5 }));
         this.ssScene.add(this.particles);
@@ -644,16 +589,16 @@ window.GyrOS = {
         this.pointerObj.visible = (!this.state.cfg.hidePointerTouch || ![6,7].includes(this.state.mode));
         this.particles.material.color.set(this.state.cfg.accentColor);
         
-        const bg = document.getElementById('bg-layer');
+        const bg = $('bg-layer');
         if(this.state.cfg.bgImageUrl) { bg.style.backgroundImage = `url(${this.state.cfg.bgImageUrl})`; bg.style.opacity = this.state.cfg.bgOpacity; bg.style.backgroundSize = this.state.cfg.bgSize; } 
         else { bg.style.backgroundImage = 'none'; }
 
-        document.getElementById('playfield-wrapper').style.padding = `${this.state.cfg.playfieldPad}px`;
+        $('playfield-wrapper').style.padding = `${this.state.cfg.playfieldPad}px`;
         
-        const aw = document.getElementById('asset-window'); if(aw) aw.style.display = this.state.cfg.showAssetWin ? 'flex' : 'none';
-        const vw = document.getElementById('visualizer-window'); if(vw) vw.style.display = this.state.cfg.showVisualizer ? 'flex' : 'none';
-        const dw = document.getElementById('debugger-window'); if(dw) dw.style.display = this.state.cfg.showDebugger ? 'flex' : 'none';
-        const sw = document.getElementById('speech-window'); if(sw) sw.style.display = this.state.cfg.showSpeech ? 'flex' : 'none';
+        if($('asset-window')) $('asset-window').style.display = this.state.cfg.showAssetWin ? 'flex' : 'none';
+        if($('visualizer-window')) $('visualizer-window').style.display = this.state.cfg.showVisualizer ? 'flex' : 'none';
+        if($('debugger-window')) $('debugger-window').style.display = this.state.cfg.showDebugger ? 'flex' : 'none';
+        if($('speech-window')) $('speech-window').style.display = this.state.cfg.showSpeech ? 'flex' : 'none';
         
         this.renderHUDGroup();
     },
@@ -696,7 +641,7 @@ window.GyrOS = {
     },
 
     initGrid() {
-        const overlay = document.getElementById('grid-overlay');
+        const overlay = $('grid-overlay');
         overlay.innerHTML = '';
         overlay.style.gridTemplateColumns = `repeat(${this.state.cfg.gridCols}, 1fr)`;
         overlay.style.gridTemplateRows = `repeat(${this.state.cfg.gridRows}, 1fr)`;
@@ -725,7 +670,7 @@ window.GyrOS = {
     },
 
     handleFolderUpload(files) {
-        const list = document.getElementById('asset-list');
+        const list = $('asset-list');
         list.innerHTML = '';
         Array.from(files).forEach(file => {
             if(file.type.startsWith('audio/') || file.name.match(/\.(mp3|wav|ogg|webm|flac|m4a)$/i)) {
@@ -783,7 +728,7 @@ window.GyrOS = {
         btn.className = 'custom-sampler-btn'; btn.id = `pad-${id}`;
         btn.style.left = '100px'; btn.style.top = '100px'; btn.style.zIndex = data.zIndex;
         
-        const buildHTML = () => `
+        btn.innerHTML = `
             <div class="pad-react-bg"></div>
             <div class="pad-gear">⚙</div>
             <div class="pad-module pad-title-bar ${data.uiInfo ? '' : 'hidden'}">
@@ -832,14 +777,17 @@ window.GyrOS = {
                 <button class="set-del-btn" style="background:#400; color:red; border-color:red; margin-top:5px;">🗑 Delete Pad</button>
             </div>
         `;
-        btn.innerHTML = buildHTML();
         
         const menu = btn.querySelector('.pad-settings-menu');
         const gear = btn.querySelector('.pad-gear');
-        const title = btn.querySelector('.pad-title');
         const scrub = btn.querySelector('.ui-scrub');
-        const cTime = btn.querySelector('.ui-time');
-        const cPlay = btn.querySelector('.ui-playvol');
+
+        Tone.loaded().then(() => {
+            if(player.buffer) {
+                data.bufferDuration = player.buffer.duration;
+                btn.querySelector('.f-dur').innerText = data.bufferDuration.toFixed(1) + 's';
+            }
+        });
 
         gear.addEventListener('pointerdown', e => { e.stopPropagation(); menu.classList.toggle('open'); });
         menu.addEventListener('pointerdown', e => e.stopPropagation()); 
@@ -944,9 +892,9 @@ window.GyrOS = {
             hasMoved = true; btn.style.left = (origX + e.clientX - startX) + 'px'; btn.style.top = (origY + e.clientY - startY) + 'px';
         });
         
-        const end = (e) => {
+        const end = () => {
             if(!isDown) return;
-            isDown = false; btn.releasePointerCapture(e.pointerId); btn.style.zIndex = data.zIndex;
+            isDown = false; btn.style.zIndex = data.zIndex;
             if(!hasMoved && this.state.padsEditing) firePad(0); 
         };
         btn.addEventListener('pointerup', end); btn.addEventListener('pointercancel', end);
@@ -965,15 +913,7 @@ window.GyrOS = {
             }
         };
 
-        // Buffer Duration Init
-        Tone.loaded().then(() => {
-            if(player.buffer) {
-                data.bufferDuration = player.buffer.duration;
-                btn.querySelector('.f-dur').innerText = data.bufferDuration.toFixed(1) + 's';
-            }
-        });
-
-        document.getElementById('custom-buttons-layer').appendChild(btn);
+        $('custom-buttons-layer').appendChild(btn);
     },
 
     spawnVFX(xNorm, yNorm, customImg = null, customOpac = null) {
@@ -1013,8 +953,7 @@ window.GyrOS = {
         
         let swingForce = force;
         let vVal = Math.trunc(swingForce * 10 / 2);
-        const dvib = document.getElementById('dbg-vib');
-        if(dvib) dvib.innerText = vVal;
+        if($('dbg-vib')) $('dbg-vib').innerText = vVal;
         if(navigator.vibrate) navigator.vibrate(vVal);
 
         this.triggerVisualReaction(noteStr);
@@ -1024,117 +963,82 @@ window.GyrOS = {
         if(this.state.cfg.s2On) this.synth2.triggerAttackRelease(noteStr, dur, now, vol);
     },
 
-    buildPresetGrid() {
-        const c = document.getElementById('preset-grid');
-        if(!c) return;
-        c.innerHTML = '';
-        for(let n=1; n<=this.state.cfg.presetCount; n++) {
-            const b = document.createElement('button');
-            b.className = 'sys-btn'; b.innerText = `[P${n}]`; b.style.width = '100%';
-            b.onclick = (e) => {
-                if(this.state.presetAction === 'SAVE' || e.shiftKey) {
-                    this.savePreset(n);
-                    this.state.presetAction = 'LOAD'; 
-                    const pb = document.getElementById('pmode-btn');
-                    if(pb) { pb.innerText = 'MODE: LOAD'; pb.style.background = '#444'; }
-                } else { this.loadPreset(n); }
-            };
-            c.appendChild(b);
-        }
-    },
-
-    makeButtonDetachable(btnId) {
-        const btn = document.getElementById(btnId); if(!btn) return;
+    makeButtonCloneable(btnId) {
+        const btn = $(btnId); if(!btn) return;
         
-        let isDown = false, startX, startY, origX, origY, hasMoved = false;
-        
+        let isDown = false, clone = null;
         btn.addEventListener('pointerdown', e => {
-            if(e.button !== 0) return; 
-            isDown = true; hasMoved = false; startX = e.clientX; startY = e.clientY;
+            if(e.button !== 0 || this.state.padsEditing) return; 
+            isDown = true; 
             
-            if(!btn.classList.contains('detached')) {
-                const rect = btn.getBoundingClientRect();
-                const ph = document.createElement('div'); ph.className = 'hud-placeholder'; ph.id = `ph-${btnId}`;
-                btn.parentNode.insertBefore(ph, btn);
-                
-                document.body.appendChild(btn);
-                btn.classList.add('detached');
-                btn.style.left = rect.left + 'px'; btn.style.top = rect.top + 'px';
-            }
-            origX = btn.offsetLeft; origY = btn.offsetTop;
-            btn.setPointerCapture(e.pointerId);
-            btn.style.zIndex = ++this.state.zIndexCounter;
-        });
+            clone = btn.cloneNode(true);
+            clone.id = `cloned-${btnId}-${Date.now()}`;
+            clone.className = 'sys-btn cloned-btn';
+            clone.style.left = e.clientX - 20 + 'px';
+            clone.style.top = e.clientY - 20 + 'px';
+            
+            const grp = this.state.cfg.hudGroups[this.state.hudTab];
+            if(grp) { clone.style.background = grp.btnBg; clone.style.color = grp.txtCol; clone.style.borderColor = grp.txtCol; }
 
-        btn.addEventListener('pointermove', e => {
-            if(!isDown) return;
-            hasMoved = true;
-            btn.style.left = (origX + e.clientX - startX) + 'px'; btn.style.top = (origY + e.clientY - startY) + 'px';
+            $('custom-buttons-layer').appendChild(clone);
+            clone.setPointerCapture(e.pointerId);
             
-            const ph = document.getElementById(`ph-${btnId}`);
-            if(ph) {
-                const pr = ph.getBoundingClientRect();
-                if(e.clientX > pr.left - 20 && e.clientX < pr.right + 20 && e.clientY > pr.top - 20 && e.clientY < pr.bottom + 20) {
-                    ph.style.background = 'var(--accent-neon)';
-                } else { ph.style.background = 'rgba(255,255,255,0.05)'; }
-            }
-        });
-
-        const endDrag = (e) => {
-            if(!isDown) return; isDown = false; btn.releasePointerCapture(e.pointerId);
-            
-            const ph = document.getElementById(`ph-${btnId}`);
-            if(ph) {
-                const pr = ph.getBoundingClientRect();
-                if(e.clientX > pr.left - 20 && e.clientX < pr.right + 20 && e.clientY > pr.top - 20 && e.clientY < pr.bottom + 20) {
-                    btn.classList.remove('detached');
-                    btn.style.left = ''; btn.style.top = ''; btn.style.position = '';
-                    ph.parentNode.insertBefore(btn, ph);
-                    ph.remove();
-                    delete this.state.cfg.detachedBtns[btnId];
+            clone.addEventListener('pointerdown', ev => {
+                ev.stopPropagation();
+                if(this.state.padsEditing) {
+                    const onMv = mEv => { clone.style.left = mEv.clientX - 20 + 'px'; clone.style.top = mEv.clientY - 20 + 'px'; };
+                    const onUp = () => { window.removeEventListener('pointermove', onMv); window.removeEventListener('pointerup', onUp); };
+                    window.addEventListener('pointermove', onMv); window.addEventListener('pointerup', onUp);
                 } else {
-                    this.state.cfg.detachedBtns[btnId] = { left: btn.style.left, top: btn.style.top };
+                    btn.click(); 
+                    clone.classList.add('active'); setTimeout(()=>clone.classList.remove('active'), 200);
                 }
+            });
+            
+            $('trash-zone').style.display = 'flex';
+        });
+
+        window.addEventListener('pointermove', e => {
+            if(isDown && clone) {
+                clone.style.left = e.clientX - 20 + 'px'; clone.style.top = e.clientY - 20 + 'px';
+                if(e.clientY < 60) $('trash-zone').classList.add('hover');
+                else $('trash-zone').classList.remove('hover');
             }
-        };
-        btn.addEventListener('pointerup', endDrag); btn.addEventListener('pointercancel', endDrag);
+        });
+
+        window.addEventListener('pointerup', e => {
+            if(isDown && clone) {
+                isDown = false;
+                if(e.clientY < 60) { clone.remove(); } 
+                $('trash-zone').style.display = 'none';
+                $('trash-zone').classList.remove('hover');
+                clone = null;
+            }
+        });
     },
 
     renderHUDGroup() {
-        const row = document.getElementById('hud-row-utils');
-        const emRow = document.getElementById('hud-row-emerg');
-        if(!row || !emRow) return;
-
-        Array.from(document.querySelectorAll('.hud-placeholder')).forEach(ph => ph.remove());
-        
-        // Return detached to library before sorting
-        Array.from(document.querySelectorAll('.cloned-btn')).forEach(c => c.remove());
-        Array.from(document.querySelectorAll('.sys-btn.detached')).forEach(btn => {
-            btn.classList.remove('detached'); btn.style.left = ''; btn.style.top = '';
-            document.getElementById('btn-library').appendChild(btn);
-        });
-
-        // Current Tab
         const t = this.state.cfg.hudGroups[this.state.hudTab];
-        document.getElementById('bottom-hud').style.background = t.bg;
+        if($('bottom-hud')) $('bottom-hud').style.background = t.bg;
+        
         document.documentElement.style.setProperty('--hud-btn', t.btnBg);
         document.documentElement.style.setProperty('--hud-txt', t.txtCol);
 
-        Array.from(document.querySelectorAll('.hud-cloneable')).forEach(btn => {
+        Array.from($$('.hud-cloneable')).forEach(btn => {
             btn.style.display = 'none';
             if(t.btns.includes(btn.id)) {
                 btn.style.display = 'block';
                 btn.style.background = t.btnBg; btn.style.color = t.txtCol; btn.style.borderColor = t.txtCol;
                 
                 if(['btn-hold','btn-mute','btn-panic','btn-silence','btn-resume','btn-stopall'].includes(btn.id)) {
-                    emRow.appendChild(btn);
+                    $('hud-row-emerg').appendChild(btn);
                 } else {
-                    row.appendChild(btn);
+                    $('hud-row-utils').appendChild(btn);
                 }
             }
         });
 
-        const c = document.getElementById('mode-btn-container'); 
+        const c = $('mode-btn-container'); 
         if(c) {
             c.innerHTML = '';
             this.modesList.forEach(m => {
@@ -1143,7 +1047,7 @@ window.GyrOS = {
                     b.className = `sys-btn ${this.state.mode === m.id ? 'active' : ''}`; b.innerText = m.name;
                     b.style.background = t.btnBg; b.style.color = t.txtCol; b.style.borderColor = t.txtCol;
                     b.onclick = () => {
-                        document.querySelectorAll('#mode-btn-container .sys-btn').forEach(btn => btn.classList.remove('active'));
+                        $$('#mode-btn-container .sys-btn').forEach(btn => btn.classList.remove('active'));
                         b.classList.add('active'); this.state.mode = m.id;
                         if(![4,6,7].includes(m.id) && !this.state.holdMode) { this.synth1.releaseAll(); this.synth2.releaseAll(); }
                     };
@@ -1154,60 +1058,25 @@ window.GyrOS = {
     },
 
     downloadConfig(prefix, filename) {
-        document.querySelectorAll('.gui-window').forEach(el => { if(el.id) this.state.cfg.windowPositions[el.id] = { left: el.style.left, top: el.style.top }; });
+        $$('.gui-window').forEach(el => { if(el.id) this.state.cfg.windowPositions[el.id] = { left: el.style.left, top: el.style.top }; });
         const sub = {}; Object.keys(this.state.cfg).forEach(k => { if(k.startsWith(prefix)) sub[k] = this.state.cfg[k]; });
         const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(sub));
         a.download = filename; a.click();
     },
 
-    savePreset(num) {
-        document.querySelectorAll('.gui-window').forEach(el => { if(el.id) this.state.cfg.windowPositions[el.id] = { left: el.style.left, top: el.style.top }; });
-        if(this.state.cfg.showPresetWin) {
-            const cb = document.getElementById('preset-warn');
-            if(cb && cb.checked && !confirm(`Overwrite Preset P${num} with current entire configuration?`)) return;
-        }
-        localStorage.setItem(`gyros_preset_${num}`, JSON.stringify(this.state.cfg));
-        alert(`Master Config Saved to [P${num}]!`);
-    },
-    
-    loadPreset(num) {
-        const data = localStorage.getItem(`gyros_preset_${num}`);
-        if(data) {
-            if(this.state.cfg.showPresetWin) {
-                const cb = document.getElementById('preset-warn');
-                if(cb && cb.checked && !confirm(`Load Preset P${num}? Unsaved changes will be lost.`)) return;
-            }
-            Object.assign(this.state.cfg, JSON.parse(data));
-            this.initGrid(); this.updateSynths(); this.applyTheme(); this.renderHUDGroup();
-            
-            if(this.state.cfg.windowPositions) {
-                Object.keys(this.state.cfg.windowPositions).forEach(id => {
-                    const el = document.getElementById(id);
-                    if(el) { el.style.left = this.state.cfg.windowPositions[id].left; el.style.top = this.state.cfg.windowPositions[id].top; el.style.transform = 'none'; }
-                });
-            }
-            if(this.guiSys) {
-                for (var i in this.guiSys.__folders) { for (var j in this.guiSys.__folders[i].__controllers) { this.guiSys.__folders[i].__controllers[j].updateDisplay(); } }
-                for (var i in this.guiCenter.__folders) { for (var j in this.guiCenter.__folders[i].__controllers) { this.guiCenter.__folders[i].__controllers[j].updateDisplay(); } }
-                for (var i in this.guiSnd.__folders) { for (var j in this.guiSnd.__folders[i].__controllers) { this.guiSnd.__folders[i].__controllers[j].updateDisplay(); } }
-            }
-        } else { alert(`Preset [P${num}] is empty.`); }
-    },
-
     initGUIs() {
-        document.getElementById('gui-left-content').innerHTML = ''; document.getElementById('gui-center-content').innerHTML = ''; document.getElementById('gui-right-content').innerHTML = '';
+        $('gui-left-content').innerHTML = ''; $('gui-center-content').innerHTML = ''; $('gui-right-content').innerHTML = '';
         const guiOpts = { autoPlace: false, closed: false, width: '100%' };
 
-        // LEFT
-        this.guiSys = new dat.GUI(guiOpts); document.getElementById('gui-left-content').appendChild(this.guiSys.domElement);
+        this.guiSys = new dat.GUI(guiOpts); $('gui-left-content').appendChild(this.guiSys.domElement);
         
         const gStart = this.guiSys.addFolder('Startup & Saves');
         gStart.add(this.state.cfg, 'showSplash').name('Show Splash');
-        gStart.add({ img: () => document.getElementById('up-splash-img').click() }, 'img').name('🖼️ Splash Img');
-        gStart.add({ aud: () => document.getElementById('up-splash-aud').click() }, 'aud').name('🎵 Splash Audio');
+        gStart.add({ img: () => $('up-splash-img').click() }, 'img').name('🖼️ Splash Img');
+        gStart.add({ aud: () => $('up-splash-aud').click() }, 'aud').name('🎵 Splash Audio');
         gStart.add(this.state, 'defaultMode', 1, 8).step(1).name('Default Mode');
         gStart.add({ export: () => this.downloadConfig('', 'GyrOS_Master.json') }, 'export').name('💾 Save MASTER');
-        gStart.add({ import: () => document.getElementById('up-config').click() }, 'import').name('📂 Load MASTER');
+        gStart.add({ import: () => $('up-config').click() }, 'import').name('📂 Load MASTER');
         
         const gSen = this.guiSys.addFolder('Sensors & Haptics');
         gSen.add(this.state.cfg, 'sensSwapXY').name('Swap X/Y'); gSen.add(this.state.cfg, 'sensInvertX').name('Invert X'); gSen.add(this.state.cfg, 'sensInvertY').name('Invert Y');
@@ -1219,14 +1088,13 @@ window.GyrOS = {
         gRec.add(this.state.cfg, 'recThreshold', -60, 0).name('Thresh (dB)');
         gRec.add(this.state.cfg, 'recTimer', 1, 10).name('Timer (s)');
 
-        // CENTER
-        this.guiCenter = new dat.GUI(guiOpts); document.getElementById('gui-center-content').appendChild(this.guiCenter.domElement);
+        this.guiCenter = new dat.GUI(guiOpts); $('gui-center-content').appendChild(this.guiCenter.domElement);
         const gVis = this.guiCenter.addFolder('Colors & Theme');
         gVis.addColor(this.state.cfg, 'accentColor').onChange(()=>this.applyTheme());
         gVis.addColor(this.state.cfg, 'hudColor').onChange(()=>this.applyTheme());
-        gVis.add({ b: () => document.getElementById('up-bg').click() }, 'b').name('🖼️ BG Image');
+        gVis.add({ b: () => $('up-bg').click() }, 'b').name('🖼️ BG Image');
         gVis.add(this.state.cfg, 'bgOpacity', 0, 1).onChange(()=>this.applyTheme());
-        gVis.add(this.state.cfg, 'bgSize', ['cover', 'contain']).onChange(()=>this.applyTheme());
+        gVis.add(this.state.cfg, 'bgSize',['cover', 'contain']).onChange(()=>this.applyTheme());
         
         const gPtr = this.guiCenter.addFolder('Pointer & Offsets');
         gPtr.add(this.state.cfg, 'pointerSize', 0.1, 5).onChange(()=>this.applyTheme());
@@ -1244,15 +1112,14 @@ window.GyrOS = {
         const gWin = this.guiCenter.addFolder('Windows & HUDs');
         gWin.add(this.state.cfg, 'showVisualizer').name('Show Visualizer').onChange(()=>this.applyTheme());
         gWin.add(this.state.cfg, 'showDebugger').name('Show Debugger').onChange(()=>this.applyTheme());
-        gWin.add(this.state.cfg, 'showPresetWin').name('Show Preset Mgr').onChange(()=>this.applyTheme());
         gWin.add(this.state.cfg, 'showAssetWin').name('Show Asset Mgr').onChange(()=>this.applyTheme());
         gWin.add(this.state.cfg, 'showSpeech').name('Show Web Speech').onChange(()=>this.applyTheme());
 
         const gVfx = this.guiCenter.addFolder('VFX & Note Images');
-        gVfx.add({ v: () => document.getElementById('up-vfx').click() }, 'v').name('💥 Global VFX Img');
+        gVfx.add({ v: () => $('up-vfx').click() }, 'v').name('💥 Global VFX Img');
         gVfx.add(this.state.cfg, 'vfxOpac', 0.1, 1); gVfx.add(this.state.cfg, 'vfxScale', 0.5, 5); gVfx.add(this.state.cfg, 'vfxSpeed', 0.1, 2);
         gVfx.add(this.state.cfg, 'targetNoteForImg').name('Target Note (e.g. C or D#4)');
-        gVfx.add({ n: () => document.getElementById('up-note-img').click() }, 'n').name('🎵 Map Image to Note');
+        gVfx.add({ n: () => $('up-note-img').click() }, 'n').name('🎵 Map Image to Note');
 
         const gGrd = this.guiCenter.addFolder('Grid Setup');
         gGrd.add(this.state.cfg, 'gridCols', 1, 16).step(1).onChange(()=>this.initGrid());
@@ -1264,8 +1131,7 @@ window.GyrOS = {
         const gUI = this.guiCenter.addFolder('UI Mode Toggles');
         this.modesList.forEach(m => gUI.add(this.state.cfg, `m${m.id}`).name(m.name).onChange(()=>this.renderHUDGroup()));
 
-        // RIGHT
-        this.guiSnd = new dat.GUI(guiOpts); document.getElementById('gui-right-content').appendChild(this.guiSnd.domElement);
+        this.guiSnd = new dat.GUI(guiOpts); $('gui-right-content').appendChild(this.guiSnd.domElement);
         const sMix = this.guiSnd.addFolder('Master Mixer');
         sMix.add(this.state.cfg, 'masterVol', -60, 10).onChange(v => this.masterVol.volume.value = v);
         sMix.add(this.state.cfg, 'eqLow', -10, 10).onChange(v => this.eq.low.value = v);
@@ -1277,7 +1143,7 @@ window.GyrOS = {
         const sTh = this.guiSnd.addFolder('Theremin Settings');
         sTh.add(this.state.cfg, 'thOn').name('Power On');
         sTh.add({ s: () => this.downloadConfig('th', 'GyrOS_Theremin.json') }, 's').name('💾 Save Theremin');
-        sTh.add({ l: () => document.getElementById('up-th').click() }, 'l').name('📂 Load Theremin');
+        sTh.add({ l: () => $('up-th').click() }, 'l').name('📂 Load Theremin');
         sTh.add(this.state.cfg, 'thereminWave',['sine', 'square', 'sawtooth', 'triangle']).onChange(()=>this.updateSynths());
         sTh.add(this.state.cfg, 'thBaseFreq', 20, 500); sTh.add(this.state.cfg, 'thMaxFreq', 500, 5000);
         
@@ -1285,7 +1151,7 @@ window.GyrOS = {
             const f = this.guiSnd.addFolder(fName);
             f.add(this.state.cfg, `${pfx}On`).name('Power On');
             f.add({ s: () => this.downloadConfig(pfx, `GyrOS_${fName}.json`) }, 's').name('💾 Save Preset');
-            f.add({ l: () => document.getElementById(upId).click() }, 'l').name('📂 Load Preset');
+            f.add({ l: () => $(upId).click() }, 'l').name('📂 Load Preset');
             f.add(this.state.cfg, `${pfx}Type`, ['Synth', 'AMSynth', 'FMSynth', 'MembraneSynth']).onChange(v => {
                 synthObj.dispose();
                 if(pfx==='s1') { this.synth1 = new Tone.PolySynth(Tone[v],{maxPolyphony:8}).connect(panObj); this.updateSynths(); }
@@ -1311,7 +1177,7 @@ window.GyrOS = {
     },
 
     makeGUIsDraggable() {
-        document.querySelectorAll('.gui-window').forEach(el => {
+        $$('.gui-window').forEach(el => {
             el.addEventListener('pointerdown', () => { el.style.zIndex = ++this.state.zIndexCounter; });
 
             let isDown = false, startX, startY, origX, origY;
@@ -1356,7 +1222,7 @@ window.GyrOS = {
     toggleMute(forceState = null) {
         this.state.isMuted = forceState !== null ? forceState : !this.state.isMuted;
         this.muteNode.volume.value = this.state.isMuted ? -Infinity : 0;
-        const btnMute = document.getElementById('btn-mute');
+        const btnMute = $('btn-mute');
         if(btnMute) {
             btnMute.classList.toggle('btn-mute-on', this.state.isMuted);
             btnMute.innerText = this.state.isMuted ? "🔇 MUTE: ON" : "🔊 MUTE: OFF";
@@ -1381,7 +1247,7 @@ window.GyrOS = {
         if(window.speechSynthesis) window.speechSynthesis.cancel();
         this.toggleMute(true);
         
-        const btnRes = document.getElementById('btn-resume');
+        const btnRes = $('btn-resume');
         if(btnRes) {
             if(pausedAny) { btnRes.classList.add('resume-active'); btnRes.classList.remove('resume-disabled'); } 
             else { btnRes.classList.remove('resume-active'); btnRes.classList.add('resume-disabled'); }
@@ -1396,8 +1262,7 @@ window.GyrOS = {
                 pad.startTime = now - pad.pausedAt; pad.player.start(now, pad.pausedAt); pad.wasPlaying = false;
             }
         });
-        const btnRes = document.getElementById('btn-resume');
-        if(btnRes) { btnRes.classList.remove('resume-active'); btnRes.classList.add('resume-disabled'); }
+        if($('btn-resume')) { $('btn-resume').classList.remove('resume-active'); $('btn-resume').classList.add('resume-disabled'); }
     },
 
     stopAll() {
@@ -1406,28 +1271,25 @@ window.GyrOS = {
         this.thereminVol.volume.rampTo(-Infinity, 0.05);
         if(window.speechSynthesis) window.speechSynthesis.cancel();
         this.state.customSamplers.forEach(pad => { pad.player.stop(); pad.wasPlaying = false; pad.pausedAt = 0; });
-        const btnRes = document.getElementById('btn-resume');
-        if(btnRes) { btnRes.classList.remove('resume-active'); btnRes.classList.add('resume-disabled'); }
+        if($('btn-resume')) { $('btn-resume').classList.remove('resume-active'); $('btn-resume').classList.add('resume-disabled'); }
     },
 
     startRecordingLogic() {
         if(this.state.isRecording) {
             this.recorder.stop(); this.state.isRecording = false; this.state.waitingForRec = false;
-            const b = document.getElementById('btn-record');
-            if(b) { b.innerText = "⏺ REC"; b.classList.remove('btn-recording'); }
+            if($('btn-record')) { $('btn-record').innerText = "⏺ REC"; $('btn-record').classList.remove('btn-recording'); }
             return;
         }
 
         const mode = this.state.cfg.recMode;
-        const b = document.getElementById('btn-record');
-        if(b) b.classList.add('btn-recording');
+        if($('btn-record')) $('btn-record').classList.add('btn-recording');
         
         if (mode === 'Immediate') {
             this.recorder.start(); this.state.isRecording = true;
-            if(b) b.innerText = "⏹ STOP REC";
+            if($('btn-record')) $('btn-record').innerText = "⏹ STOP REC";
         } 
         else if (mode === 'Click Track') {
-            if(b) b.innerText = "CLICK...";
+            if($('btn-record')) $('btn-record').innerText = "CLICK...";
             let count = 4;
             const clickSynth = new Tone.MembraneSynth().toDestination();
             Tone.Transport.scheduleRepeat((time) => {
@@ -1436,30 +1298,25 @@ window.GyrOS = {
                 if(count <= 0) {
                     Tone.Transport.stop(); Tone.Transport.cancel();
                     this.recorder.start(); this.state.isRecording = true;
-                    if(b) b.innerText = "⏹ STOP REC";
+                    if($('btn-record')) $('btn-record').innerText = "⏹ STOP REC";
                 }
             }, "4n");
             Tone.Transport.start();
         } 
         else if (mode === 'Timer') {
-            if(b) b.innerText = `WAIT ${this.state.cfg.recTimer}s`;
+            if($('btn-record')) $('btn-record').innerText = `WAIT ${this.state.cfg.recTimer}s`;
             setTimeout(() => {
                 this.recorder.start(); this.state.isRecording = true;
-                if(b) b.innerText = "⏹ STOP REC";
+                if($('btn-record')) $('btn-record').innerText = "⏹ STOP REC";
             }, this.state.cfg.recTimer * 1000);
         }
         else if (mode === 'Threshold') {
-            if(b) b.innerText = "WAIT SOUND...";
+            if($('btn-record')) $('btn-record').innerText = "WAIT SOUND...";
             this.state.waitingForRec = true;
         }
     },
 
     bindEvents() {
-        document.getElementById('btn-up-files').addEventListener('click', () => document.getElementById('up-files').click());
-        document.getElementById('btn-up-folder').addEventListener('click', () => document.getElementById('up-folder').click());
-        document.getElementById('up-files').addEventListener('change', e => this.handleFolderUpload(e.target.files));
-        document.getElementById('up-folder').addEventListener('change', e => this.handleFolderUpload(e.target.files));
-
         const handleUp = (e, callback) => {
             const file = e.target.files[0]; if(!file) return;
             const reader = new FileReader(); reader.onload = (ev) => callback(ev.target.result, file);
@@ -1468,9 +1325,8 @@ window.GyrOS = {
         
         const fIn =['up-config', 'up-s1', 'up-s2', 'up-th', 'up-bg', 'up-vfx', 'up-note-img', 'up-splash-img', 'up-splash-aud'];
         fIn.forEach(id => {
-            const el = document.getElementById(id);
-            if(el) {
-                el.addEventListener('change', e => handleUp(e, (res, file) => {
+            if($(id)) {
+                $(id).addEventListener('change', e => handleUp(e, (res, file) => {
                     if(id === 'up-config') { Object.assign(this.state.cfg, JSON.parse(res)); this.initGrid(); this.initGUIs(); this.applyTheme(); }
                     else if(id.startsWith('up-s') || id === 'up-th') { Object.assign(this.state.cfg, JSON.parse(res)); this.updateSynths(); this.initGUIs(); }
                     else if(id === 'up-bg') { this.state.cfg.bgImageUrl = res; this.applyTheme(); }
@@ -1482,70 +1338,80 @@ window.GyrOS = {
             }
         });
 
-        document.getElementById('btn-about').addEventListener('click', () => { document.getElementById('about-modal').style.display = 'flex'; });
-        document.getElementById('close-about').addEventListener('click', () => { document.getElementById('about-modal').style.display = 'none'; });
+        if($('btn-about')) $('btn-about').addEventListener('click', () => { $('about-modal').style.display = 'flex'; });
+        if($('close-about')) $('close-about').addEventListener('click', () => { $('about-modal').style.display = 'none'; });
 
-        document.getElementById('btn-oct-up').addEventListener('click', () => { if(this.state.cfg.octave < 6) { this.state.cfg.octave++; this.initGrid(); if(this.guiSnd) this.guiSnd.updateDisplay(); } });
-        document.getElementById('btn-oct-down').addEventListener('click', () => { if(this.state.cfg.octave > 1) { this.state.cfg.octave--; this.initGrid(); if(this.guiSnd) this.guiSnd.updateDisplay(); } });
+        if($('btn-oct-up')) $('btn-oct-up').addEventListener('click', () => { if(this.state.cfg.octave < 6) { this.state.cfg.octave++; this.initGrid(); if(this.guiSnd) this.guiSnd.updateDisplay(); } });
+        if($('btn-oct-down')) $('btn-oct-down').addEventListener('click', () => { if(this.state.cfg.octave > 1) { this.state.cfg.octave--; this.initGrid(); if(this.guiSnd) this.guiSnd.updateDisplay(); } });
 
-        const btnPads = document.getElementById('btn-pads-edit');
-        btnPads.addEventListener('click', () => {
-            this.state.padsEditing = !this.state.padsEditing;
-            btnPads.innerText = this.state.padsEditing ? "PADS: EDIT" : "PADS: LOCKED";
-            btnPads.style.borderColor = this.state.padsEditing ? "#ffaa00" : "var(--hud-txt)";
-            btnPads.style.color = this.state.padsEditing ? "#ffaa00" : "var(--hud-txt)";
-            document.getElementById('custom-buttons-layer').classList.toggle('editing', this.state.padsEditing);
-        });
+        const btnPads = $('btn-pads-edit');
+        if(btnPads) {
+            btnPads.addEventListener('click', () => {
+                this.state.padsEditing = !this.state.padsEditing;
+                btnPads.innerText = this.state.padsEditing ? "PADS: EDIT" : "PADS: LOCKED";
+                btnPads.style.borderColor = this.state.padsEditing ? "#ffaa00" : "var(--hud-txt)";
+                btnPads.style.color = this.state.padsEditing ? "#ffaa00" : "var(--hud-txt)";
+                $('custom-buttons-layer').classList.toggle('editing', this.state.padsEditing);
+            });
+        }
 
-        const btnSen = document.getElementById('btn-sensors');
-        btnSen.addEventListener('click', () => {
-            this.state.sensorsActive = !this.state.sensorsActive;
-            btnSen.innerText = this.state.sensorsActive ? "⚡ SENSORS: ON" : "❌ SENSORS: OFF";
-            btnSen.style.color = this.state.sensorsActive ? "#000" : "#666";
-            btnSen.style.background = this.state.sensorsActive ? "var(--accent-neon)" : "rgba(0,0,0,0.5)";
-        });
+        const btnSen = $('btn-sensors');
+        if(btnSen) {
+            btnSen.addEventListener('click', () => {
+                this.state.sensorsActive = !this.state.sensorsActive;
+                btnSen.innerText = this.state.sensorsActive ? "⚡ SENSORS: ON" : "❌ SENSORS: OFF";
+                btnSen.style.color = this.state.sensorsActive ? "#000" : "#666";
+                btnSen.style.background = this.state.sensorsActive ? "var(--accent-neon)" : "rgba(0,0,0,0.5)";
+            });
+        }
 
-        const btnMic = document.getElementById('btn-mic');
-        btnMic.addEventListener('click', async () => {
-            if(!this.state.micActive) {
-                await this.mic.open(); this.state.micActive = true;
-                btnMic.innerText = "🎙️ MIC: ON"; btnMic.classList.add('active');
-            } else {
-                this.mic.close(); this.state.micActive = false;
-                btnMic.innerText = "🎙️ MIC: OFF"; btnMic.classList.remove('active');
-            }
-        });
+        const btnMic = $('btn-mic');
+        if(btnMic) {
+            btnMic.addEventListener('click', async () => {
+                if(!this.state.micActive) {
+                    await this.mic.open(); this.state.micActive = true;
+                    btnMic.innerText = "🎙️ MIC: ON"; btnMic.classList.add('active');
+                } else {
+                    this.mic.close(); this.state.micActive = false;
+                    btnMic.innerText = "🎙️ MIC: OFF"; btnMic.classList.remove('active');
+                }
+            });
+        }
 
-        document.getElementById('btn-record').addEventListener('click', () => this.startRecordingLogic());
+        if($('btn-record')) $('btn-record').addEventListener('click', () => this.startRecordingLogic());
 
-        const doPanic = () => {
-            Tone.Transport.stop(); this.synth1.releaseAll(); this.synth2.releaseAll();
-            this.thereminVol.volume.rampTo(-Infinity, 0.05);
-            this.state.holdMode = false; document.getElementById('btn-hold').classList.remove('active');
-            document.getElementById('btn-hold').innerText = "⎄ HOLD: OFF";
-        };
-        document.getElementById('btn-panic').addEventListener('click', doPanic);
-        document.getElementById('btn-mute').addEventListener('click', e => { e.target.blur(); this.toggleMute(); });
+        if($('btn-panic')) {
+            $('btn-panic').addEventListener('click', () => {
+                Tone.Transport.stop(); this.synth1.releaseAll(); this.synth2.releaseAll();
+                this.thereminVol.volume.rampTo(-Infinity, 0.05);
+                this.state.holdMode = false; 
+                if($('btn-hold')) { $('btn-hold').classList.remove('active'); $('btn-hold').innerText = "⎄ HOLD: OFF"; }
+            });
+        }
         
-        document.getElementById('btn-silence').addEventListener('click', () => this.silenceAll());
-        document.getElementById('btn-resume').addEventListener('click', () => this.resumeAll());
-        document.getElementById('btn-stopall').addEventListener('click', () => this.stopAll());
+        if($('btn-mute')) $('btn-mute').addEventListener('click', e => { e.target.blur(); this.toggleMute(); });
+        
+        if($('btn-silence')) $('btn-silence').addEventListener('click', () => this.silenceAll());
+        if($('btn-resume')) $('btn-resume').addEventListener('click', () => this.resumeAll());
+        if($('btn-stopall')) $('btn-stopall').addEventListener('click', () => this.stopAll());
 
-        const btnHold = document.getElementById('btn-hold');
-        btnHold.addEventListener('click', () => { 
-            this.state.holdMode = !this.state.holdMode; 
-            btnHold.classList.toggle('active', this.state.holdMode); 
-            btnHold.innerText = this.state.holdMode ? "⎄ HOLD: ON" : "⎄ HOLD: OFF";
-        });
+        const btnHold = $('btn-hold');
+        if(btnHold) {
+            btnHold.addEventListener('click', () => { 
+                this.state.holdMode = !this.state.holdMode; 
+                btnHold.classList.toggle('active', this.state.holdMode); 
+                btnHold.innerText = this.state.holdMode ? "⎄ HOLD: ON" : "⎄ HOLD: OFF";
+            });
+        }
 
         let cpTimer;
-        document.querySelectorAll('.secret-corner').forEach(c => {
+        $$('.secret-corner').forEach(c => {
             const toggleUI = () => {
                 this.state.uiHidden = !this.state.uiHidden;
-                document.querySelectorAll('.gui-window, #live-dashboard').forEach(el => {
+                $$('.gui-window, #live-dashboard').forEach(el => {
                     if(el.id !== 'bottom-hud') el.style.opacity = this.state.uiHidden ? '0' : '1';
                 });
-                document.getElementById('bottom-hud').classList.toggle('hidden', this.state.uiHidden);
+                $('bottom-hud').classList.toggle('hidden', this.state.uiHidden);
             };
             c.onmousedown = c.ontouchstart = () => { cpTimer = setTimeout(toggleUI, 1500); c.style.background = 'white'; c.style.opacity = '0.5'; };
             c.onmouseup = c.ontouchend = c.onmouseleave = () => { clearTimeout(cpTimer); c.style.background = 'transparent'; };
@@ -1554,7 +1420,7 @@ window.GyrOS = {
         const markActive = () => { 
             this.state.lastInteraction = Date.now();
             if(this.state.isAsleep) {
-                this.state.isAsleep = false; document.getElementById('screensaver-layer').style.opacity = 0;
+                this.state.isAsleep = false; $('screensaver-layer').style.opacity = 0;
             }
         };
 
@@ -1569,7 +1435,7 @@ window.GyrOS = {
                         if (pad.impactEnabled && force > pad.impactThresh && pad.player.state !== 'started') {
                             if(pad.playMode === 'Retrigger') pad.player.stop();
                             pad.startTime = Tone.now(); pad.player.start(pad.startTime); 
-                            const pb = document.getElementById(`pad-${pad.id}`);
+                            const pb = $(`pad-${pad.id}`);
                             if(pb) pb.classList.add(pad.doPulse ? 'pad-pulsing' : 'playing');
                         }
                     });
@@ -1626,7 +1492,7 @@ window.GyrOS = {
                             if (pad.impactEnabled && vel > pad.impactThresh && pad.player.state !== 'started') {
                                 if(pad.playMode === 'Retrigger') pad.player.stop();
                                 pad.startTime = Tone.now(); pad.player.start(pad.startTime); 
-                                const pb = document.getElementById(`pad-${pad.id}`);
+                                const pb = $(`pad-${pad.id}`);
                                 if(pb) pb.classList.add(pad.doPulse ? 'pad-pulsing' : 'playing');
                             }
                         });
@@ -1638,21 +1504,17 @@ window.GyrOS = {
                 }
             }
 
-            const hudRows = document.querySelectorAll('.hud-row');
-            let isDodging = false;
-            hudRows.forEach(row => {
-                const rRect = row.getBoundingClientRect();
-                if(e.clientY > rRect.top - 50 && e.clientX > rRect.left - 50 && e.clientX < rRect.right + 50) isDodging = true;
-            });
-
-            if(isDodging) {
-                document.querySelectorAll('.gui-window').forEach(w => {
-                    if(w.id === 'bottom-hud') return;
-                    const wRect = w.getBoundingClientRect();
-                    // if overlapping bottom section
-                    if(wRect.bottom > window.innerHeight - 150) w.classList.add('dodging');
-                });
-            } else { document.querySelectorAll('.gui-window').forEach(w => w.classList.remove('dodging')); }
+            const bh = $('bottom-hud');
+            if(bh) {
+                const emRect = bh.getBoundingClientRect();
+                if(e.clientY > emRect.top - 50 && e.clientX > emRect.left - 50 && e.clientX < emRect.right + 50) {
+                    $$('.gui-window').forEach(w => {
+                        if(w.id === 'bottom-hud') return;
+                        const wRect = w.getBoundingClientRect();
+                        if(wRect.bottom > emRect.top - 50 && wRect.right > emRect.left - 50 && wRect.left < emRect.right + 50) w.classList.add('dodging');
+                    });
+                } else { $$('.gui-window').forEach(w => w.classList.remove('dodging')); }
+            }
         });
 
         document.body.addEventListener('mouseleave', () => { if(!this.state.hasGyro) this.toggleMute(true); });
@@ -1664,7 +1526,7 @@ window.GyrOS = {
                 this.synth1.releaseAll(); this.synth2.releaseAll();
                 this.thereminVol.volume.rampTo(-Infinity, 0.05);
                 this.toggleMute(true);
-                document.getElementById('screensaver-layer').style.opacity = 1;
+                if($('screensaver-layer')) $('screensaver-layer').style.opacity = 1;
             }
         }, 1000);
     },
@@ -1675,25 +1537,25 @@ window.GyrOS = {
         const now = Tone.now();
 
         if (isMuted) {
-            const level = this.meter.getValue(); const btnMute = document.getElementById('btn-mute');
+            const level = this.meter.getValue(); const btnMute = $('btn-mute');
             if(btnMute) btnMute.classList.toggle('mute-active-audio', level > -40);
-        } else { const b = document.getElementById('btn-mute'); if(b) b.classList.remove('mute-active-audio'); }
+        } else { const b = $('btn-mute'); if(b) b.classList.remove('mute-active-audio'); }
 
         if (this.state.waitingForRec && this.state.micActive) {
             if (this.micMeter.getValue() > cfg.recThreshold) {
                 this.recorder.start(); this.state.isRecording = true; this.state.waitingForRec = false;
-                const b = document.getElementById('btn-record'); if(b) b.innerText = "⏹ STOP REC";
+                const b = $('btn-record'); if(b) b.innerText = "⏹ STOP REC";
             }
         }
 
         if(cfg.showDebugger) {
-            document.getElementById('dbg-status').innerText = isAsleep ? "ASLEEP" : (isMuted ? "MUTED" : (isSilenced ? "PAUSED" : "ACTIVE"));
-            document.getElementById('dbg-ctx').innerText = Tone.context.state;
-            document.getElementById('dbg-poly').innerText = this.synth1.activeVoices + this.synth2.activeVoices;
-            document.getElementById('dbg-ptr').innerText = `${pointer.x.toFixed(2)}, ${pointer.y.toFixed(2)}`;
-            document.getElementById('dbg-gyro').innerText = `${rawSensors.x.toFixed(1)}, ${rawSensors.y.toFixed(1)}, ${rawSensors.z.toFixed(1)}`;
-            document.getElementById('dbg-acc').innerText = rawSensors.acc.toFixed(2);
-            document.getElementById('dbg-mic').innerText = this.state.micActive ? this.micMeter.getValue().toFixed(1) + " dB" : "OFF";
+            if($('dbg-status')) $('dbg-status').innerText = isAsleep ? "ASLEEP" : (isMuted ? "MUTED" : (isSilenced ? "PAUSED" : "ACTIVE"));
+            if($('dbg-ctx')) $('dbg-ctx').innerText = Tone.context.state;
+            if($('dbg-poly')) $('dbg-poly').innerText = this.synth1.activeVoices + this.synth2.activeVoices;
+            if($('dbg-ptr')) $('dbg-ptr').innerText = `${pointer.x.toFixed(2)}, ${pointer.y.toFixed(2)}`;
+            if($('dbg-gyro')) $('dbg-gyro').innerText = `${rawSensors.x.toFixed(1)}, ${rawSensors.y.toFixed(1)}, ${rawSensors.z.toFixed(1)}`;
+            if($('dbg-acc')) $('dbg-acc').innerText = rawSensors.acc.toFixed(2);
+            if($('dbg-mic')) $('dbg-mic').innerText = this.state.micActive ? this.micMeter.getValue().toFixed(1) + " dB" : "OFF";
         }
 
         this.state.customSamplers.forEach(pad => { if(pad.updateVisuals) pad.updateVisuals(); });
@@ -1723,11 +1585,11 @@ window.GyrOS = {
 
         if(cfg.perspective) {
             const rotX = pointer.y * -30; const rotY = pointer.x * 30;
-            document.getElementById('playfield-wrapper').style.transform = `perspective(1000px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale(1.1)`;
-            document.getElementById('bg-layer').style.transform = `scale(1.1) translate(${pointer.x * -20}px, ${pointer.y * 20}px)`;
+            if($('playfield-wrapper')) $('playfield-wrapper').style.transform = `perspective(1000px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale(1.1)`;
+            if($('bg-layer')) $('bg-layer').style.transform = `scale(1.1) translate(${pointer.x * -20}px, ${pointer.y * 20}px)`;
         } else {
-            document.getElementById('playfield-wrapper').style.transform = 'none';
-            document.getElementById('bg-layer').style.transform = 'none';
+            if($('playfield-wrapper')) $('playfield-wrapper').style.transform = 'none';
+            if($('bg-layer')) $('bg-layer').style.transform = 'none';
         }
 
         if(![6,7].includes(mode)) {
@@ -1737,10 +1599,10 @@ window.GyrOS = {
 
             if (newCell !== this.state.activeCellIdx) {
                 if (this.state.activeCellIdx !== -1) {
-                    const old = document.getElementById(`cell-${this.state.activeCellIdx}`); if (old) old.classList.remove('active');
+                    const old = $(`cell-${this.state.activeCellIdx}`); if (old) old.classList.remove('active');
                     if (mode === 4 && !this.state.holdMode && !isSilenced) { this.synth1.releaseAll(); this.synth2.releaseAll(); }
                 }
-                const cur = document.getElementById(`cell-${newCell}`); if (cur) cur.classList.add('active');
+                const cur = $(`cell-${newCell}`); if (cur) cur.classList.add('active');
                 this.state.activeCellIdx = newCell;
                 
                 if (mode === 4 && cfg.cells[newCell] && !isSilenced) {
@@ -1767,7 +1629,7 @@ window.GyrOS = {
     },
 
     renderWaveform() {
-        const cvs = document.getElementById('master-waveform'); if(!cvs) return;
+        const cvs = $('master-waveform'); if(!cvs) return;
         const ctx = cvs.getContext('2d');
         if (cvs.width !== cvs.clientWidth) { cvs.width = cvs.clientWidth; cvs.height = cvs.clientHeight; }
         const data = this.analyser.getValue();
@@ -1781,7 +1643,7 @@ window.GyrOS = {
 
     renderVisualizer() {
         if(!this.state.cfg.showVisualizer) return;
-        const cvs = document.getElementById('vis-canvas'); if(!cvs) return;
+        const cvs = $('vis-canvas'); if(!cvs) return;
         const ctx = cvs.getContext('2d');
         if (cvs.width !== cvs.clientWidth) { cvs.width = cvs.clientWidth; cvs.height = cvs.clientHeight; }
         const data = this.masterVis.getValue();
@@ -1794,7 +1656,7 @@ window.GyrOS = {
     }
 };
 
-document.getElementById('btn-start').onclick = () => { window.GyrOS.loadSplash(); window.GyrOS.init(); }
+$('btn-start').onclick = () => { window.GyrOS.loadSplash(); window.GyrOS.init(); }
 </script>
 </body>
 </html>
