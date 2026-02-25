@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <link rel="manifest" href="manifest.json">
-    <title>Gyr-OS | Master Workstation V13.2</title>
+    <title>Gyr-OS | Master Workstation V13.3</title>
     
     <!-- 
       Author: Tim Tesner
-      Co-Author / AI Assistance: Gemini 3.1 Pro
-      Gyr-OS Workstation Engine V13.2
+      Co-Author / AI Assistance: Gemini 3 Pro
+      Gyr-OS Workstation Engine V13.3
     -->
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
@@ -43,6 +43,7 @@
         ::-webkit-scrollbar-thumb { background: var(--accent-neon); border-radius: 4px; }
 
         #gui-left { top: 40px; left: 20px; } #gui-center { top: 40px; left: 50%; transform: translateX(-50%); } #gui-right { top: 40px; right: 20px; }
+        #preset-window { top: 40px; right: 300px; width: 220px; display: none; }
         #asset-window { top: 300px; left: 20px; width: 260px; display: none; }
         #speech-window { top: 400px; left: 20px; width: 260px; display: none; }
         #debugger-window { top: 40px; right: 280px; width: 220px; display: none; }
@@ -122,7 +123,7 @@
 
 <div id="init-overlay">
     <img id="splash-img" src="" alt="Splash Image" style="max-width:300px; max-height:300px; display:none; margin-bottom:20px; border-radius:10px; box-shadow:0 0 20px var(--accent-neon);">
-    <h1 style="color: var(--accent-neon); letter-spacing: 5px; text-shadow: 0 0 20px var(--accent-neon);">GYR-OS V13.2</h1>
+    <h1 style="color: var(--accent-neon); letter-spacing: 5px; text-shadow: 0 0 20px var(--accent-neon);">GYR-OS V13.3</h1>
     <p style="color:#aaa; margin-bottom: 20px;">AUTHOR: TIM TESNER & GEMINI 3 PRO</p>
     <button id="btn-start" style="padding: 20px 40px; font-size: 1.5rem; background: var(--accent-neon); border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">INITIALIZE ENGINE</button>
     <div id="error-msg" style="color: #ff4444; margin-top: 15px;"></div>
@@ -138,22 +139,39 @@
 <div id="playfield-wrapper"><div id="grid-overlay"></div></div>
 <div id="custom-buttons-layer"></div>
 
+<!-- About Modal -->
 <div id="about-modal">
-    <div id="about-header"><span>Gyr-OS | Documentation V13.2</span><button id="close-about" style="background:transparent; border:none; color:black; font-weight:bold; cursor:pointer;">X</button></div>
+    <div id="about-header"><span>Gyr-OS | Documentation V13.3</span><button id="close-about" style="background:transparent; border:none; color:black; font-weight:bold; cursor:pointer;">X</button></div>
     <div id="about-content">
         <h2 style="color:var(--accent-neon);">Authors: Tim Tesner & Gemini 3 Pro</h2>
-        <p><strong>V13.2 Upgrades & Fixes:</strong><br>
-        - <strong>Import Map Fixed:</strong> Added the core Three.js import map ensuring perfect boot loading.<br>
+        <p><strong>V13.3 Hotfix Upgrades:</strong><br>
+        - <strong>Critical Object Bug Fix:</strong> Restored the missing <code>showPresetWin</code> variable that caused the configuration boot error.<br>
+        - <strong>Code Splitting Resolution:</strong> Refactored codebase delivery to ensure clean separation of HTML and JavaScript preventing server cutoff timeouts.<br>
         - <strong>Detachable Master Control Buttons:</strong> Click and drag buttons like [PANIC] or [MUTE] off the control bar to place them permanently on the playfield for quick access.<br>
         - <strong>Group Tabs:</strong> The bottom HUD now supports Tabs [1-5]. You can switch groups instantly.<br>
-        - <strong>Asset Manager:</strong> Use the [ASSETS] window to upload entire folders of sounds. Click "Spawn Pad" to generate a pad from the list.<br>
-        - <strong>Advanced Pad Mixing:</strong> Every custom pad now has its own EQ (Low/Mid/High), Reverb/Delay Sends, and advanced looping.</p>
+        - <strong>Asset Manager:</strong> Upload entire folders of sounds. Click "Spawn Pad" to generate a pad from the list.</p>
     </div>
 </div>
 
 <div class="gui-window" id="gui-left"><div class="gui-header"><span class="gui-toggle">▼</span><span>SYSTEM & SENSORS</span><span class="gui-toggle">▼</span></div><div class="gui-content" id="gui-left-content"></div></div>
 <div class="gui-window" id="gui-center"><div class="gui-header"><span class="gui-toggle">▼</span><span>VISUALS & MEDIA</span><span class="gui-toggle">▼</span></div><div class="gui-content" id="gui-center-content"></div></div>
 <div class="gui-window" id="gui-right"><div class="gui-header"><span class="gui-toggle">▼</span><span>SYNTH ENGINE</span><span class="gui-toggle">▼</span></div><div class="gui-content" id="gui-right-content"></div></div>
+
+<div class="gui-window" id="preset-window">
+    <div class="gui-header"><span class="gui-toggle">▼</span><span>PRESET MANAGER</span><span class="gui-toggle">▼</span></div>
+    <div class="gui-content" style="padding:10px;">
+        <label style="font-size:10px; display:flex; justify-content:space-between; margin-bottom:10px;">
+            Warn Before Load: <input type="checkbox" id="preset-warn" checked>
+        </label>
+        <label style="font-size:10px; display:flex; justify-content:space-between; margin-bottom:10px;">
+            Slots: <input type="number" id="preset-count" value="4" min="1" max="20" style="width:40px; background:#000; color:#fff; border:1px solid #444;">
+        </label>
+        <div style="display:flex; gap:5px; margin-bottom:10px;">
+            <button class="sys-btn" id="btn-pmode" style="flex-grow:1; background:#444;">P-MODE: LOAD</button>
+        </div>
+        <div id="preset-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap:4px;"></div>
+    </div>
+</div>
 
 <div class="gui-window" id="asset-window">
     <div class="gui-header"><span class="gui-toggle">▼</span><span>ASSET MANAGER</span><span class="gui-toggle">▼</span></div>
@@ -168,7 +186,7 @@
     </div>
 </div>
 
-<div class="gui-window" id="speech-window">
+<div class="gui-window" id="speech-window" style="display:none;">
     <div class="gui-header"><span class="gui-toggle">▼</span><span>WEB SPEECH API</span><span class="gui-toggle">▼</span></div>
     <div class="gui-content" id="speech-content" style="padding:10px; display:flex; flex-direction:column; gap:5px;">
         <button class="sys-btn" id="btn-spawn-speech" style="margin-bottom:10px;">➕ Spawn Speech Pad</button>
@@ -235,11 +253,6 @@
 <input type="file" id="up-splash-aud" accept="audio/*">
 
 <div id="btn-library" style="display:none;">
-    <button class="sys-btn hud-cloneable" id="btn-p1" data-grp="utils">[P1]</button>
-    <button class="sys-btn hud-cloneable" id="btn-p2" data-grp="utils">[P2]</button>
-    <button class="sys-btn hud-cloneable" id="btn-p3" data-grp="utils">[P3]</button>
-    <button class="sys-btn hud-cloneable" id="btn-p4" data-grp="utils">[P4]</button>
-    <button class="sys-btn hud-cloneable" id="btn-pmode" data-grp="utils" style="background:#444;">P-MODE: LOAD</button>
     <button class="sys-btn hud-cloneable" id="btn-oct-down" data-grp="utils">[- OCT]</button>
     <button class="sys-btn hud-cloneable" id="btn-oct-up" data-grp="utils">[+ OCT]</button>
     <button class="sys-btn hud-cloneable" id="btn-pads-edit" data-grp="utils" style="border-color:#666; color:#666;">PADS: LOCKED</button>
@@ -247,6 +260,7 @@
     <button class="sys-btn hud-cloneable" id="btn-mic" data-grp="utils">🎙️ MIC: OFF</button>
     <button class="sys-btn hud-cloneable" id="btn-record" data-grp="utils">⏺ REC</button>
     <button class="sys-btn hud-cloneable" id="btn-about" data-grp="utils" style="border-radius: 50%;">?</button>
+
     <button class="sys-btn hud-cloneable" id="btn-hold" data-grp="emerg">⎄ HOLD: OFF</button>
     <button class="sys-btn hud-cloneable btn-mute-on mute-active-audio" id="btn-mute" data-grp="emerg" style="border-color: #ff4444; color: white;">🔇 MUTE: ON</button>
     <button class="sys-btn hud-cloneable" id="btn-panic" data-grp="emerg" style="border-color: #ffaa00; color: #ffaa00;">■ PANIC</button>
@@ -258,7 +272,7 @@
 <script type="importmap">
     { "imports": { "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.js" } }
 </script>
-
+    
 <script type="module">
 import * as THREE from 'three';
 import * as Tone from 'https://esm.sh/tone';
@@ -293,7 +307,7 @@ window.GyrOS = {
             gridCols: 4, gridRows: 3, showGrid: true, perspective: false, colorNotes: true,
             hudColor: 'rgba(10, 10, 15, 0.85)', accentColor: '#00ffcc', waveColor: '#00ffcc',
             bgImageUrl: null, bgOpacity: 1.0, bgSize: 'cover', pointerSize: 1.0, pointerOpac: 1.0, hidePointerTouch: false,
-            showAssetWin: false, showVisualizer: false, showDebugger: false, showSpeech: false,
+            showPresetWin: true, showAssetWin: false, showVisualizer: false, showDebugger: false, showSpeech: false, // <-- FIXED BUG HERE
             vfxImageUrl: null, vfxOpac: 0.8, vfxScale: 2.0, vfxSpeed: 0.5, targetNoteForImg: 'C',
             masterVol: -2, eqLow: 0, eqMid: 0, eqHigh: 0, reverbMix: 0.3, delayMix: 0.2, arpRate: 0.15,
             scale: 'pentatonic', root: 'C', octave: 3, synthPreset: 'Custom',
@@ -304,10 +318,10 @@ window.GyrOS = {
             m1: true, m2: true, m3: true, m4: true, m5: true, m6: true, m7: true, m8: true,
             guiFolders: {}, cells:[], noteImages: {}, windowPositions: {},
             hudGroups: {
-                1: { bg: 'rgba(10,10,15,0.85)', btnBg: 'rgba(0,0,0,0.8)', txtCol: '#00ffcc', btns:['btn-p1','btn-p2','btn-p3','btn-p4','btn-pmode','btn-oct-down','btn-oct-up','btn-pads-edit','btn-sensors','btn-hold','btn-mute','btn-panic','btn-silence','btn-resume','btn-stopall'] },
-                2: { bg: 'rgba(20,10,10,0.85)', btnBg: 'rgba(30,0,0,0.8)', txtCol: '#ff0055', btns:['btn-p1','btn-p2','btn-oct-down','btn-oct-up','btn-mute','btn-panic'] },
+                1: { bg: 'rgba(10,10,15,0.85)', btnBg: 'rgba(0,0,0,0.8)', txtCol: '#00ffcc', btns:['btn-oct-down','btn-oct-up','btn-pads-edit','btn-sensors','btn-hold','btn-mute','btn-panic','btn-silence','btn-resume','btn-stopall'] },
+                2: { bg: 'rgba(20,10,10,0.85)', btnBg: 'rgba(30,0,0,0.8)', txtCol: '#ff0055', btns:['btn-oct-down','btn-oct-up','btn-mute','btn-panic'] },
                 3: { bg: 'rgba(10,20,10,0.85)', btnBg: 'rgba(0,30,0,0.8)', txtCol: '#00ff55', btns:['btn-pads-edit','btn-sensors','btn-mute','btn-panic','btn-silence'] },
-                4: { bg: 'rgba(10,10,20,0.85)', btnBg: 'rgba(0,0,30,0.8)', txtCol: '#5500ff', btns:['btn-p1','btn-p2','btn-p3','btn-p4','btn-mute'] },
+                4: { bg: 'rgba(10,10,20,0.85)', btnBg: 'rgba(0,0,30,0.8)', txtCol: '#5500ff', btns:['btn-mute'] },
                 5: { bg: 'rgba(20,20,20,0.85)', btnBg: 'rgba(40,40,40,0.8)', txtCol: '#ffffff', btns:['btn-panic','btn-mute','btn-silence','btn-resume','btn-stopall'] }
             }
         }
@@ -338,7 +352,7 @@ window.GyrOS = {
             }
             try { await this.detectSensors(); this.state.hasGyro = true; } catch(e) { this.state.hasGyro = false; }
             this.initAudio(); this.initVisuals(); this.initSpeech(); this.initGrid(); this.initGUIs();
-            this.makeGUIsDraggable(); this.bindEvents(); 
+            this.buildPresetGrid(); this.makeGUIsDraggable(); this.bindEvents(); 
             this.state.mode = this.state.defaultMode;
             this.renderHUDGroup();
 
@@ -548,8 +562,7 @@ window.GyrOS = {
         this.ssRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); this.ssRenderer.setSize(window.innerWidth, window.innerHeight);
         $('screensaver-layer').appendChild(this.ssRenderer.domElement);
         
-        const geom = new THREE.BufferGeometry(); 
-        const verts =[];
+        const geom = new THREE.BufferGeometry(); const verts =[];
         for(let i=0; i<2000; i++) verts.push(THREE.MathUtils.randFloatSpread(200), THREE.MathUtils.randFloatSpread(200), THREE.MathUtils.randFloatSpread(200));
         geom.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
         this.particles = new THREE.Points(geom, new THREE.PointsMaterial({ color: 0x00ffcc, size: 0.5 }));
@@ -581,6 +594,7 @@ window.GyrOS = {
         if($('visualizer-window')) $('visualizer-window').style.display = this.state.cfg.showVisualizer ? 'flex' : 'none';
         if($('debugger-window')) $('debugger-window').style.display = this.state.cfg.showDebugger ? 'flex' : 'none';
         if($('speech-window')) $('speech-window').style.display = this.state.cfg.showSpeech ? 'flex' : 'none';
+        if($('preset-window')) $('preset-window').style.display = this.state.cfg.showPresetWin ? 'flex' : 'none';
         
         this.renderHUDGroup();
     },
@@ -1062,7 +1076,7 @@ window.GyrOS = {
             if(cb && cb.checked && !confirm(`Overwrite Preset P${num} with current entire configuration?`)) return;
         }
         localStorage.setItem(`gyros_preset_${num}`, JSON.stringify(this.state.cfg));
-        alert(`Master Config Saved to [P${num}]!`);
+        alert(`Master Config Saved to[P${num}]!`);
     },
     
     loadPreset(num) {
@@ -1137,9 +1151,9 @@ window.GyrOS = {
         gPtr.add(this.state.cfg, 'hidePointerTouch').onChange(()=>this.applyTheme());
         
         const gWin = this.guiCenter.addFolder('Windows & HUDs');
+        gWin.add(this.state.cfg, 'showPresetWin').name('Show Preset Mgr').onChange(()=>this.applyTheme());
         gWin.add(this.state.cfg, 'showVisualizer').name('Show Visualizer').onChange(()=>this.applyTheme());
         gWin.add(this.state.cfg, 'showDebugger').name('Show Debugger').onChange(()=>this.applyTheme());
-        gWin.add(this.state.cfg, 'showPresetWin').name('Show Preset Mgr').onChange(()=>this.applyTheme());
         gWin.add(this.state.cfg, 'showAssetWin').name('Show Asset Mgr').onChange(()=>this.applyTheme());
         gWin.add(this.state.cfg, 'showSpeech').name('Show Web Speech').onChange(()=>this.applyTheme());
 
@@ -1173,7 +1187,7 @@ window.GyrOS = {
         sTh.add(this.state.cfg, 'thOn').name('Power On');
         sTh.add({ s: () => this.downloadConfig('th', 'GyrOS_Theremin.json') }, 's').name('💾 Save Theremin');
         sTh.add({ l: () => $('up-th').click() }, 'l').name('📂 Load Theremin');
-        sTh.add(this.state.cfg, 'thereminWave',['sine', 'square', 'sawtooth', 'triangle']).onChange(()=>this.updateSynths());
+        sTh.add(this.state.cfg, 'thereminWave', ['sine', 'square', 'sawtooth', 'triangle']).onChange(()=>this.updateSynths());
         sTh.add(this.state.cfg, 'thBaseFreq', 20, 500); sTh.add(this.state.cfg, 'thMaxFreq', 500, 5000);
         
         const buildSynthGUI = (fName, pfx, synthObj, panObj, upId) => {
@@ -1181,7 +1195,7 @@ window.GyrOS = {
             f.add(this.state.cfg, `${pfx}On`).name('Power On');
             f.add({ s: () => this.downloadConfig(pfx, `GyrOS_${fName}.json`) }, 's').name('💾 Save Preset');
             f.add({ l: () => $(upId).click() }, 'l').name('📂 Load Preset');
-            f.add(this.state.cfg, `${pfx}Type`, ['Synth', 'AMSynth', 'FMSynth', 'MembraneSynth']).onChange(v => {
+            f.add(this.state.cfg, `${pfx}Type`,['Synth', 'AMSynth', 'FMSynth', 'MembraneSynth']).onChange(v => {
                 synthObj.dispose();
                 if(pfx==='s1') { this.synth1 = new Tone.PolySynth(Tone[v],{maxPolyphony:8}).connect(panObj); this.updateSynths(); }
                 else { this.synth2 = new Tone.PolySynth(Tone[v],{maxPolyphony:8}).connect(panObj); this.updateSynths(); }
@@ -1240,7 +1254,7 @@ window.GyrOS = {
                     const content = el.querySelector('.gui-content');
                     if(content) {
                         const isHidden = content.style.display === 'none';
-                        content.style.display = isHidden ? 'flex' : 'none';
+                        content.style.display = isHidden ? 'block' : 'none'; // Fixed back to block instead of flex for standard dat.gui wrapping
                         toggles.forEach(tg => tg.innerText = isHidden ? '▼' : '▲');
                     }
                 });
@@ -1708,7 +1722,7 @@ window.GyrOS = {
 
     renderVisualizer() {
         if(!this.state.cfg.showVisualizer) return;
-        const cvs = document.getElementById('vis-canvas'); if(!cvs) return;
+        const cvs = $('vis-canvas'); if(!cvs) return;
         const ctx = cvs.getContext('2d');
         if (cvs.width !== cvs.clientWidth) { cvs.width = cvs.clientWidth; cvs.height = cvs.clientHeight; }
         const data = this.masterVis.getValue();
@@ -1721,7 +1735,7 @@ window.GyrOS = {
     }
 };
 
-document.getElementById('btn-start').onclick = () => { window.GyrOS.loadSplash(); window.GyrOS.init(); }
+$('btn-start').onclick = () => { window.GyrOS.loadSplash(); window.GyrOS.init(); }
 </script>
 </body>
 </html>
