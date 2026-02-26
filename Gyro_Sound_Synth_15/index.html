@@ -824,7 +824,9 @@ window.GyrOS = {
 
         Tone.loaded().then(() => { if(player.buffer) { data.bufferDuration = player.buffer.duration; btn.querySelector('.f-dur').innerText = data.bufferDuration.toFixed(1) + 's'; } });
         $('custom-buttons-layer').appendChild(btn);
-    },spawnVFX(xNorm, yNorm, customImg = null, customOpac = null) {
+    },
+
+    spawnVFX(xNorm, yNorm, customImg = null, customOpac = null) {
         const imgUrl = customImg || this.state.cfg.vfxImageUrl; if (!imgUrl) return;
         const vfx = document.createElement('img'); vfx.src = imgUrl; vfx.className = 'vfx-layer';
         vfx.style.left = `${(xNorm + 1) / 2 * window.innerWidth}px`; vfx.style.top = `${(-yNorm + 1) / 2 * window.innerHeight}px`;
