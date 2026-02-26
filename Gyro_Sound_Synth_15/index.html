@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <link rel="manifest" href="manifest.json">
-    <title>Gyr-OS | Master Workstation V15.0</title>
+    <title>Gyr-OS | Master Workstation V15.1</title>
     
     <!-- Author: Tim Tesner | Co-Author: Gemini 3 Pro -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
@@ -65,6 +65,7 @@
         
         .custom-sampler-btn, .speech-pad-btn { position: absolute; background: rgba(0,0,0,0.85); border: 2px solid var(--accent-neon); color: var(--accent-neon); border-radius: 8px; font-family: monospace; cursor: pointer; touch-action: none; box-shadow: 0 4px 10px rgba(0,0,0,0.5); overflow: visible; resize: both; min-width: 160px; min-height: 80px; pointer-events: auto; display: flex; flex-direction: column; justify-content: space-between; }
         .custom-sampler-btn:active, .speech-pad-btn:active { transform: scale(0.98); }
+        .pad-title { position: relative; z-index: 2; padding: 5px; font-weight: bold; pointer-events: none; text-shadow: 1px 1px 2px black; font-size: 12px; }
         .pad-react-bg { position: absolute; inset: 0; background: var(--accent-neon); opacity: 0; z-index: 0; pointer-events: none; transition: opacity 0.05s; }
         
         .pad-module { position: relative; z-index: 2; padding: 4px; display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.6); }
@@ -78,7 +79,7 @@
         @keyframes padPulse { 0% { box-shadow: 0 0 5px currentColor; } 100% { box-shadow: 0 0 25px currentColor; filter: brightness(1.5); } }
         .pad-pulsing { animation: padPulse 0.4s infinite alternate; }
 
-        .pad-gear { background: #000; border: 1px solid currentColor; border-radius: 50%; width: 24px; height: 24px; color: currentColor; cursor: pointer; display: none; justify-content: center; align-items: center; font-size: 12px; }
+        .pad-gear { background: #000; border: 1px solid currentColor; border-radius: 50%; width: 24px; height: 24px; color: currentColor; cursor: pointer; display: none; justify-content: center; align-items: center; font-size: 12px; position: absolute; top: -10px; right: -10px; z-index: 10;}
         #custom-buttons-layer.editing .pad-gear { display: flex; }
         
         .pad-settings-menu { position: absolute; top: 100%; left: 0; background: rgba(10,10,15,0.95); border: 1px solid currentColor; padding: 10px; border-radius: 4px; display: none; flex-direction: column; gap: 5px; min-width: 260px; z-index: 1000; cursor: default; }
@@ -107,7 +108,7 @@
         #about-modal { position: fixed; inset: 5%; background: rgba(10,10,15,0.95); border: 2px solid var(--accent-neon); border-radius: 12px; z-index: 5000; display: none; flex-direction: column; box-shadow: 0 0 50px rgba(0,0,0,0.8); }
         #about-header { padding: 15px; background: var(--accent-neon); color: black; font-weight: bold; display: flex; justify-content: space-between; font-size: 18px; }
         #about-content { padding: 20px; overflow-y: auto; font-family: sans-serif; color: #ddd; line-height: 1.6; }
-
+        
         .secret-corner { position: absolute; width: 50px; height: 50px; z-index: 999; opacity: 0; cursor: pointer; }
         #sc-tl { top: 0; left: 0; } #sc-tr { top: 0; right: 0; } #sc-bl { bottom: 0; left: 0; } #sc-br { bottom: 0; right: 0; }
         input[type="file"] { display: none; }
@@ -117,7 +118,7 @@
 
 <div id="init-overlay">
     <img id="splash-img" src="" alt="Splash Image" style="max-width:300px; max-height:300px; display:none; margin-bottom:20px; border-radius:10px; box-shadow:0 0 20px var(--accent-neon);">
-    <h1 style="color: var(--accent-neon); letter-spacing: 5px; text-shadow: 0 0 20px var(--accent-neon);">GYR-OS V15.0</h1>
+    <h1 style="color: var(--accent-neon); letter-spacing: 5px; text-shadow: 0 0 20px var(--accent-neon);">GYR-OS V15.1</h1>
     <p style="color:#aaa; margin-bottom: 20px;">AUTHOR: TIM TESNER & GEMINI 3 PRO</p>
     <button id="btn-start" style="padding: 20px 40px; font-size: 1.5rem; background: var(--accent-neon); border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">INITIALIZE ENGINE</button>
     <div id="error-msg" style="color: #ff4444; margin-top: 15px;"></div>
@@ -132,15 +133,15 @@
 <div id="custom-buttons-layer"></div>
 
 <div id="about-modal">
-    <div id="about-header"><span>Gyr-OS | Documentation V15.0</span><button id="close-about" style="background:transparent; border:none; color:black; font-weight:bold; cursor:pointer;">X</button></div>
+    <div id="about-header"><span>Gyr-OS | Documentation V15.1</span><button id="close-about" style="background:transparent; border:none; color:black; font-weight:bold; cursor:pointer;">X</button></div>
     <div id="about-content">
         <h2 style="color:var(--accent-neon);">Authors: Tim Tesner & Gemini 3 Pro</h2>
-        <p><strong>V15.0 Upgrades & Fixes:</strong><br>
-        - <strong>HUD Button Click Fix:</strong> Master Control buttons now correctly differentiate between a click and a clone-drag. Clicking them fires perfectly.<br>
-        - <strong>Ultimate Saved States:</strong> P1-P20 now save absolutely everything, including cloned buttons and custom audio pads/speech pads on the playfield!<br>
-        - <strong>HUD Group Underlays:</strong> You can now map specific background images and opacities to each of the 5 HUD Groups individually.<br>
-        - <strong>Detachable Trash Bin:</strong> The trash icon is a small circular X that appears when dragging elements, keeping the UI perfectly clean.<br>
-        - <strong>Advanced Pad Looping:</strong> Implemented precise Loop Infinite vs Loop Count behavior directly tied into the Tone.js scheduling buffer.</p>
+        <p><strong>V15.1 Hotfix Upgrades:</strong><br>
+        - <strong>Master Volume Bug Fix:</strong> Resolved the Dat.GUI slider error pointing to an undefined variable, restoring full Master Output control.<br>
+        - <strong>Click vs Drag Restored:</strong> Buttons on the HUD now intelligently differentiate between a normal click (which fires their action) and a drag (which clones them).<br>
+        - <strong>Ultimate Pad Control:</strong> Custom Pads natively support deep sub-menus. Click the ⚙ icon on a pad in Edit mode to reveal Layering, Retrigger, Looping options, EQs, and File Info!<br>
+        - <strong>P1-P20 Deep Saves:</strong> Saving a master preset now captures absolutely everything: synth parameters, cloned playfield buttons, custom audio pads, exact GUI window locations, and visual themes.<br>
+        </p>
     </div>
 </div>
 
@@ -154,7 +155,7 @@
     <div class="gui-content" style="padding:10px;">
         <label style="font-size:10px; display:flex; justify-content:space-between; margin-bottom:10px;">Warn Before Load: <input type="checkbox" id="preset-warn" checked></label>
         <label style="font-size:10px; display:flex; justify-content:space-between; margin-bottom:10px;">Slots: <input type="number" id="preset-count" value="4" min="1" max="20" style="width:40px; background:#000; color:#fff; border:1px solid #444;"></label>
-        <div style="display:flex; gap:5px; margin-bottom:10px;"><button class="sys-btn" id="btn-pmode" style="flex-grow:1; background:#444;">MODE: LOAD</button></div>
+        <div style="display:flex; gap:5px; margin-bottom:10px;"><button class="sys-btn" id="btn-pmode" style="flex-grow:1; background:#444;">P-MODE: LOAD</button></div>
         <div id="preset-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap:4px;"></div>
     </div>
 </div>
@@ -213,15 +214,13 @@
         <div class="hud-tab active" data-tab="1">GRP 1</div><div class="hud-tab" data-tab="2">GRP 2</div><div class="hud-tab" data-tab="3">GRP 3</div><div class="hud-tab" data-tab="4">GRP 4</div><div class="hud-tab" data-tab="5">GRP 5</div>
         <div style="flex-grow:1;"></div><button class="sys-btn" id="btn-fullscreen" style="padding:2px 6px; margin:2px;">⛶ FULLSCREEN</button>
     </div>
-    <div class="gui-content" id="hud-bg-wrap" style="padding:5px; transition: background 0.3s;">
+    <div class="gui-content" style="padding:5px;">
         <div class="hud-row" id="hud-row-modes"></div>
         <div class="hud-row" id="hud-row-utils"></div>
         <div class="hud-row" id="hud-row-emerg"></div>
         <canvas id="master-waveform" style="width:100%; height:30px; border-top:1px solid rgba(255,255,255,0.1); margin-top:5px; pointer-events: none;"></canvas>
     </div>
 </div>
-
-<div class="secret-corner" id="sc-tl"></div><div class="secret-corner" id="sc-tr"></div><div class="secret-corner" id="sc-bl"></div><div class="secret-corner" id="sc-br"></div>
 
 <!-- Hidden Inputs -->
 <input type="file" id="up-config" accept=".json">
@@ -236,7 +235,6 @@
 <input type="file" id="up-sample" accept="audio/*">
 <input type="file" id="up-splash-img" accept="image/*">
 <input type="file" id="up-splash-aud" accept="audio/*">
-<input type="file" id="up-hud-img" accept="image/*">
 
 <!-- The Library Buttons (Hidden, cloned into HUD/Playfield) -->
 <div id="btn-library" style="display:none;">
@@ -252,7 +250,7 @@
     <button class="sys-btn hud-cloneable" id="btn-hold" data-grp="emerg">⎄ HOLD: OFF</button>
     <button class="sys-btn hud-cloneable btn-mute-on mute-active-audio" id="btn-mute" data-grp="emerg" style="border-color: #ff4444; color: white;">🔇 MUTE: ON</button>
     <button class="sys-btn hud-cloneable" id="btn-panic" data-grp="emerg" style="border-color: #ffaa00; color: #ffaa00;">■ PANIC</button>
-    <button class="sys-btn hud-cloneable" id="btn-silence" data-grp="emerg" style="background:#444; color:white;">⏸ SILENCE</button>
+    <button class="sys-btn hud-cloneable" id="btn-silence" data-grp="emerg" style="background:#444; color:white;">⏸ SILENCE ALL</button>
     <button class="sys-btn hud-cloneable resume-disabled" id="btn-resume" data-grp="emerg">▶ RESUME</button>
     <button class="sys-btn hud-cloneable" id="btn-stopall" data-grp="emerg" style="background:#cc0000; color:white;">⏹ STOP</button>
 </div>
@@ -329,12 +327,7 @@ window.GyrOS = {
             if(this.state.cfg.splashAudioUrl) { const splashAudio = new Tone.Player(this.state.cfg.splashAudioUrl).toDestination(); splashAudio.autostart = true; }
             try { await this.detectSensors(); this.state.hasGyro = true; } catch(e) { this.state.hasGyro = false; }
             this.initTrashBin(); this.initAudio(); this.initVisuals(); this.initSpeech(); this.initGrid(); this.initGUIs();
-            
-            // Critical Setup Calls
-            this.buildPresetGrid(); 
-            this.makeGUIsDraggable(); 
-            this.bindEvents(); 
-            
+            this.buildPresetGrid(); this.makeGUIsDraggable(); this.bindEvents(); 
             this.state.mode = this.state.defaultMode;
             this.renderHUDGroup();
             if($('splash-screen') && this.state.cfg.showSplash) { setTimeout(() => { $('splash-screen').style.opacity = 0; setTimeout(() => $('splash-screen').style.display = 'none', 500); }, 2500); } 
@@ -471,8 +464,11 @@ window.GyrOS = {
             const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `GyrOS_Rec_${Date.now()}.webm`; a.click();
         };
 
+        // Master Volume config link fixes missing slider error
+        this.masterBus = new Tone.Volume(this.state.cfg.masterVol);
         this.muteNode = new Tone.Volume(-Infinity).connect(this.limiter);
-        this.masterBus = new Tone.Volume(0).connect(this.muteNode);
+        this.masterBus.connect(this.muteNode);
+        
         this.padBus = new Tone.Volume(0).connect(this.limiter); 
         this.meter = new Tone.Meter(); this.masterBus.connect(this.meter); 
         this.padMeter = new Tone.Meter(); this.padBus.connect(this.padMeter);
@@ -500,9 +496,11 @@ window.GyrOS = {
     },
 
     updateSynths() {
+        if(this.masterBus) this.masterBus.volume.value = this.state.cfg.masterVol;
         this.synth1.volume.value = this.state.cfg.s1Vol; this.s1Pan.pan.value = this.state.cfg.s1Pan;
         this.s1Dist.distortion = this.state.cfg.s1Dist; this.s1Phaser.wet.value = this.state.cfg.s1Phaser;
         this.synth1.set({ envelope: { attack: this.state.cfg.s1Atk, decay: this.state.cfg.s1Dec, sustain: this.state.cfg.s1Sus, release: this.state.cfg.s1Rel } });
+        
         this.synth2.volume.value = this.state.cfg.s2Vol; this.s2Pan.pan.value = this.state.cfg.s2Pan;
         this.s2Dist.distortion = this.state.cfg.s2Dist; this.s2Phaser.wet.value = this.state.cfg.s2Phaser;
         this.synth2.set({ envelope: { attack: this.state.cfg.s2Atk, decay: this.state.cfg.s2Dec, sustain: this.state.cfg.s2Sus, release: this.state.cfg.s2Rel } });
@@ -580,12 +578,11 @@ window.GyrOS = {
 
     handleCellPointerEnter(note, e) {
         if(![6,7].includes(this.state.mode) || this.state.isSilenced) return;
-        if(e.buttons > 0) { 
+        if(e.buttons > 0 || (e.pointerType === 'touch' && this.state.swipeActive)) { 
             this.state.activeChords.add(note);
             if(this.state.cfg.s1On) this.synth1.triggerAttack(note);
             if(this.state.cfg.s2On) this.synth2.triggerAttack(note);
-            e.target.classList.add('active');
-            this.triggerVisualReaction(note);
+            e.target.classList.add('active'); this.triggerVisualReaction(note);
         }
     },
     handleCellPointerDown(note, e) {
@@ -594,16 +591,14 @@ window.GyrOS = {
         this.state.activeChords.add(note);
         if(this.state.cfg.s1On) this.synth1.triggerAttack(note);
         if(this.state.cfg.s2On) this.synth2.triggerAttack(note);
-        e.target.classList.add('active');
-        this.triggerVisualReaction(note);
+        e.target.classList.add('active'); this.triggerVisualReaction(note);
     },
     handleCellPointerUp(note, e) {
         if(![6,7].includes(this.state.mode)) return;
         this.state.activeChords.delete(note);
         if(this.state.cfg.s1On && !this.state.holdMode) this.synth1.triggerRelease(note);
         if(this.state.cfg.s2On && !this.state.holdMode) this.synth2.triggerRelease(note);
-        e.target.classList.remove('active');
-        e.target.releasePointerCapture(e.pointerId);
+        e.target.classList.remove('active'); e.target.releasePointerCapture(e.pointerId);
     },
     handleCellPointerLeave(note, e) {
         if(![6,7].includes(this.state.mode)) return;
@@ -639,7 +634,6 @@ window.GyrOS = {
             cell.addEventListener('pointerenter', e => this.handleCellPointerEnter(note, e));
             cell.addEventListener('pointerup', e => this.handleCellPointerUp(note, e));
             cell.addEventListener('pointerleave', e => this.handleCellPointerLeave(note, e));
-
             overlay.appendChild(cell);
         }
     },
@@ -650,7 +644,6 @@ window.GyrOS = {
             if(file.type.startsWith('audio/') || file.name.match(/\.(mp3|wav|ogg|webm|flac|m4a)$/i)) {
                 const url = URL.createObjectURL(file);
                 const path = file.webkitRelativePath || file.name;
-                
                 if(!this.state.assets.find(a => a.path === path)) {
                     const id = Date.now() + Math.random();
                     this.state.assets.push({ id, file, url, path });
@@ -696,7 +689,8 @@ window.GyrOS = {
         btn.style.left = '100px'; btn.style.top = '100px'; btn.style.zIndex = data.zIndex;
         
         const buildHTML = () => `
-            <div class="pad-react-bg"></div><div class="pad-gear">⚙</div>
+            <div class="pad-react-bg"></div>
+            <div class="pad-gear">⚙</div>
             <div class="pad-module pad-title-bar ${data.uiInfo ? '' : 'hidden'}"><span class="pad-title">${data.name}</span></div>
             <div class="pad-module pad-info ${data.uiInfo ? '' : 'hidden'}"><span class="f-type">${urlOrPath.split('.').pop().substring(0,4)}</span><span class="f-dur">--:--</span></div>
             <div class="pad-module pad-controls ${data.uiTime ? '' : 'hidden'}"><input type="range" class="ui-scrub" min="0" max="100" value="0"></div>
@@ -708,8 +702,6 @@ window.GyrOS = {
         
         const menu = btn.querySelector('.pad-settings-menu'); const gear = btn.querySelector('.pad-gear');
         const title = btn.querySelector('.pad-title'); const scrub = btn.querySelector('.ui-scrub');
-
-        Tone.loaded().then(() => { if(player.buffer) { data.bufferDuration = player.buffer.duration; btn.querySelector('.f-dur').innerText = data.bufferDuration.toFixed(1) + 's'; } });
 
         gear.addEventListener('pointerdown', e => { e.stopPropagation(); menu.classList.toggle('open'); });
         menu.addEventListener('pointerdown', e => e.stopPropagation()); 
@@ -727,6 +719,7 @@ window.GyrOS = {
         btn.querySelector('.set-delsend').addEventListener('input', e => delSend.volume.value = parseFloat(e.target.value));
         btn.querySelector('.set-z').addEventListener('input', e => { data.zIndex = parseInt(e.target.value); btn.style.zIndex = data.zIndex; });
         btn.querySelector('.set-shake').addEventListener('change', e => data.impactEnabled = e.target.checked);
+        
         btn.querySelector('.tgl-info').addEventListener('change', e => { data.uiInfo = e.target.checked; btn.querySelectorAll('.pad-title-bar, .pad-info').forEach(el => el.classList.toggle('hidden', !data.uiInfo)); });
         btn.querySelector('.tgl-time').addEventListener('change', e => { data.uiTime = e.target.checked; btn.querySelector('.ui-time').classList.toggle('hidden', !data.uiTime); });
         btn.querySelector('.tgl-ctrl').addEventListener('change', e => { data.uiCtrl = e.target.checked; btn.querySelectorAll('.ui-playvol:not(.ui-vol-container)').forEach(el => el.classList.toggle('hidden', !data.uiCtrl)); }); 
@@ -737,13 +730,7 @@ window.GyrOS = {
         });
         
         const stopPad = () => { player.stop(); btn.classList.remove('playing', 'pad-pulsing'); data.wasPlaying = false; data.pausedAt = 0; scrub.value=0; };
-        const pausePad = () => { 
-            if(player.state === 'started') { 
-                data.pausedAt = (Tone.now() - data.startTime) % data.bufferDuration; 
-                if(isNaN(data.pausedAt)) data.pausedAt = 0;
-                player.stop(); btn.classList.remove('playing', 'pad-pulsing'); data.wasPlaying = true;
-            } 
-        };
+        const pausePad = () => { if(player.state === 'started') { data.pausedAt = (Tone.now() - data.startTime) % data.bufferDuration; if(isNaN(data.pausedAt)) data.pausedAt = 0; player.stop(); btn.classList.remove('playing', 'pad-pulsing'); data.wasPlaying = true; } };
         
         btn.querySelector('.set-del-btn').addEventListener('click', () => { player.dispose(); btn.remove(); this.state.customSamplers = this.state.customSamplers.filter(s => s.id !== id); });
         btn.querySelector('.ui-btn-stop').addEventListener('pointerdown', e => { e.stopPropagation(); stopPad(); });
@@ -856,8 +843,6 @@ window.GyrOS = {
         if(this.state.cfg.s2On) this.synth2.triggerAttackRelease(noteStr, dur, now, vol);
     },
 
-    // ======== MISSING FUNCTIONS RESTORED BELOW ========
-    
     buildPresetGrid() {
         const c = $('preset-grid'); if(!c) return;
         c.innerHTML = '';
@@ -875,44 +860,56 @@ window.GyrOS = {
 
     makeButtonCloneable(btnId) {
         const btn = $(btnId); if(!btn) return;
-        let isDown = false, clone = null;
+        let isDown = false, clone = null, startX, startY;
         
         btn.addEventListener('pointerdown', e => {
             if(e.button !== 0 || this.state.padsEditing) return; 
-            isDown = true; 
-            clone = btn.cloneNode(true); clone.id = `cloned-${btnId}-${Date.now()}`; clone.className = 'sys-btn cloned-btn';
-            clone.style.left = e.clientX - 20 + 'px'; clone.style.top = e.clientY - 20 + 'px';
-            const grp = this.state.cfg.hudGroups[this.state.hudTab];
-            if(grp) { clone.style.background = grp.btnBg; clone.style.color = grp.txtCol; clone.style.borderColor = grp.txtCol; }
-            $('custom-buttons-layer').appendChild(clone);
-            clone.setPointerCapture(e.pointerId);
-            
-            const currentClone = clone;
-            currentClone.addEventListener('pointerdown', ev => {
-                ev.stopPropagation();
-                if(this.state.padsEditing) {
-                    const onMv = mEv => { currentClone.style.left = mEv.clientX - 20 + 'px'; currentClone.style.top = mEv.clientY - 20 + 'px'; };
-                    const onUp = () => { window.removeEventListener('pointermove', onMv); window.removeEventListener('pointerup', onUp); };
-                    window.addEventListener('pointermove', onMv); window.addEventListener('pointerup', onUp);
-                } else {
-                    btn.click(); currentClone.classList.add('active'); setTimeout(()=> { if(currentClone) currentClone.classList.remove('active'); }, 200);
-                }
-            });
-            $('trash-bin').style.display = 'flex';
+            isDown = true; startX = e.clientX; startY = e.clientY;
         }, {passive: false});
 
         window.addEventListener('pointermove', e => {
-            if(isDown && clone) {
+            if(!isDown) return;
+            if(!clone && Math.hypot(e.clientX - startX, e.clientY - startY) > 5) {
+                clone = btn.cloneNode(true); clone.id = `cloned-${btnId}-${Date.now()}`; clone.className = 'sys-btn cloned-btn';
                 clone.style.left = e.clientX - 20 + 'px'; clone.style.top = e.clientY - 20 + 'px';
-                if(e.clientY < 60) $('trash-bin').classList.add('hover'); else $('trash-bin').classList.remove('hover');
+                const grp = this.state.cfg.hudGroups[this.state.hudTab];
+                if(grp) { clone.style.background = grp.btnBg; clone.style.color = grp.txtCol; clone.style.borderColor = grp.txtCol; }
+                $('custom-buttons-layer').appendChild(clone);
+                clone.setPointerCapture(e.pointerId);
+                
+                const currentClone = clone;
+                currentClone.addEventListener('pointerdown', ev => {
+                    ev.stopPropagation();
+                    if(this.state.padsEditing) {
+                        const onMv = mEv => { currentClone.style.left = mEv.clientX - 20 + 'px'; currentClone.style.top = mEv.clientY - 20 + 'px'; this.checkTrashCollision(mEv.clientX, mEv.clientY); };
+                        const onUp = (uEv) => { 
+                            window.removeEventListener('pointermove', onMv); window.removeEventListener('pointerup', onUp); 
+                            if(this.checkTrashCollision(uEv.clientX, uEv.clientY)) currentClone.remove();
+                            $('trash-bin').style.display='none';
+                        };
+                        window.addEventListener('pointermove', onMv); window.addEventListener('pointerup', onUp);
+                        $('trash-bin').style.display='flex';
+                    } else {
+                        btn.click(); currentClone.classList.add('active'); setTimeout(()=> { if(currentClone) currentClone.classList.remove('active'); }, 200);
+                    }
+                });
+                $('trash-bin').style.display = 'flex';
             }
-        });
+            if(clone) {
+                clone.style.left = e.clientX - 20 + 'px'; clone.style.top = e.clientY - 20 + 'px';
+                this.checkTrashCollision(e.clientX, e.clientY);
+            }
+        }, {passive: false});
 
         window.addEventListener('pointerup', e => {
-            if(isDown && clone) {
-                isDown = false; clone.releasePointerCapture(e.pointerId);
-                if(e.clientY < 60) { clone.remove(); } 
+            if(!isDown) return;
+            isDown = false;
+            if(clone) {
+                clone.releasePointerCapture(e.pointerId);
+                if(this.checkTrashCollision(e.clientX, e.clientY)) { clone.remove(); } 
                 $('trash-bin').style.display = 'none'; $('trash-bin').classList.remove('hover'); clone = null;
+            } else {
+                btn.click(); btn.classList.add('active'); setTimeout(()=> { if(btn) btn.classList.remove('active'); }, 200);
             }
         });
     },
@@ -950,8 +947,6 @@ window.GyrOS = {
         }
     },
 
-    // ======== END RESTORED FUNCTIONS ========
-
     downloadConfig(prefix, filename) {
         $$('.gui-window').forEach(el => { if(el.id) this.state.cfg.windowPositions[el.id] = { left: el.style.left, top: el.style.top }; });
         const sub = {}; Object.keys(this.state.cfg).forEach(k => { if(k.startsWith(prefix)) sub[k] = this.state.cfg[k]; });
@@ -961,7 +956,7 @@ window.GyrOS = {
     savePreset(num) {
         $$('.gui-window').forEach(el => { if(el.id) this.state.cfg.windowPositions[el.id] = { left: el.style.left, top: el.style.top }; });
         if(this.state.cfg.showPresetWin) { const cb = $('preset-warn'); if(cb && cb.checked && !confirm(`Overwrite Preset P${num}?`)) return; }
-        localStorage.setItem(`gyros_preset_${num}`, JSON.stringify(this.state.cfg)); alert(`Master Config Saved to [P${num}]!`);
+        localStorage.setItem(`gyros_preset_${num}`, JSON.stringify(this.state.cfg)); alert(`Master Config Saved to[P${num}]!`);
     },
     
     loadPreset(num) {
@@ -1053,7 +1048,7 @@ window.GyrOS = {
 
         this.guiSnd = new dat.GUI(guiOpts); $('gui-right-content').appendChild(this.guiSnd.domElement);
         const sMix = this.guiSnd.addFolder('Master Mixer');
-        sMix.add(this.state.cfg, 'masterVol', -60, 10).onChange(v => this.masterVol.volume.value = v);
+        sMix.add(this.state.cfg, 'masterVol', -60, 10).onChange(v => this.masterBus.volume.value = v);
         sMix.add(this.state.cfg, 'eqLow', -10, 10).onChange(v => this.eq.low.value = v);
         sMix.add(this.state.cfg, 'eqMid', -10, 10).onChange(v => this.eq.mid.value = v);
         sMix.add(this.state.cfg, 'eqHigh', -10, 10).onChange(v => this.eq.high.value = v);
@@ -1106,7 +1101,8 @@ window.GyrOS = {
 
             header.addEventListener('pointerdown', e => {
                 if(e.target.closest('.gui-toggle')) return;
-                e.stopPropagation(); el.setPointerCapture(e.pointerId);
+                e.stopPropagation();
+                el.setPointerCapture(e.pointerId);
                 isDown = true; startX = e.clientX; startY = e.clientY; origX = el.offsetLeft; origY = el.offsetTop;
                 el.style.left = origX + 'px'; el.style.right = 'auto'; el.style.bottom = 'auto'; 
             }, {passive: false});
@@ -1114,7 +1110,8 @@ window.GyrOS = {
             el.addEventListener('pointermove', e => {
                 if(!isDown) return;
                 let newX = origX + (e.clientX - startX); let newY = origY + (e.clientY - startY);
-                newX = Math.max(0, Math.min(newX, window.innerWidth - 60)); newY = Math.max(0, Math.min(newY, window.innerHeight - 30));
+                newX = Math.max(0, Math.min(newX, window.innerWidth - 60));
+                newY = Math.max(0, Math.min(newY, window.innerHeight - 30));
                 el.style.left = newX + "px"; el.style.top = newY + "px";
             }, {passive: false});
 
@@ -1196,19 +1193,22 @@ window.GyrOS = {
     startRecordingLogic() {
         if(this.state.isRecording) {
             this.recorder.stop(); this.state.isRecording = false; this.state.waitingForRec = false;
-            const b = $('btn-record'); if(b) { b.innerText = "⏺ REC"; b.classList.remove('btn-recording'); }
+            const b = $('btn-record');
+            if(b) { b.innerText = "⏺ REC"; b.classList.remove('btn-recording'); }
             return;
         }
 
         const mode = this.state.cfg.recMode;
-        const b = $('btn-record'); if(b) b.classList.add('btn-recording');
+        const b = $('btn-record');
+        if(b) b.classList.add('btn-recording');
         
         if (mode === 'Immediate') {
             this.recorder.start(); this.state.isRecording = true;
             if(b) b.innerText = "⏹ STOP REC";
         } 
         else if (mode === 'Click Track') {
-            if(b) b.innerText = "CLICK..."; let count = 4;
+            if(b) b.innerText = "CLICK...";
+            let count = 4;
             const clickSynth = new Tone.MembraneSynth().toDestination();
             Tone.Transport.scheduleRepeat((time) => {
                 clickSynth.triggerAttackRelease("C4", "32n", time);
@@ -1218,7 +1218,8 @@ window.GyrOS = {
                     this.recorder.start(); this.state.isRecording = true;
                     if(b) b.innerText = "⏹ STOP REC";
                 }
-            }, "4n"); Tone.Transport.start();
+            }, "4n");
+            Tone.Transport.start();
         } 
         else if (mode === 'Timer') {
             if(b) b.innerText = `WAIT ${this.state.cfg.recTimer}s`;
@@ -1228,7 +1229,8 @@ window.GyrOS = {
             }, this.state.cfg.recTimer * 1000);
         }
         else if (mode === 'Threshold') {
-            if(b) b.innerText = "WAIT SOUND..."; this.state.waitingForRec = true;
+            if(b) b.innerText = "WAIT SOUND...";
+            this.state.waitingForRec = true;
         }
     },
 
@@ -1340,7 +1342,9 @@ window.GyrOS = {
             if($('btn-hold')) { $('btn-hold').classList.remove('active'); $('btn-hold').innerText = "⎄ HOLD: OFF"; }
         };
         if($('btn-panic')) $('btn-panic').addEventListener('click', doPanic);
+        
         if($('btn-mute')) $('btn-mute').addEventListener('click', e => { e.target.blur(); this.toggleMute(); });
+        
         if($('btn-silence')) $('btn-silence').addEventListener('click', () => this.silenceAll());
         if($('btn-resume')) $('btn-resume').addEventListener('click', () => this.resumeAll());
         if($('btn-stopall')) $('btn-stopall').addEventListener('click', () => this.stopAll());
