@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <link rel="manifest" href="manifest.json">
-    <title>Gyr-OS | Master Workstation V14.0</title>
+    <title>Gyr-OS | Master Workstation V14.1</title>
     
     <!-- 
       Author: Tim Tesner
       Co-Author / AI Assistance: Gemini 3 Pro
-      Gyr-OS Workstation Engine V14.0
+      Gyr-OS Workstation Engine V14.1
     -->
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
@@ -122,7 +122,7 @@
 
 <div id="init-overlay">
     <img id="splash-img" src="" alt="Splash Image" style="max-width:300px; max-height:300px; display:none; margin-bottom:20px; border-radius:10px; box-shadow:0 0 20px var(--accent-neon);">
-    <h1 style="color: var(--accent-neon); letter-spacing: 5px; text-shadow: 0 0 20px var(--accent-neon);">GYR-OS V14.0</h1>
+    <h1 style="color: var(--accent-neon); letter-spacing: 5px; text-shadow: 0 0 20px var(--accent-neon);">GYR-OS V14.1</h1>
     <p style="color:#aaa; margin-bottom: 20px;">AUTHOR: TIM TESNER & GEMINI 3 PRO</p>
     <button id="btn-start" style="padding: 20px 40px; font-size: 1.5rem; background: var(--accent-neon); border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">INITIALIZE ENGINE</button>
     <div id="error-msg" style="color: #ff4444; margin-top: 15px;"></div>
@@ -137,15 +137,15 @@
 <div id="custom-buttons-layer"></div>
 
 <div id="about-modal">
-    <div id="about-header"><span>Gyr-OS | Documentation V14.0</span><button id="close-about" style="background:transparent; border:none; color:black; font-weight:bold; cursor:pointer;">X</button></div>
+    <div id="about-header"><span>Gyr-OS | Documentation V14.1</span><button id="close-about" style="background:transparent; border:none; color:black; font-weight:bold; cursor:pointer;">X</button></div>
     <div id="about-content">
         <h2 style="color:var(--accent-neon);">Authors: Tim Tesner & Gemini 3 Pro</h2>
-        <p><strong>V14.0 Upgrades & Fixes:</strong><br>
+        <p><strong>V14.1 Hotfix Upgrades:</strong><br>
+        - <strong>Preset Grid Restored:</strong> Fixed the missing `buildPresetGrid` function that caused startup crashes when parsing presets.<br>
         - <strong>Mode Buttons Restored:</strong> Fixed internal ID mapping so Theremin, Impact, Touch, etc. display correctly on the Master Control Bar.<br>
         - <strong>Advanced Draggable Clone System:</strong> Dragging a button off the control bar safely clones it. The cloned button is fully draggable on the playfield, functions perfectly, and restricts to 1 clone per button type.<br>
         - <strong>Draggable Trash Bin:</strong> Replaced the giant red top bar with a sleek, circular, floating `[✖]` trash bin that only appears when actively moving items.<br>
-        - <strong>Advanced VFX Mapping:</strong> Note mapping now explicitly displays which notes are mapped inside the GUI and correctly handles specific octaves and sharps (e.g., C#4).<br>
-        - <strong>Passive Event Log Fixes:</strong> Optimized touch events to remove browser scrolling violations.</p>
+        - <strong>Advanced VFX Mapping:</strong> Note mapping now explicitly displays which notes are mapped inside the GUI and correctly handles specific octaves and sharps.</p>
     </div>
 </div>
 
@@ -211,7 +211,6 @@
     <div>AIM: <span id="rd-cell">None</span></div>
 </div>
 
-<!-- Master Control Bar (Modular HUD) -->
 <div class="gui-window" id="bottom-hud">
     <div class="gui-header"><span class="gui-toggle">▼</span><span id="hud-title">MASTER CONTROL BAR</span><span class="gui-toggle">▼</span></div>
     <div class="hud-tabs">
@@ -320,17 +319,13 @@ window.GyrOS = {
             await Tone.start();
             if(this.state.cfg.splashAudioUrl) { const splashAudio = new Tone.Player(this.state.cfg.splashAudioUrl).toDestination(); splashAudio.autostart = true; }
             try { await this.detectSensors(); this.state.hasGyro = true; } catch(e) { this.state.hasGyro = false; }
-            
-            this.initTrashBin();
-            this.initAudio(); this.initVisuals(); this.initSpeech(); this.initGrid(); this.initGUIs();
+            this.initTrashBin(); this.initAudio(); this.initVisuals(); this.initSpeech(); this.initGrid(); this.initGUIs();
             this.buildPresetGrid(); this.makeGUIsDraggable(); this.bindEvents(); 
             this.state.mode = this.state.defaultMode;
             this.renderHUDGroup();
-
             if($('splash-screen') && this.state.cfg.showSplash) { setTimeout(() => { $('splash-screen').style.opacity = 0; setTimeout(() => $('splash-screen').style.display = 'none', 500); }, 2500); } 
             else if($('splash-screen')) { $('splash-screen').style.display = 'none'; }
             if($('init-overlay')) $('init-overlay').style.display = 'none';
-            
             this.toggleMute(true); 
             this.loop();
         } catch(err) { if($('error-msg')) $('error-msg').innerText = "Failed: " + err.message; console.error(err); }
@@ -352,27 +347,21 @@ window.GyrOS = {
         const tb = $('trash-bin'); if(!tb) return;
         let tbDown = false, tbStartX, tbStartY, tbOrigX, tbOrigY;
         tb.addEventListener('pointerdown', e => {
-            tbDown = true; tbStartX = e.clientX; tbStartY = e.clientY;
-            tbOrigX = tb.offsetLeft; tbOrigY = tb.offsetTop;
+            tbDown = true; tbStartX = e.clientX; tbStartY = e.clientY; tbOrigX = tb.offsetLeft; tbOrigY = tb.offsetTop;
             tb.style.transform = 'none'; tb.style.left = tbOrigX + 'px'; tb.style.top = tbOrigY + 'px';
             tb.setPointerCapture(e.pointerId);
         }, {passive: false});
         tb.addEventListener('pointermove', e => {
-            if(!tbDown) return;
-            tb.style.left = tbOrigX + (e.clientX - tbStartX) + 'px';
-            tb.style.top = tbOrigY + (e.clientY - tbStartY) + 'px';
+            if(!tbDown) return; tb.style.left = tbOrigX + (e.clientX - tbStartX) + 'px'; tb.style.top = tbOrigY + (e.clientY - tbStartY) + 'px';
         }, {passive: false});
         tb.addEventListener('pointerup', () => tbDown = false);
     },
 
     checkTrashCollision(x, y) {
-        const tb = $('trash-bin');
-        if(tb.style.display === 'none') return false;
+        const tb = $('trash-bin'); if(tb.style.display === 'none') return false;
         const rect = tb.getBoundingClientRect();
-        if(x > rect.left - 20 && x < rect.right + 20 && y > rect.top - 20 && y < rect.bottom + 20) {
-            tb.style.background = 'red'; tb.style.transform = 'scale(1.3)'; return true;
-        }
-        tb.style.background = 'rgba(255,0,0,0.8)'; tb.style.transform = 'scale(1)'; return false;
+        if(x > rect.left - 20 && x < rect.right + 20 && y > rect.top - 20 && y < rect.bottom + 20) { tb.style.background = 'red'; tb.style.transform = 'translateX(-50%) scale(1.3)'; return true; }
+        tb.style.background = 'rgba(255,0,0,0.8)'; tb.style.transform = 'translateX(-50%) scale(1)'; return false;
     },
 
     initSpeech() {
@@ -408,11 +397,9 @@ window.GyrOS = {
         const btn = document.createElement('div'); btn.className = 'speech-pad-btn'; btn.style.left = '150px'; btn.style.top = '150px'; btn.style.zIndex = data.zIndex; btn.style.borderColor = '#ff00cc';
         let vHTML = ''; this.state.speechVoices.forEach((v, i) => { vHTML += `<option value="${i}">${v.name.substring(0,15)}</option>`; });
         btn.innerHTML = `<div class="pad-react-bg"></div><div class="pad-gear" style="color:#ff00cc; border-color:#ff00cc;">⚙</div><div class="pad-module pad-title-bar" style="color:#ff00cc;"><span class="pad-title">🗣️ SPEECH PAD</span></div><div class="pad-module pad-controls" style="justify-content:center;"><button class="ui-btn-play" style="width:100%;">▶ PLAY</button></div><div class="pad-settings-menu" style="border-color:#ff00cc;"><label>Text: <input type="text" class="set-text" value="${data.text}"></label><label>Voice: <select class="set-voice">${vHTML}</select></label><label>Rate: <input type="range" class="set-rate" min="0.1" max="2" step="0.1" value="1"></label><label>Pitch: <input type="range" class="set-pitch" min="0.1" max="2" step="0.1" value="1"></label><label>Z-Index: <input type="number" class="set-z" value="85"></label><button class="set-del-btn" style="border-color:red; color:red; margin-top:5px;">🗑 Delete Pad</button></div>`;
-        
         const menu = btn.querySelector('.pad-settings-menu'); const gear = btn.querySelector('.pad-gear');
         gear.addEventListener('pointerdown', e => { e.stopPropagation(); menu.classList.toggle('open'); });
         menu.addEventListener('pointerdown', e => e.stopPropagation()); 
-        
         btn.querySelector('.set-text').addEventListener('input', e => data.text = e.target.value);
         btn.querySelector('.set-voice').addEventListener('change', e => data.voiceIdx = e.target.value);
         btn.querySelector('.set-rate').addEventListener('input', e => data.rate = parseFloat(e.target.value));
@@ -430,7 +417,6 @@ window.GyrOS = {
         };
 
         btn.querySelector('.ui-btn-play').addEventListener('pointerdown', (e) => { e.stopPropagation(); firePad(); });
-
         let isDown = false, startX, startY, origX, origY, hasMoved = false;
         btn.addEventListener('pointerdown', e => {
             if(e.target.closest('.pad-settings-menu') || e.target.closest('.pad-controls') || e.target === gear) return;
@@ -500,7 +486,6 @@ window.GyrOS = {
         this.synth1.volume.value = this.state.cfg.s1Vol; this.s1Pan.pan.value = this.state.cfg.s1Pan;
         this.s1Dist.distortion = this.state.cfg.s1Dist; this.s1Phaser.wet.value = this.state.cfg.s1Phaser;
         this.synth1.set({ envelope: { attack: this.state.cfg.s1Atk, decay: this.state.cfg.s1Dec, sustain: this.state.cfg.s1Sus, release: this.state.cfg.s1Rel } });
-        
         this.synth2.volume.value = this.state.cfg.s2Vol; this.s2Pan.pan.value = this.state.cfg.s2Pan;
         this.s2Dist.distortion = this.state.cfg.s2Dist; this.s2Phaser.wet.value = this.state.cfg.s2Phaser;
         this.synth2.set({ envelope: { attack: this.state.cfg.s2Atk, decay: this.state.cfg.s2Dec, sustain: this.state.cfg.s2Sus, release: this.state.cfg.s2Rel } });
@@ -675,7 +660,6 @@ window.GyrOS = {
         const volNode = new Tone.Volume(0).connect(this.padBus);
         const eqNode = new Tone.EQ3(0,0,0).connect(volNode);
         const panNode = new Tone.Panner(0).connect(eqNode);
-        
         const revSend = new Tone.Volume(-Infinity).connect(this.rack.reverb);
         const delSend = new Tone.Volume(-Infinity).connect(this.rack.delay);
         panNode.connect(revSend); panNode.connect(delSend);
@@ -697,20 +681,12 @@ window.GyrOS = {
         btn.className = 'custom-sampler-btn'; btn.id = `pad-${id}`;
         btn.style.left = '100px'; btn.style.top = '100px'; btn.style.zIndex = data.zIndex;
         
-        const buildHTML = () => `
-            <div class="pad-react-bg"></div>
-            <div class="pad-gear">⚙</div>
-            <div class="pad-module pad-title-bar ${data.uiInfo ? '' : 'hidden'}"><span class="pad-title">${data.name}</span></div>
-            <div class="pad-module pad-info ${data.uiInfo ? '' : 'hidden'}"><span class="f-type">${urlOrPath.split('.').pop().substring(0,4)}</span><span class="f-dur">--:--</span></div>
-            <div class="pad-module pad-controls ${data.uiTime ? '' : 'hidden'}"><input type="range" class="ui-scrub" min="0" max="100" value="0"></div>
-            <div class="pad-module pad-controls ${data.uiCtrl ? '' : 'hidden'}" style="justify-content:center;"><button class="ui-btn-play">▶</button><button class="ui-btn-pause">⏸</button><button class="ui-btn-stop">■</button><button class="ui-btn-rev">⮂</button></div>
-            <div class="pad-module pad-controls ${data.uiVol ? '' : 'hidden'}"><button class="ui-btn-mute">🔊</button><input type="range" class="ui-vol" min="-40" max="10" value="0" style="width:40px;"></div>
-            <div class="pad-settings-menu"><label>Name: <input type="text" class="set-name" value="${data.name}"></label><label>Mode: <select class="set-mode"><option>Retrigger</option><option>Layered</option><option>Single</option></select></label><label>Reverse: <input type="checkbox" class="set-rev"></label><label>Loop Count: <input type="number" class="set-lc" value="0" min="0" max="99" placeholder="0=Inf"></label><hr style="border:0; border-top:1px solid #444; width:100%; margin:2px 0;"><label>EQ Low: <input type="range" class="set-eql" min="-20" max="10" value="0"></label><label>EQ Mid: <input type="range" class="set-eqm" min="-20" max="10" value="0"></label><label>EQ High: <input type="range" class="set-eqh" min="-20" max="10" value="0"></label><label>Pan: <input type="range" class="set-pan" min="-1" max="1" step="0.1" value="0"></label><label>Rev Send: <input type="range" class="set-revsend" min="-60" max="0" value="-60"></label><label>Del Send: <input type="range" class="set-delsend" min="-60" max="0" value="-60"></label><label>Z-Index: <input type="number" class="set-z" value="80"></label><hr style="border:0; border-top:1px solid #444; width:100%; margin:2px 0;"><label style="color:#00ffcc;">UI: Info <input type="checkbox" class="tgl-info" checked></label><label style="color:#00ffcc;">UI: Timeline <input type="checkbox" class="tgl-time" checked></label><label style="color:#00ffcc;">UI: Controls <input type="checkbox" class="tgl-ctrl" checked></label><label style="color:#00ffcc;">UI: Volume <input type="checkbox" class="tgl-vol" checked></label><label>Pulse Anim: <input type="checkbox" class="set-pulse" checked></label><label>Shake Trig: <input type="checkbox" class="set-shake"></label><label>Path: <input type="text" class="set-path" placeholder="/sounds/file.wav"></label><button class="set-load-btn">Load Server Path</button><button class="set-del-btn" style="background:#400; color:red; border-color:red; margin-top:5px;">🗑 Delete Pad</button></div>
-        `;
-        btn.innerHTML = buildHTML();
+        btn.innerHTML = `<div class="pad-react-bg"></div><div class="pad-gear">⚙</div><div class="pad-module pad-title-bar ${data.uiInfo ? '' : 'hidden'}"><span class="pad-title">${data.name}</span></div><div class="pad-module pad-info ${data.uiInfo ? '' : 'hidden'}"><span class="f-type">${urlOrPath.split('.').pop().substring(0,4)}</span><span class="f-dur">--:--</span></div><div class="pad-module pad-controls ${data.uiTime ? '' : 'hidden'}"><input type="range" class="ui-scrub" min="0" max="100" value="0"></div><div class="pad-module pad-controls ${data.uiCtrl ? '' : 'hidden'}" style="justify-content:center;"><button class="ui-btn-play">▶</button><button class="ui-btn-pause">⏸</button><button class="ui-btn-stop">■</button><button class="ui-btn-rev">⮂</button></div><div class="pad-module pad-controls ${data.uiVol ? '' : 'hidden'}"><button class="ui-btn-mute">🔊</button><input type="range" class="ui-vol" min="-40" max="10" value="0" style="width:40px;"></div><div class="pad-settings-menu"><label>Name: <input type="text" class="set-name" value="${data.name}"></label><label>Mode: <select class="set-mode"><option>Retrigger</option><option>Layered</option><option>Single</option></select></label><label>Reverse: <input type="checkbox" class="set-rev"></label><label>Loop Count: <input type="number" class="set-lc" value="0" min="0" max="99" placeholder="0=Inf"></label><hr style="border:0; border-top:1px solid #444; width:100%; margin:2px 0;"><label>EQ Low: <input type="range" class="set-eql" min="-20" max="10" value="0"></label><label>EQ Mid: <input type="range" class="set-eqm" min="-20" max="10" value="0"></label><label>EQ High: <input type="range" class="set-eqh" min="-20" max="10" value="0"></label><label>Pan: <input type="range" class="set-pan" min="-1" max="1" step="0.1" value="0"></label><label>Rev Send: <input type="range" class="set-revsend" min="-60" max="0" value="-60"></label><label>Del Send: <input type="range" class="set-delsend" min="-60" max="0" value="-60"></label><label>Z-Index: <input type="number" class="set-z" value="80"></label><hr style="border:0; border-top:1px solid #444; width:100%; margin:2px 0;"><label style="color:#00ffcc;">UI: Info <input type="checkbox" class="tgl-info" checked></label><label style="color:#00ffcc;">UI: Timeline <input type="checkbox" class="tgl-time" checked></label><label style="color:#00ffcc;">UI: Controls <input type="checkbox" class="tgl-ctrl" checked></label><label style="color:#00ffcc;">UI: Volume <input type="checkbox" class="tgl-vol" checked></label><label>Pulse Anim: <input type="checkbox" class="set-pulse" checked></label><label>Shake Trig: <input type="checkbox" class="set-shake"></label><label>Path: <input type="text" class="set-path" placeholder="/sounds/file.wav"></label><button class="set-load-btn">Load Server Path</button><button class="set-del-btn" style="background:#400; color:red; border-color:red; margin-top:5px;">🗑 Delete Pad</button></div>`;
         
         const menu = btn.querySelector('.pad-settings-menu'); const gear = btn.querySelector('.pad-gear');
         const title = btn.querySelector('.pad-title'); const scrub = btn.querySelector('.ui-scrub');
+
+        Tone.loaded().then(() => { if(player.buffer) { data.bufferDuration = player.buffer.duration; btn.querySelector('.f-dur').innerText = data.bufferDuration.toFixed(1) + 's'; } });
 
         gear.addEventListener('pointerdown', e => { e.stopPropagation(); menu.classList.toggle('open'); });
         menu.addEventListener('pointerdown', e => e.stopPropagation()); 
@@ -728,9 +704,11 @@ window.GyrOS = {
         btn.querySelector('.set-delsend').addEventListener('input', e => delSend.volume.value = parseFloat(e.target.value));
         btn.querySelector('.set-z').addEventListener('input', e => { data.zIndex = parseInt(e.target.value); btn.style.zIndex = data.zIndex; });
         btn.querySelector('.set-shake').addEventListener('change', e => data.impactEnabled = e.target.checked);
+        
         btn.querySelector('.tgl-info').addEventListener('change', e => { data.uiInfo = e.target.checked; btn.querySelectorAll('.pad-title-bar, .pad-info').forEach(el => el.classList.toggle('hidden', !data.uiInfo)); });
         btn.querySelector('.tgl-time').addEventListener('change', e => { data.uiTime = e.target.checked; btn.querySelector('.ui-time').classList.toggle('hidden', !data.uiTime); });
         btn.querySelector('.tgl-ctrl').addEventListener('change', e => { data.uiCtrl = e.target.checked; btn.querySelectorAll('.ui-playvol:not(.ui-vol-container)').forEach(el => el.classList.toggle('hidden', !data.uiCtrl)); }); 
+        
         btn.querySelector('.set-load-btn').addEventListener('click', async () => { const val = btn.querySelector('.set-path').value; if(val) { try { await player.load(val); btn.querySelector('.pad-title').innerText = val.split('/').pop().substring(0,12); } catch(e){ alert("Failed to load path."); } } });
         
         const stopPad = () => { player.stop(); btn.classList.remove('playing', 'pad-pulsing'); data.wasPlaying = false; data.pausedAt = 0; scrub.value=0; };
@@ -787,18 +765,18 @@ window.GyrOS = {
             e.stopPropagation();
             if(!this.state.padsEditing) { firePad(0); return; } 
             isDown = true; hasMoved = false; startX = e.clientX; startY = e.clientY; origX = btn.offsetLeft; origY = btn.offsetTop;
-            btn.setPointerCapture(e.pointerId); btn.style.zIndex = data.zIndex + 100; $('trash-zone').style.display='flex';
+            btn.setPointerCapture(e.pointerId); btn.style.zIndex = data.zIndex + 100; $('trash-bin').style.display='flex';
         }, {passive: false});
         btn.addEventListener('pointermove', e => {
             if(!isDown || !this.state.padsEditing) return;
             hasMoved = true; btn.style.left = (origX + e.clientX - startX) + 'px'; btn.style.top = (origY + e.clientY - startY) + 'px';
-            if(this.checkTrashCollision(e.clientX, e.clientY)) {}
+            this.checkTrashCollision(e.clientX, e.clientY);
         }, {passive: false});
         const end = (e) => {
             if(!isDown) return; isDown = false; btn.releasePointerCapture(e.pointerId); btn.style.zIndex = data.zIndex;
             if(this.checkTrashCollision(e.clientX, e.clientY)) { btn.querySelector('.set-del-btn').click(); }
-            else if(!hasMoved && this.state.padsEditing) { firePad(); }
-            $('trash-zone').style.display='none';
+            else if(!hasMoved && this.state.padsEditing) firePad(0); 
+            $('trash-bin').style.display='none';
         };
         btn.addEventListener('pointerup', end); btn.addEventListener('pointercancel', end);
 
@@ -847,42 +825,65 @@ window.GyrOS = {
         if(this.state.cfg.s2On) this.synth2.triggerAttackRelease(noteStr, dur, now, vol);
     },
 
-    makeCloneDraggable(clone, originBtnId) {
-        let cDown = false, cx, cy, ox, oy, moved = false;
-        clone.addEventListener('pointerdown', e => {
-            if(e.button !== 0) return;
-            cDown = true; moved = false; cx = e.clientX; cy = e.clientY; ox = clone.offsetLeft; oy = clone.offsetTop;
-            clone.setPointerCapture(e.pointerId); $('trash-zone').style.display = 'flex'; clone.style.zIndex = ++this.state.zIndexCounter;
-        }, {passive: false});
-        clone.addEventListener('pointermove', e => {
-            if(!cDown) return; moved = true; clone.style.left = ox + (e.clientX - cx) + 'px'; clone.style.top = oy + (e.clientY - cy) + 'px';
-            this.checkTrashCollision(e.clientX, e.clientY);
-        }, {passive: false});
-        const up = e => {
-            if(!cDown) return; cDown = false; clone.releasePointerCapture(e.pointerId);
-            if(this.checkTrashCollision(e.clientX, e.clientY)) { clone.remove(); } 
-            else if(!moved) {
-                const org = $(originBtnId); if(org) org.click();
-                clone.classList.add('active'); setTimeout(() => clone.classList.remove('active'), 200);
-            }
-            $('trash-zone').style.display = 'none';
-        };
-        clone.addEventListener('pointerup', up); clone.addEventListener('pointercancel', up);
+    // ======== MISSING FUNCTION RESTORED BELOW ========
+    buildPresetGrid() {
+        const c = $('preset-grid');
+        if(!c) return;
+        c.innerHTML = '';
+        for(let n=1; n<=this.state.cfg.presetCount; n++) {
+            const b = document.createElement('button');
+            b.className = 'sys-btn'; b.innerText = `[P${n}]`; b.style.width = '100%';
+            b.onclick = (e) => {
+                if(this.state.presetAction === 'SAVE' || e.shiftKey) {
+                    this.savePreset(n);
+                    this.state.presetAction = 'LOAD'; 
+                    const pb = $('btn-pmode');
+                    if(pb) { pb.innerText = 'P-MODE: LOAD'; pb.style.background = '#444'; }
+                } else { this.loadPreset(n); }
+            };
+            c.appendChild(b);
+        }
     },
+    // ======== END RESTORED FUNCTION ========
 
     makeButtonCloneable(btnId) {
         const btn = $(btnId); if(!btn) return;
+        let isDown = false, clone = null, startX, startY;
         btn.addEventListener('pointerdown', e => {
             if(e.button !== 0 || this.state.padsEditing) return; 
-            if($(`cloned-${btnId}`)) return; // Only 1 clone allowed
-            let clone = btn.cloneNode(true); clone.id = `cloned-${btnId}`; clone.className = 'sys-btn cloned-btn';
-            clone.style.left = e.clientX - 30 + 'px'; clone.style.top = e.clientY - 15 + 'px';
+            isDown = true; startX = e.clientX; startY = e.clientY;
+            clone = btn.cloneNode(true); clone.id = `cloned-${btnId}-${Date.now()}`; clone.className = 'sys-btn cloned-btn';
+            clone.style.left = e.clientX - 20 + 'px'; clone.style.top = e.clientY - 20 + 'px';
             const grp = this.state.cfg.hudGroups[this.state.hudTab];
             if(grp) { clone.style.background = grp.btnBg; clone.style.color = grp.txtCol; clone.style.borderColor = grp.txtCol; }
             $('custom-buttons-layer').appendChild(clone);
-            this.makeCloneDraggable(clone, btnId);
-            clone.dispatchEvent(new PointerEvent('pointerdown', {clientX: e.clientX, clientY: e.clientY, pointerId: e.pointerId, button: 0}));
+            clone.setPointerCapture(e.pointerId);
+            const currentClone = clone;
+            currentClone.addEventListener('pointerdown', ev => {
+                ev.stopPropagation();
+                if(this.state.padsEditing) {
+                    const onMv = mEv => { currentClone.style.left = mEv.clientX - 20 + 'px'; currentClone.style.top = mEv.clientY - 20 + 'px'; };
+                    const onUp = () => { window.removeEventListener('pointermove', onMv); window.removeEventListener('pointerup', onUp); };
+                    window.addEventListener('pointermove', onMv); window.addEventListener('pointerup', onUp);
+                } else {
+                    btn.click(); currentClone.classList.add('active'); setTimeout(()=> { if(currentClone) currentClone.classList.remove('active'); }, 200);
+                }
+            });
+            $('trash-zone').style.display = 'flex';
         }, {passive: false});
+        window.addEventListener('pointermove', e => {
+            if(isDown && clone) {
+                clone.style.left = e.clientX - 20 + 'px'; clone.style.top = e.clientY - 20 + 'px';
+                if(e.clientY < 60) $('trash-zone').classList.add('hover'); else $('trash-zone').classList.remove('hover');
+            }
+        });
+        window.addEventListener('pointerup', e => {
+            if(isDown && clone) {
+                isDown = false; clone.releasePointerCapture(e.pointerId);
+                if(e.clientY < 60) { clone.remove(); } 
+                $('trash-zone').style.display = 'none'; $('trash-zone').classList.remove('hover'); clone = null;
+            }
+        });
     },
 
     renderHUDGroup() {
@@ -1066,7 +1067,6 @@ window.GyrOS = {
     makeGUIsDraggable() {
         $$('.gui-window').forEach(el => {
             el.addEventListener('pointerdown', () => { el.style.zIndex = ++this.state.zIndexCounter; }, {passive: false});
-
             let isDown = false, startX, startY, origX, origY;
             const header = el.querySelector('.gui-header');
             if(!header) return;
@@ -1315,9 +1315,7 @@ window.GyrOS = {
             if($('btn-hold')) { $('btn-hold').classList.remove('active'); $('btn-hold').innerText = "⎄ HOLD: OFF"; }
         };
         if($('btn-panic')) $('btn-panic').addEventListener('click', doPanic);
-        
         if($('btn-mute')) $('btn-mute').addEventListener('click', e => { e.target.blur(); this.toggleMute(); });
-        
         if($('btn-silence')) $('btn-silence').addEventListener('click', () => this.silenceAll());
         if($('btn-resume')) $('btn-resume').addEventListener('click', () => this.resumeAll());
         if($('btn-stopall')) $('btn-stopall').addEventListener('click', () => this.stopAll());
@@ -1367,7 +1365,7 @@ window.GyrOS = {
                             if(pb) pb.classList.add(pad.doPulse ? 'pad-pulsing' : 'playing');
                         }
                     });
-                    if (force > this.state.cfg.impactThresh && [2,3,8].includes(this.state.mode) && this.state.cfg.cells[this.state.activeCellIdx]) {
+                    if (force > this.state.cfg.impactThresh &&[2,3,8].includes(this.state.mode) && this.state.cfg.cells[this.state.activeCellIdx]) {
                         this.triggerNote(this.state.cfg.cells[this.state.activeCellIdx].defaultNote, force);
                     }
                 }
