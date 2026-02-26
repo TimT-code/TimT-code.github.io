@@ -298,13 +298,13 @@ window.GyrOS = {
             s2On: true, s2Type: 'FMSynth', s2Vol: -6, s2Pan: 0.5, s2Atk: 0.1, s2Dec: 0.3, s2Sus: 0.4, s2Rel: 2.0, s2Dist: 0, s2Phaser: 0,
             recMode: 'Immediate', recThreshold: -20, recTimer: 5, presetCount: 4, warnPresetLoad: true,
             m1: true, m2: true, m3: true, m4: true, m5: true, m6: true, m7: true, m8: true,
-            guiFolders: {}, cells:[], noteImages: {}, windowPositions: {}, clonedBtnsState:[],
+            guiFolders: {}, cells:[], noteImages: {}, windowPositions: {},
             hudGroups: {
-                1: { bg: 'rgba(10,10,15,0.85)', bgImg: null, bgOpac: 1, btnBg: 'rgba(0,0,0,0.8)', txtCol: '#00ffcc', btns:['btn-add-pad','btn-oct-down','btn-oct-up','btn-pads-edit','btn-sensors','btn-mic','btn-record','btn-hold','btn-mute','btn-panic','btn-silence','btn-resume','btn-stopall','btn-about'] },
-                2: { bg: 'rgba(20,10,10,0.85)', bgImg: null, bgOpac: 1, btnBg: 'rgba(30,0,0,0.8)', txtCol: '#ff0055', btns:['btn-oct-down','btn-oct-up','btn-mute','btn-panic'] },
-                3: { bg: 'rgba(10,20,10,0.85)', bgImg: null, bgOpac: 1, btnBg: 'rgba(0,30,0,0.8)', txtCol: '#00ff55', btns:['btn-pads-edit','btn-sensors','btn-mute','btn-panic','btn-silence'] },
-                4: { bg: 'rgba(10,10,20,0.85)', bgImg: null, bgOpac: 1, btnBg: 'rgba(0,0,30,0.8)', txtCol: '#5500ff', btns:['btn-mute'] },
-                5: { bg: 'rgba(20,20,20,0.85)', bgImg: null, bgOpac: 1, btnBg: 'rgba(40,40,40,0.8)', txtCol: '#ffffff', btns:['btn-panic','btn-mute','btn-silence','btn-resume','btn-stopall'] }
+                1: { bg: 'rgba(10,10,15,0.85)', btnBg: 'rgba(0,0,0,0.8)', txtCol: '#00ffcc', btns:['btn-add-pad','btn-oct-down','btn-oct-up','btn-pads-edit','btn-sensors','btn-mic','btn-record','btn-hold','btn-mute','btn-panic','btn-silence','btn-resume','btn-stopall','btn-about'] },
+                2: { bg: 'rgba(20,10,10,0.85)', btnBg: 'rgba(30,0,0,0.8)', txtCol: '#ff0055', btns:['btn-oct-down','btn-oct-up','btn-mute','btn-panic'] },
+                3: { bg: 'rgba(10,20,10,0.85)', btnBg: 'rgba(0,30,0,0.8)', txtCol: '#00ff55', btns:['btn-pads-edit','btn-sensors','btn-mute','btn-panic','btn-silence'] },
+                4: { bg: 'rgba(10,10,20,0.85)', btnBg: 'rgba(0,0,30,0.8)', txtCol: '#5500ff', btns:['btn-mute'] },
+                5: { bg: 'rgba(20,20,20,0.85)', btnBg: 'rgba(40,40,40,0.8)', txtCol: '#ffffff', btns:['btn-panic','btn-mute','btn-silence','btn-resume','btn-stopall'] }
             }
         }
     },
@@ -329,7 +329,12 @@ window.GyrOS = {
             if(this.state.cfg.splashAudioUrl) { const splashAudio = new Tone.Player(this.state.cfg.splashAudioUrl).toDestination(); splashAudio.autostart = true; }
             try { await this.detectSensors(); this.state.hasGyro = true; } catch(e) { this.state.hasGyro = false; }
             this.initTrashBin(); this.initAudio(); this.initVisuals(); this.initSpeech(); this.initGrid(); this.initGUIs();
-            this.buildPresetGrid(); this.makeGUIsDraggable(); this.bindEvents(); 
+            
+            // Critical Setup Calls
+            this.buildPresetGrid(); 
+            this.makeGUIsDraggable(); 
+            this.bindEvents(); 
+            
             this.state.mode = this.state.defaultMode;
             this.renderHUDGroup();
             if($('splash-screen') && this.state.cfg.showSplash) { setTimeout(() => { $('splash-screen').style.opacity = 0; setTimeout(() => $('splash-screen').style.display = 'none', 500); }, 2500); } 
@@ -579,7 +584,8 @@ window.GyrOS = {
             this.state.activeChords.add(note);
             if(this.state.cfg.s1On) this.synth1.triggerAttack(note);
             if(this.state.cfg.s2On) this.synth2.triggerAttack(note);
-            e.target.classList.add('active'); this.triggerVisualReaction(note);
+            e.target.classList.add('active');
+            this.triggerVisualReaction(note);
         }
     },
     handleCellPointerDown(note, e) {
@@ -588,14 +594,16 @@ window.GyrOS = {
         this.state.activeChords.add(note);
         if(this.state.cfg.s1On) this.synth1.triggerAttack(note);
         if(this.state.cfg.s2On) this.synth2.triggerAttack(note);
-        e.target.classList.add('active'); this.triggerVisualReaction(note);
+        e.target.classList.add('active');
+        this.triggerVisualReaction(note);
     },
     handleCellPointerUp(note, e) {
         if(![6,7].includes(this.state.mode)) return;
         this.state.activeChords.delete(note);
         if(this.state.cfg.s1On && !this.state.holdMode) this.synth1.triggerRelease(note);
         if(this.state.cfg.s2On && !this.state.holdMode) this.synth2.triggerRelease(note);
-        e.target.classList.remove('active'); e.target.releasePointerCapture(e.pointerId);
+        e.target.classList.remove('active');
+        e.target.releasePointerCapture(e.pointerId);
     },
     handleCellPointerLeave(note, e) {
         if(![6,7].includes(this.state.mode)) return;
@@ -621,7 +629,8 @@ window.GyrOS = {
         let currOct = parseInt(this.state.cfg.octave);
 
         for(let i=0; i<total; i++) {
-            const cell = document.createElement('div'); cell.className = 'grid-cell'; cell.id = `cell-${i}`;
+            const cell = document.createElement('div');
+            cell.className = 'grid-cell'; cell.id = `cell-${i}`;
             let note = s[i % s.length] + currOct; if ((i + 1) % s.length === 0) currOct++;
             this.state.cfg.cells[i].defaultNote = note; cell.innerText = note;
             if(this.state.cfg.colorNotes) cell.style.backgroundColor = getNoteColor(note);
@@ -630,6 +639,7 @@ window.GyrOS = {
             cell.addEventListener('pointerenter', e => this.handleCellPointerEnter(note, e));
             cell.addEventListener('pointerup', e => this.handleCellPointerUp(note, e));
             cell.addEventListener('pointerleave', e => this.handleCellPointerLeave(note, e));
+
             overlay.appendChild(cell);
         }
     },
@@ -646,7 +656,6 @@ window.GyrOS = {
                     this.state.assets.push({ id, file, url, path });
                     const item = document.createElement('div'); item.className = 'asset-item';
                     item.innerHTML = `<span style="text-overflow:ellipsis; overflow:hidden; white-space:nowrap; max-width:120px;" title="${path}">${path}</span> <div><button class="test-btn">▶ Test</button> <button class="spawn-btn">+ Spawn</button></div>`;
-                    
                     let testPlayer = null;
                     item.querySelector('.test-btn').onclick = async (e) => {
                         if(testPlayer && testPlayer.state === 'started') { testPlayer.stop(); e.target.innerText = '▶ Test'; return; }
@@ -728,7 +737,13 @@ window.GyrOS = {
         });
         
         const stopPad = () => { player.stop(); btn.classList.remove('playing', 'pad-pulsing'); data.wasPlaying = false; data.pausedAt = 0; scrub.value=0; };
-        const pausePad = () => { if(player.state === 'started') { data.pausedAt = (Tone.now() - data.startTime) % data.bufferDuration; if(isNaN(data.pausedAt)) data.pausedAt = 0; player.stop(); btn.classList.remove('playing', 'pad-pulsing'); data.wasPlaying = true; } };
+        const pausePad = () => { 
+            if(player.state === 'started') { 
+                data.pausedAt = (Tone.now() - data.startTime) % data.bufferDuration; 
+                if(isNaN(data.pausedAt)) data.pausedAt = 0;
+                player.stop(); btn.classList.remove('playing', 'pad-pulsing'); data.wasPlaying = true;
+            } 
+        };
         
         btn.querySelector('.set-del-btn').addEventListener('click', () => { player.dispose(); btn.remove(); this.state.customSamplers = this.state.customSamplers.filter(s => s.id !== id); });
         btn.querySelector('.ui-btn-stop').addEventListener('pointerdown', e => { e.stopPropagation(); stopPad(); });
@@ -776,26 +791,22 @@ window.GyrOS = {
         };
 
         let isDown = false, startX, startY, origX, origY, hasMoved = false;
-        
         btn.addEventListener('pointerdown', e => {
             if(e.target.closest('.pad-settings-menu') || e.target.closest('.pad-controls') || e.target === gear) return;
             e.stopPropagation();
             if(!this.state.padsEditing) { firePad(0); return; } 
-            
             isDown = true; hasMoved = false; startX = e.clientX; startY = e.clientY; origX = btn.offsetLeft; origY = btn.offsetTop;
             btn.setPointerCapture(e.pointerId); btn.style.zIndex = data.zIndex + 100; $('trash-bin').style.display='flex';
         }, {passive: false});
-        
         btn.addEventListener('pointermove', e => {
             if(!isDown || !this.state.padsEditing) return;
             hasMoved = true; btn.style.left = (origX + e.clientX - startX) + 'px'; btn.style.top = (origY + e.clientY - startY) + 'px';
             this.checkTrashCollision(e.clientX, e.clientY);
         }, {passive: false});
-        
         const end = (e) => {
             if(!isDown) return; isDown = false; btn.releasePointerCapture(e.pointerId); btn.style.zIndex = data.zIndex;
             if(this.checkTrashCollision(e.clientX, e.clientY)) { btn.querySelector('.set-del-btn').click(); }
-            else if(!hasMoved && this.state.padsEditing) firePad(0); 
+            else if(!hasMoved && this.state.padsEditing) firePad(); 
             $('trash-bin').style.display='none';
         };
         btn.addEventListener('pointerup', end); btn.addEventListener('pointercancel', end);
@@ -811,10 +822,9 @@ window.GyrOS = {
             }
         };
 
+        Tone.loaded().then(() => { if(player.buffer) { data.bufferDuration = player.buffer.duration; btn.querySelector('.f-dur').innerText = data.bufferDuration.toFixed(1) + 's'; } });
         $('custom-buttons-layer').appendChild(btn);
-    },
-
-    spawnVFX(xNorm, yNorm, customImg = null, customOpac = null) {
+    },spawnVFX(xNorm, yNorm, customImg = null, customOpac = null) {
         const imgUrl = customImg || this.state.cfg.vfxImageUrl; if (!imgUrl) return;
         const vfx = document.createElement('img'); vfx.src = imgUrl; vfx.className = 'vfx-layer';
         vfx.style.left = `${(xNorm + 1) / 2 * window.innerWidth}px`; vfx.style.top = `${(-yNorm + 1) / 2 * window.innerHeight}px`;
@@ -844,59 +854,63 @@ window.GyrOS = {
         if(this.state.cfg.s2On) this.synth2.triggerAttackRelease(noteStr, dur, now, vol);
     },
 
+    // ======== MISSING FUNCTIONS RESTORED BELOW ========
+    
+    buildPresetGrid() {
+        const c = $('preset-grid'); if(!c) return;
+        c.innerHTML = '';
+        for(let n=1; n<=this.state.cfg.presetCount; n++) {
+            const b = document.createElement('button'); b.className = 'sys-btn'; b.innerText = `[P${n}]`; b.style.width = '100%';
+            b.onclick = (e) => {
+                if(this.state.presetAction === 'SAVE' || e.shiftKey) {
+                    this.savePreset(n); this.state.presetAction = 'LOAD'; 
+                    const pb = $('btn-pmode'); if(pb) { pb.innerText = 'P-MODE: LOAD'; pb.style.background = '#444'; }
+                } else { this.loadPreset(n); }
+            };
+            c.appendChild(b);
+        }
+    },
+
     makeButtonCloneable(btnId) {
         const btn = $(btnId); if(!btn) return;
-        let isDown = false, clone = null, startX, startY;
+        let isDown = false, clone = null;
         
         btn.addEventListener('pointerdown', e => {
             if(e.button !== 0 || this.state.padsEditing) return; 
-            isDown = true; startX = e.clientX; startY = e.clientY;
+            isDown = true; 
+            clone = btn.cloneNode(true); clone.id = `cloned-${btnId}-${Date.now()}`; clone.className = 'sys-btn cloned-btn';
+            clone.style.left = e.clientX - 20 + 'px'; clone.style.top = e.clientY - 20 + 'px';
+            const grp = this.state.cfg.hudGroups[this.state.hudTab];
+            if(grp) { clone.style.background = grp.btnBg; clone.style.color = grp.txtCol; clone.style.borderColor = grp.txtCol; }
+            $('custom-buttons-layer').appendChild(clone);
+            clone.setPointerCapture(e.pointerId);
+            
+            const currentClone = clone;
+            currentClone.addEventListener('pointerdown', ev => {
+                ev.stopPropagation();
+                if(this.state.padsEditing) {
+                    const onMv = mEv => { currentClone.style.left = mEv.clientX - 20 + 'px'; currentClone.style.top = mEv.clientY - 20 + 'px'; };
+                    const onUp = () => { window.removeEventListener('pointermove', onMv); window.removeEventListener('pointerup', onUp); };
+                    window.addEventListener('pointermove', onMv); window.addEventListener('pointerup', onUp);
+                } else {
+                    btn.click(); currentClone.classList.add('active'); setTimeout(()=> { if(currentClone) currentClone.classList.remove('active'); }, 200);
+                }
+            });
+            $('trash-bin').style.display = 'flex';
         }, {passive: false});
 
         window.addEventListener('pointermove', e => {
-            if(!isDown) return;
-            if(!clone && Math.hypot(e.clientX - startX, e.clientY - startY) > 5) {
-                clone = btn.cloneNode(true); clone.id = `cloned-${btnId}-${Date.now()}`; clone.className = 'sys-btn cloned-btn';
+            if(isDown && clone) {
                 clone.style.left = e.clientX - 20 + 'px'; clone.style.top = e.clientY - 20 + 'px';
-                const grp = this.state.cfg.hudGroups[this.state.hudTab];
-                if(grp) { clone.style.background = grp.btnBg; clone.style.color = grp.txtCol; clone.style.borderColor = grp.txtCol; }
-                $('custom-buttons-layer').appendChild(clone);
-                clone.setPointerCapture(e.pointerId);
-                
-                const currentClone = clone;
-                currentClone.addEventListener('pointerdown', ev => {
-                    ev.stopPropagation();
-                    if(this.state.padsEditing) {
-                        const onMv = mEv => { currentClone.style.left = mEv.clientX - 20 + 'px'; currentClone.style.top = mEv.clientY - 20 + 'px'; this.checkTrashCollision(mEv.clientX, mEv.clientY); };
-                        const onUp = (uEv) => { 
-                            window.removeEventListener('pointermove', onMv); window.removeEventListener('pointerup', onUp); 
-                            if(this.checkTrashCollision(uEv.clientX, uEv.clientY)) currentClone.remove();
-                            $('trash-bin').style.display='none';
-                        };
-                        window.addEventListener('pointermove', onMv); window.addEventListener('pointerup', onUp);
-                        $('trash-bin').style.display='flex';
-                    } else {
-                        btn.click(); currentClone.classList.add('active'); setTimeout(()=> { if(currentClone) currentClone.classList.remove('active'); }, 200);
-                    }
-                });
-                $('trash-bin').style.display = 'flex';
-            }
-            if(clone) {
-                clone.style.left = e.clientX - 20 + 'px'; clone.style.top = e.clientY - 20 + 'px';
-                this.checkTrashCollision(e.clientX, e.clientY);
+                if(e.clientY < 60) $('trash-bin').classList.add('hover'); else $('trash-bin').classList.remove('hover');
             }
         });
 
         window.addEventListener('pointerup', e => {
-            if(!isDown) return;
-            isDown = false;
-            if(clone) {
-                clone.releasePointerCapture(e.pointerId);
-                if(this.checkTrashCollision(e.clientX, e.clientY)) { clone.remove(); } 
+            if(isDown && clone) {
+                isDown = false; clone.releasePointerCapture(e.pointerId);
+                if(e.clientY < 60) { clone.remove(); } 
                 $('trash-bin').style.display = 'none'; $('trash-bin').classList.remove('hover'); clone = null;
-            } else {
-                // If it didn't move enough to clone, it was a click!
-                btn.click(); btn.classList.add('active'); setTimeout(()=> { if(btn) btn.classList.remove('active'); }, 200);
             }
         });
     },
@@ -904,8 +918,6 @@ window.GyrOS = {
     renderHUDGroup() {
         const t = this.state.cfg.hudGroups[this.state.hudTab];
         const hud = $('bottom-hud'); if(hud) hud.style.background = t.bg;
-        if(t.bgImg) { hud.style.backgroundImage = `url(${t.bgImg})`; hud.style.backgroundSize = t.bgSize || 'cover'; } else { hud.style.backgroundImage = 'none'; }
-        
         document.documentElement.style.setProperty('--hud-btn', t.btnBg); document.documentElement.style.setProperty('--hud-txt', t.txtCol);
 
         Array.from($$('.hud-cloneable')).forEach(btn => {
@@ -935,6 +947,8 @@ window.GyrOS = {
             });
         }
     },
+
+    // ======== END RESTORED FUNCTIONS ========
 
     downloadConfig(prefix, filename) {
         $$('.gui-window').forEach(el => { if(el.id) this.state.cfg.windowPositions[el.id] = { left: el.style.left, top: el.style.top }; });
@@ -1035,7 +1049,6 @@ window.GyrOS = {
         const gUI = this.guiCenter.addFolder('UI Mode Toggles');
         this.modesList.forEach(m => gUI.add(this.state.cfg, `m${m.id}`).name(m.name).onChange(()=>this.renderHUDGroup()));
 
-        // RIGHT
         this.guiSnd = new dat.GUI(guiOpts); $('gui-right-content').appendChild(this.guiSnd.domElement);
         const sMix = this.guiSnd.addFolder('Master Mixer');
         sMix.add(this.state.cfg, 'masterVol', -60, 10).onChange(v => this.masterVol.volume.value = v);
@@ -1091,8 +1104,7 @@ window.GyrOS = {
 
             header.addEventListener('pointerdown', e => {
                 if(e.target.closest('.gui-toggle')) return;
-                e.stopPropagation();
-                el.setPointerCapture(e.pointerId);
+                e.stopPropagation(); el.setPointerCapture(e.pointerId);
                 isDown = true; startX = e.clientX; startY = e.clientY; origX = el.offsetLeft; origY = el.offsetTop;
                 el.style.left = origX + 'px'; el.style.right = 'auto'; el.style.bottom = 'auto'; 
             }, {passive: false});
@@ -1100,8 +1112,7 @@ window.GyrOS = {
             el.addEventListener('pointermove', e => {
                 if(!isDown) return;
                 let newX = origX + (e.clientX - startX); let newY = origY + (e.clientY - startY);
-                newX = Math.max(0, Math.min(newX, window.innerWidth - 60));
-                newY = Math.max(0, Math.min(newY, window.innerHeight - 30));
+                newX = Math.max(0, Math.min(newX, window.innerWidth - 60)); newY = Math.max(0, Math.min(newY, window.innerHeight - 30));
                 el.style.left = newX + "px"; el.style.top = newY + "px";
             }, {passive: false});
 
@@ -1183,22 +1194,19 @@ window.GyrOS = {
     startRecordingLogic() {
         if(this.state.isRecording) {
             this.recorder.stop(); this.state.isRecording = false; this.state.waitingForRec = false;
-            const b = $('btn-record');
-            if(b) { b.innerText = "⏺ REC"; b.classList.remove('btn-recording'); }
+            const b = $('btn-record'); if(b) { b.innerText = "⏺ REC"; b.classList.remove('btn-recording'); }
             return;
         }
 
         const mode = this.state.cfg.recMode;
-        const b = $('btn-record');
-        if(b) b.classList.add('btn-recording');
+        const b = $('btn-record'); if(b) b.classList.add('btn-recording');
         
         if (mode === 'Immediate') {
             this.recorder.start(); this.state.isRecording = true;
             if(b) b.innerText = "⏹ STOP REC";
         } 
         else if (mode === 'Click Track') {
-            if(b) b.innerText = "CLICK...";
-            let count = 4;
+            if(b) b.innerText = "CLICK..."; let count = 4;
             const clickSynth = new Tone.MembraneSynth().toDestination();
             Tone.Transport.scheduleRepeat((time) => {
                 clickSynth.triggerAttackRelease("C4", "32n", time);
@@ -1208,8 +1216,7 @@ window.GyrOS = {
                     this.recorder.start(); this.state.isRecording = true;
                     if(b) b.innerText = "⏹ STOP REC";
                 }
-            }, "4n");
-            Tone.Transport.start();
+            }, "4n"); Tone.Transport.start();
         } 
         else if (mode === 'Timer') {
             if(b) b.innerText = `WAIT ${this.state.cfg.recTimer}s`;
@@ -1219,8 +1226,7 @@ window.GyrOS = {
             }, this.state.cfg.recTimer * 1000);
         }
         else if (mode === 'Threshold') {
-            if(b) b.innerText = "WAIT SOUND...";
-            this.state.waitingForRec = true;
+            if(b) b.innerText = "WAIT SOUND..."; this.state.waitingForRec = true;
         }
     },
 
@@ -1324,7 +1330,6 @@ window.GyrOS = {
         }
 
         if($('btn-record')) $('btn-record').addEventListener('click', () => this.startRecordingLogic());
-        if($('btn-add-pad')) $('btn-add-pad').addEventListener('click', () => $('up-sample').click());
 
         const doPanic = () => {
             Tone.Transport.stop(); this.synth1.releaseAll(); this.synth2.releaseAll();
@@ -1333,9 +1338,7 @@ window.GyrOS = {
             if($('btn-hold')) { $('btn-hold').classList.remove('active'); $('btn-hold').innerText = "⎄ HOLD: OFF"; }
         };
         if($('btn-panic')) $('btn-panic').addEventListener('click', doPanic);
-        
         if($('btn-mute')) $('btn-mute').addEventListener('click', e => { e.target.blur(); this.toggleMute(); });
-        
         if($('btn-silence')) $('btn-silence').addEventListener('click', () => this.silenceAll());
         if($('btn-resume')) $('btn-resume').addEventListener('click', () => this.resumeAll());
         if($('btn-stopall')) $('btn-stopall').addEventListener('click', () => this.stopAll());
@@ -1385,7 +1388,7 @@ window.GyrOS = {
                             if(pb) pb.classList.add(pad.doPulse ? 'pad-pulsing' : 'playing');
                         }
                     });
-                    if (force > this.state.cfg.impactThresh && [2,3,8].includes(this.state.mode) && this.state.cfg.cells[this.state.activeCellIdx]) {
+                    if (force > this.state.cfg.impactThresh &&[2,3,8].includes(this.state.mode) && this.state.cfg.cells[this.state.activeCellIdx]) {
                         this.triggerNote(this.state.cfg.cells[this.state.activeCellIdx].defaultNote, force);
                     }
                 }
@@ -1565,7 +1568,7 @@ window.GyrOS = {
             }
         }
 
-        if (cfg.thOn && [1, 3, 7, 8].includes(mode) && !isSilenced) {
+        if (cfg.thOn &&[1, 3, 7, 8].includes(mode) && !isSilenced) {
             let tFreq = mapRange(pointer.y, -1, 1, cfg.thBaseFreq, cfg.thMaxFreq); tFreq = Math.max(20, Math.min(5000, tFreq));
             let tVol = mapRange(pointer.x, -1, 1, cfg.thVolMin, cfg.thVolMax);
             this.theremin.frequency.setTargetAtTime(tFreq, now, 0.05); this.thereminVol.volume.setTargetAtTime(tVol, now, 0.05);
@@ -1602,7 +1605,7 @@ window.GyrOS = {
     }
 };
 
-$('btn-start').addEventListener('click', () => { window.GyrOS.loadSplash(); window.GyrOS.init(); });
+if($('btn-start')) $('btn-start').addEventListener('click', () => { window.GyrOS.loadSplash(); window.GyrOS.init(); });
 </script>
 </body>
 </html>
