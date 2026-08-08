@@ -58,53 +58,14 @@
         #custom-buttons-layer { position: absolute; inset: 0; z-index: 80; pointer-events: none; }
         #custom-buttons-layer.editing { pointer-events: auto; background: rgba(0, 255, 204, 0.05); }
         
-        .custom-sampler-btn, .speech-pad-btn { position: absolute; background: rgba(0,0,0,0.85); border: 2px solid var(--accent-neon); color: var(--accent-neon); border-radius: 8px; font-family: monospace; cursor: pointer; touch-action: none; box-shadow: 0 4px 10px rgba(0,0,0,0.5); overflow: visible; resize: both; min-width: 160px; min-height: 80px; pointer-events: auto; display: flex; flex-direction: column; justify-content: space-between; }
-        .custom-sampler-btn:active, .speech-pad-btn:active { transform: scale(0.98); }
-        .pad-react-bg { position: absolute; inset: 0; background: var(--accent-neon); opacity: 0; z-index: 0; pointer-events: none; transition: opacity 0.05s; }
-        
-        .pad-module { position: relative; z-index: 2; padding: 4px; display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.6); }
-        .pad-title-bar { justify-content: space-between; font-weight: bold; font-size: 11px; text-shadow: 1px 1px 2px black; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .pad-info { font-size: 9px; color: #aaa; justify-content: space-between; }
-        .pad-controls button { background: #333; color: white; border: 1px solid #666; border-radius: 3px; cursor: pointer; font-size: 10px; padding: 2px 6px; }
-        .pad-controls button:hover { background: var(--accent-neon); color: black; }
-        .pad-controls input[type="range"] { width: 100%; height: 4px; accent-color: var(--accent-neon); cursor: pointer; }
-        .pad-module.hidden { display: none !important; }
-
-        @keyframes padPulse { 0% { box-shadow: 0 0 5px currentColor; } 100% { box-shadow: 0 0 25px currentColor; filter: brightness(1.5); } }
-        .pad-pulsing { animation: padPulse 0.4s infinite alternate; }
-
-        .pad-gear { background: #000; border: 1px solid currentColor; border-radius: 50%; width: 20px; height: 20px; color: currentColor; cursor: pointer; display: none; justify-content: center; align-items: center; font-size: 10px; position:absolute; top:-10px; right:-10px; z-index:10;}
-        #custom-buttons-layer.editing .pad-gear { display: flex; }
-        
-        .pad-settings-menu { position: absolute; top: 100%; left: 0; background: rgba(10,10,15,0.95); border: 1px solid currentColor; padding: 10px; border-radius: 4px; display: none; flex-direction: column; gap: 5px; min-width: 260px; z-index: 1000; cursor: default; }
-        .pad-settings-menu.open { display: flex; }
-        .pad-settings-menu label { font-size: 10px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
-        .pad-settings-menu input, .pad-settings-menu select { background: #000; color: #fff; border: 1px solid #444; padding: 2px; font-size: 10px; max-width: 100px; }
-
-        .asset-item { font-size: 10px; padding: 4px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
-        .asset-item button { background: #444; color: white; border: 1px solid #666; cursor: pointer; font-size: 9px; padding: 2px 4px; border-radius: 2px; }
-        .asset-item button:hover { background: var(--accent-neon); color: black; }
-
-        @keyframes mutePulse { 0% { box-shadow: 0 0 5px red; background: rgba(255,0,0,0.5); color: white; } 100% { box-shadow: 0 0 30px red; background: rgba(255,0,0,1); color: white; } }
-        .btn-mute-on { background: rgba(255,0,0,0.8) !important; color: white !important; border-color: red !important; }
-        .mute-active-audio { animation: mutePulse 0.2s infinite alternate !important; border-color: white !important; }
-        .resume-active { background: #00ffcc !important; color: #000 !important; animation: padPulse 0.5s infinite alternate; }
-        .resume-disabled { background: #333 !important; color: #666 !important; border-color: #444 !important; pointer-events: none; }
-        .btn-recording { background: red !important; color: white !important; animation: mutePulse 1s infinite alternate; }
-
-        .vfx-layer { position: absolute; pointer-events: none; transform: translate(-50%, -50%); transform-origin: center; z-index: 10; }
-        .debug-row { display: flex; justify-content: space-between; font-family: monospace; font-size: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); padding: 2px 0; }
-        .debug-val { color: var(--accent-neon); }
-        .sleep-indicator { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); color: #ffaa00; font-family: monospace; font-weight: bold; font-size: 14px; z-index: 1000; display: none; background: rgba(0,0,0,0.8); padding: 5px 15px; border-radius: 20px; border: 1px solid #ffaa00; }
-
-        #about-modal { position: fixed; inset: 5%; background: rgba(10,10,15,0.95); border: 2px solid var(--accent-neon); border-radius: 12px; z-index: 5000; display: none; flex-direction: column; box-shadow: 0 0 50px rgba(0,0,0,0.8); }
-        #about-header { padding: 15px; background: var(--accent-neon); color: black; font-weight: bold; display: flex; justify-content: space-between; font-size: 18px; }
-        #about-content { padding: 20px; overflow-y: auto; font-family: sans-serif; color: #ddd; line-height: 1.6; }
-        
-        .secret-corner { position: absolute; width: 50px; height: 50px; z-index: 999; opacity: 0; cursor: pointer; }
-        #sc-tl { top: 0; left: 0; } #sc-tr { top: 0; right: 0; } #sc-bl { bottom: 0; left: 0; } #sc-br { bottom: 0; right: 0; }
-        input[type="file"] { display: none; }
-    </style>
+        .custom-sampler-btn, .<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GyrOS Spatial Audio Matrix</title>
+    <!-- Three.js for 3D Visual Rendering -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Tone.js handles all Synthesizers, Schedulers, and Audio Pipelines -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 </head>
 <body>
 
