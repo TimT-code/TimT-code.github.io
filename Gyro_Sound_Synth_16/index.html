@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GyrOS Spatial Audio Matrix</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        :root {
+            --bg-base: #0a0a12;
+            --panel-bg: rgba(16, 16, 32, 0.75);
+            --border-color: rgba(0, 255, 204, 0.25);
+            --accent-glow: #00ffcc;
+            --text-main: #e2e8f0;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body, html { width: 100%; height: 100%; overflow: hidden; font-family: 'Courier New', monospace; background: var(--bg-base); color: var(--text-main); }
+        #canvas-container { position: absolute; width: 100%; height: 100%; z-index: 1; }
+        #screensaver-layer { position: absolute; width: 100%; height: 100%; z-index: 2; pointer-events: none; opacity: 0; transition: opacity 2s ease; }
+        #ui-layer { position: absolute; width: 100%; height: 100%; z-index: 3; display: flex; flex-direction: column; pointer-events: none; }
+        .interactive { pointer-events: auto; }
+        header { background: rgba(5, 5, 10, 0.85); border-bottom: 2px solid var(--border-color); padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .app-title { font-size: 1.2rem; font-weight: bold; letter-spacing: 2px; color: var(--accent-glow); text-shadow: 0 0 8px var(--border-color); }
+        .nav-controls button { background: #1a1a3a; color: #fff; border: 1px solid var(--border-color); padding: 6px 14px; cursor: pointer; font-family: inherit; margin-left: 5px; border-radius: 3px; }
+        .nav-controls button:hover, .nav-controls button.active { background: var(--accent-glow); color: #000; box-shadow: 0 0 10px var(--accent-glow); }
+        #workspace { flex: 1; position: relative; display: flex; }
+        .gui-window { position: absolute; background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 6px; backdrop-filter: blur(10px); padding: 15px; box-shadow: 0 8px 32px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 10px; }
+        #win-controls { top: 20px; left: 20px; width: 280px; }
+        #win-pads { top: 20px; right: 20px; width: 320px; }
+        #win-diagnostics { bottom: 20px; left: 20px; width: 300px; font-size: 0.8rem; }
+        #win-visualizer { bottom: 20px; right: 20px; width: 320px; height: 180px; }
+        h3 { border-bottom: 1px solid var(--border-color); padding-bottom: 4px; font-size: 0.95rem; text-transform: uppercase; color: var(--accent-glow); }
+        .control-group { display: flex; flex-direction: column; gap: 4px; }
+        label { font-size: 0.75rem; color: #a0aec0; }
+        select, input[type="range"] { width: 100%; background: #050510; border: 1px solid var(--border-color); color: #fff; padding: 4px; font-family: inherit; border-radius: 3px; }
+        #grid-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: grid; pointer-events: none; transition: transform 0.5s ease; z-index: 2; transform-style: preserve-3d; }
+        .grid-cell { border: 0.5px solid rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center; font-size: 0.8rem; color: rgba(255,255,255,0.15); transition: background 0.1s, color 0.1s; }
+        .grid-cell.active { background: rgba(0, 255, 204, 0.2); color: var(--accent-glow); border-color: var(--accent-glow); text-shadow: 0 0 8px var(--accent-glow); }
+        #splash-screen { position: fixed; top:0; left:0; width:100%; height:100%; background: #05050a; z-index: 999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
+        #btn-start { background: transparent; border: 2px solid var(--accent-glow); color: var(--accent-glow); padding: 15px 40px; font-size: 1.5rem; cursor: pointer; border-radius: 4px; text-shadow: 0 0 5px var(--accent-glow); box-shadow: 0 0 15px rgba(0,255,204,0.2); font-family: inherit; }
+        #btn-start:hover { background: var(--accent-glow); color: #000; }
+        .pad-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 5px; }
+        .custom-sampler-btn, .speech-pad-btn { background: #151525; border: 1px solid rgba(255,255,255,0.1); color: #fff; aspect-ratio: 1; border-radius: 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.7rem; gap: 4px; transition: all 0.2s; position: relative; overflow: hidden; }
+        .custom-sampler-btn.playing { border-color: #ff007f; box-shadow: 0 0 8px #ff007f; }
+        .progress-bar { position: absolute; bottom: 0; left: 0; height: 3px; background: var(--accent-glow); width: 0%; }
+        canvas.vis-render { width: 100%; height: 100px; background: #000; border: 1px solid #1a1a3a; margin-top: 5px; }
+        #master-waveform { width: 150px; height: 30px; background: transparent; }
+    </style>
+</head>
+<body>
+
+    <div id="splash-screen">
+        <div class="app-title" style="font-size: 2.5rem;">GYROS: SPATIAL SONIC MATRIX</div>
+        <p style="color: #718096; text-align: center; max-width: 400px; font-size: 0.85rem;">An immersive spatial performance playground powered by WebGL, Web Audio, Device Accelerometers, and Raycasting.</p>
+        <button id="btn-start">INITIALIZE CORE</button>
+    </div>
+
+    <div id="canvas-container"></div>
+    <div id="screensaver-layer"></div>
+
+    <div id="grid-overlay"></div>
+
+    <div id="ui-layer">
+        <header class="interactive">
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <div class="app-title">GyrOS // AUDIO.SYS</div>
+                <canvas id="master-waveform"></canvas>
+            </div>
+            <div class="nav-controls">
+                <button id="btn-hold">⎄ HOLD: OFF</button>
+                <button id="btn-mute">🔇 MUTE</button>
+                <button id="btn-silence" style="border-color: #ff3b30;">🚨 SILENCE</button>
+                <button id="btn-resume">🔄 RESUME</button>
+                <button id="btn-stopall">⏹ STOP ALL</button>
+            </div>
+        </header>
+
+        <div id="workspace">
+            <!-- Global Matrix Control Panel -->
+            <div id="win-controls" class="gui-window interactive">
+                <h3>System Engine Configuration</h3>
+                <div class="control-group">
+                    <label>Interaction Performance Mode</label>
+                    <select id="sel-mode">
+                        <option value="1">Mode 1: Basic Spatial Theremin</option>
+                        <option value="2" selected>Mode 2: Accelerometer Cell Trigger</option>
+                        <option value="3">Mode 3: Combined Pointer-Grid Matrix</option>
+                        <option value="4">Mode 4: Continuous Hover Trigger</option>
+                        <option value="5">Mode 5: Quantized Arpeggiator Engine</option>
+                        <option value="6">Mode 6: Directional Vector Swipe</option>
+                        <option value="7">Mode 7: Multimode Hybrid Matrix</option>
+                        <option value="8">Mode 8: Theremin + Synth Tracker</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Scale Signature Mapping</label>
+                    <select id="sel-scale">
+                        <option value="chromatic">Chromatic Evolution</option>
+                        <option value="major">Ionian Major</option>
+                        <option value="minor" selected>Aeolian Natural Minor</option>
+                        <option value="pentatonic">Pentatonic Space</option>
+                        <option value="dorian">Dorian Mode Flight</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Synthesizer Waveform Engine</label>
+                    <select id="sel-osc">
+                        <option value="sine">Pure Sine Wave</option>
+                        <option value="triangle" selected>Soft Triangle Wave</option>
+                        <option value="sawtooth">Sharp Sawtooth Wave</option>
+                        <option value="square">Fat Square Wave</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Arpeggiator Speed Resolution</label>
+                    <input type="range" id="rng-arp" min="0.05" max="1.0" step="0.05" value="0.2">
+                </div>
+                <div style="display: flex; gap: 5px; margin-top: 5px;">
+                    <button id="btn-record" style="flex:1; background: #2c1a1a; border-color: #ff3b30; color: #ff3b30; height: 32px; border-radius: 3px; cursor: pointer;">⏺ REC INPUT</button>
+                    <input type="file" id="up-folder" webkitdirectory directory multiple style="display:none;">
+                    <button id="btn-load-folder" style="flex:1; background: #1a2c22; border-color: #34c759; color: #34c759; height: 32px; border-radius: 3px; cursor: pointer;">📂 LOAD DIR</button>
+                </div>
+                <div id="asset-list" style="max-height: 80px; overflow-y: auto; font-size: 0.7rem; background: rgba(0,0,0,0.3); border-radius: 3px; padding: 2px;"></div>
+            </div>
+
+            <!-- Custom Samplers & Text-To-Speech Launchpad -->
+            <div id="win-pads" class="gui-window interactive">
+                <h3>Live Audio Performance Pads</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label>Custom Sample Modules</label>
+                    <label for="up-sample" style="color: var(--accent-glow); cursor: pointer; text-decoration: underline;">+ Add File</label>
+                    <input type="file" id="up-sample" accept="audio/*" style="display:none;">
+                </div>
+                <div class="pad-grid" id="sampler-pad-container">
+                    <!-- Dynamic Sampler Triggers Mount via Engine -->
+                </div>
+                
+                <label style="margin-top: 5px; display: block;">Vocal Expression Synthesis Pads</label>
+                <div class="pad-grid" id="speech-pad-container">
+                    <!-- Vocal Arrays Mount here -->
+                </div>
+            </div>
+
+            <!-- Diagnostics Matrix readout telemetry -->
+            <div id="win-diagnostics" class="gui-window">
+                <h3>Telemetry Diagnostics Node</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                    <div>Engine Status: <span id="dbg-status" style="color:#34c759;">IDLE</span></div>
+                    <div>Audio Context: <span id="dbg-ctx">-</span></div>
+                    <div>Active Chords: <span id="dbg-poly">0</span></div>
+                    <div>Pointer Normalized: <span id="dbg-ptr">0, 0</span></div>
+                    <div>Gyro Vector: <span id="dbg-gyro">0, 0, 0</span></div>
+                    <div>Total Acceleration: <span id="dbg-acc">0.0</span></div>
+                    <div>Input Capture Level: <span id="dbg-mic">OFF</span></div>
+                </div>
+            </div>
+
+            <!-- System Visualizer Engine Output -->
+            <div id="win-visualizer" class="gui-window interactive">
+                <h3>Oscilloscope Spectrum</h3>
+                <canvas id="vis-canvas" class="vis-render"></canvas>
+                <div style="font-size: 0.7rem; margin-top: 4px; display: flex; justify-content: space-between;">
+                    <div>PTR: <span id="rd-pos" style="color:var(--accent-glow);">-</span></div>
+                    <div>ACCEL: <span id="rd-acc" style="color:var(--accent-glow);">-</span></div>
+                    <div>CELL ACTIVE: <span id="rd-cell" style="color:var(--accent-glow);">-</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // System Helpers
+    const $ = id => document.getElementById(id);
+    const $$ = sel => document.querySelectorAll(sel);
+    const mapRange = (val, inMin, inMax, outMin, outMax) => outMin + (outMax - outMin) * (val - inMin) / (inMax - inMin);
+
+    // Global Base Configurations Constants
+    const SCALES = {
+        chromatic: ["C3","C#3","D3","D#3","E3","F3","F#3","G3","G#3","A3","A#3","B3","C4","C#4","D4","D#4","E4","F4","F#4","G4","G#4","A4","A#4","B4"],
+        major: ["C3","D3","E3","F3","G3","A3","B3","C4","D4","E4","F4","G4","A4","B4","C5","D5"],
+        minor: ["C3","D3","D#3","F3","G3","G#3","A#3","C4","D4","D#4","F4","G4","G#4","A#4","C5","D5"],
+        pentatonic: ["C3","D3","E3","G3","A3","C4","D4","E4","G4","A4","C5","D5","E5","G5","A5","C6"],
+        dorian: ["C3","D3","D#3","F3","G3","A3","A#3","C4","D4","D#4","F4","G4","A4","A#4","C5","D5"]
+    };
+
+    class AudioPadInstance {
+        constructor(url, label, parentContainer) {
+            this.url = url;
+            this.label = label;
+            this.player = new Tone.Player(url).toDestination();
+            this.accelEnable = true;
+            this.accelImpactOnly = false;
+            this.accelThresh = 15;
+            this.accelMode = 'Retrigger';
+            this.dom = null;
+            this.render(parentContainer);
+        }
+        render(parent) {
+            this.dom = document.createElement('button');
+            this.dom.className = 'custom-sampler-btn';
+            this.dom.innerHTML = `<span>🎵</span><span style="font-size:0.55rem; text-align:center; overflow:hidden;">${this.label.substring(0,8)}</span><div class="progress-bar"></div>`;
+            this.dom.onclick = () => this.firePad();
+            parent.appendChild(this.dom);
+        }
+        firePad() {
+            if(this.player.loaded) {
+                this.player.start();
+                this.dom.classList.add('playing');
+                setTimeout(() => this.dom.classList.remove('playing'), 300);
+            }
+        }
+        stopPad() { this.player.stop(); }
+        pausePad() { if(this.player.state === 'started') this.player.stop(); }
+        updateVisuals() {
+            if(this.player.state === 'started' && this.player.buffer.duration) {
+                const prog = (this.player.toSeconds(Tone.now()) % this.player.buffer.duration) / this.player.buffer.duration;
+                this.dom.querySelector('.progress-bar').style.width = `${prog * 100}%`;
+            } else {
+                this.dom.querySelector('.progress-bar').style.width = '0%';
+            }
+        }
+    }
+
+    class SpeechPadInstance {
+        constructor(text, label, parentContainer) {
+            this.text = text;
+            this.label = label;
+            this.accelEnable = true;
+            this.accelImpactOnly = true;
+            this.accelThresh = 22;
+            this.render(parentContainer);
+        }
+        render(parent) {
+            const btn = document.createElement('button');
+            btn.className = 'speech-pad-btn';
+            btn.innerHTML = `<span>🗣️</span><span>${this.label}</span>`;
+            btn.onclick = () => this.firePad();
+            parent.appendChild(btn);
+        }
+        firePad() {
+            if ('speechSynthesis' in window) {
+                const utter = new SpeechSynthesisUtterance(this.text);
+                window.speechSynthesis.speak(utter);
+            }
+        }
+    }
+
+    // Core System Namespace Controller Engine
+    window.GyrOS = {
+        state: {
+            mode: 2,
+            scaleKey: 'minor',
+            oscType: 'triangle',
+            isMuted: false,
+            isSilenced: false,
+            holdMode: false,
+            sensorsActive: false,
+            activeChords: new Set(),
+            pointer: new THREE.Vector2(),
+            pointerWorld: new THREE.Vector3(),
+            rawSensors: { x: 0, y: 0, z: 0, acc: 0 },
+            isHoveringUI: false,
+            activeCellIdx: -1,
+            lastArpTime: 0,
+            lastFakeHit: 0,
+            swipeActive: false,
+            lastSwipePos: { x: 0, y: 0 },
+            lastSwipeTime: 0,
+            waitingForRec: false,
+            isRecording: false,
+            micActive: false,
+            assets: [],
+            customSamplers: [],
+            speechPads: [],
+            lastInteraction: Date.now(),
+            cfg: {
+                gridCols: 4, gridRows: 4, arpRate: 0.2, perspective: true, waveColor: '#00ffcc', accentColor: '#ff007f', pointerOpac: 0.6,
+                sensSwapXY: false, sensInvertX: false, sensInvertY: false, ptrSwapXY: false, ptrInvertX: false, ptrInvertY: false,
+                ptrDisableX: false, ptrDisableY: false, ptrOffsetX: 0, ptrOffsetY: 0, ptrSmoothing: 0.15, mouseSwipeScale: 1.2,
+                thOn: true, thVolMin: -40, thVolMax: -6, thBaseFreq: 120, thMaxFreq: 880, impactThresh: 14, recThreshold: -35
+            }
+        },
+
+        loadSplash() {
+            console.log("Core Boot Interface Ready.");
+        },
+
+        async init() {
+            $('splash-screen').style.display = 'none';
+            await Tone.start();
+            
+            // Initialization Core Modules
+            this.initAudioEngine();
+            this.init3DScene();
+            this.generateGridMatrixDOM();
+            this.initHardwareListeners();
+            this.initPadsUI();
+
+            this.state.sensorsActive = true;
+            this.loop();
+        },
+
+        initAudioEngine() {
+            this.masterVolume = new Tone.Volume(0).toDestination();
+            this.analyser = new Tone.Analyser('waveform', 256);
+            this.masterVis = new Tone.Analyser('waveform', 256);
+            this.masterVolume.connect(this.analyser);
+            this.masterVolume.connect(this.masterVis);
+
+            // Polyphonic Synth Banks
+            this.synth1 = new Tone.PolySynth(Tone.Synth).connect(this.masterVolume);
+            this.synth2 = new Tone.PolySynth(Tone.Synth).connect(this.masterVolume);
+            this.setSynthOscillators(this.state.oscType);
+
+            // Spatial Continuous Audio Theremin Generator
+            this.theremin = new Tone.Oscillator(440, "sine");
+            this.thereminVol = new Tone.Volume(-Infinity);
+            this.theremin.connect(this.thereminVol);
+            this.thereminVol.connect(this.masterVolume);
+            this.theremin.start();
+
+            // Hardware Device Stream Input Captures
+            this.mic = new Tone.UserMedia();
+            this.micMeter = new Tone.Meter();
+            this.mic.connect(this.micMeter);
+            this.recorder = new Tone.Recorder();
+            this.mic.connect(this.recorder);
+        },
+
+        setSynthOscillators(type) {
+            this.synth1.set({ oscillator: { type: type } });
+            this.synth2.set({ oscillator: { type: type === 'sine' ? 'square' : 'sine' } });
+        },
+
+        init3DScene() {
+            // Foreground Interactive WebGL Context
+            const container = $('canvas-container');
+            this.scene = new THREE.Scene();
+            this.cam = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            this.cam.position.z = 5;
+
+            this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(this.renderer.domElement);
+
+            // Pointer Tracking Projector Anchor Object Mesh
+            const pGeo = new THREE.RingGeometry(0.12, 0.16, 32);
+            this.pointerMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffcc, side: THREE.DoubleSide, transparent: true, opacity: this.state.cfg.pointerOpac });
+            this.pointerObj = new THREE.Mesh(pGeo, this.pointerMaterial);
+            this.scene.add(this.pointerObj);
+            this.planeZ0 = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+            this.raycaster = new THREE.Raycaster();
+
+            // Background Screensaver Canvas Engine Setup
+            const ssLayer = $('screensaver-layer');
+            this.ssScene = new THREE.Scene();
+            this.ssCam = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            this.ssCam.position.z = 8;
+            this.ssRenderer = new THREE.WebGLRenderer({ antialias: false });
+            this.ssRenderer.setSize(window.innerWidth, window.innerHeight);
+            ssLayer.appendChild(this.ssRenderer.domElement);
+
+            const partGeo = new THREE.BufferGeometry();
+            const partCount = 400;
+            const posArray = new Float32Array(partCount * 3);
+            for(let i=0; i<partCount*3; i++) { posArray[i] = (Math.random() - 0.5) * 15; }
+            partGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+            const partMat = new THREE.PointsMaterial({ size: 0.04, color: 0xff007f });
+            this.particles = new THREE.Points(partGeo, partMat);
+            this.ssScene.add(this.particles);
+        },
+
+        generateGridMatrixDOM() {
+            const grid = $('grid-overlay');
+            grid.innerHTML = '';
+            grid.style.gridTemplateColumns = `repeat(${this.state.cfg.gridCols}, 1fr)`;
+            grid.style.gridTemplateRows = `repeat(${this.state.cfg.gridRows}, 1fr)`;
+
+            const notes = SCALES[this.state.scaleKey] || SCALES.minor;
+            const totalCells = this.state.cfg.gridCols * this.state.cfg.gridRows;
+
+            for(let i = 0; i < totalCells; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'grid-cell';
+                cell.innerText = notes[i % notes.length];
+                grid.appendChild(cell);
+            }
+        },
+
+        initPadsUI() {
+            const sampContainer = $('sampler-pad-container');
+            const vocContainer = $('speech-pad-container');
+
+            // Load Default Template Samplers
+            this.state.customSamplers.push(new AudioPadInstance("https://tonejs.github.io/audio/drum-samples/CR78/kick.mp3", "Kick 78", sampContainer));
+            this.state.customSamplers.push(new AudioPadInstance("https://tonejs.github.io/audio/drum-samples/CR78/snare.mp3", "Snare 78", sampContainer));
+            this.state.customSamplers.push(new AudioPadInstance("https://tonejs.github.io/audio/drum-samples/CR78/hihat.mp3", "Hihat 78", sampContainer));
+
+            // Load Default Expression Arrays
+            this.state.speechPads.push(new SpeechPadInstance("Alpha Variant", "Alpha", vocContainer));
+            this.state.speechPads.push(new SpeechPadInstance("System Critical Error", "Alert", vocContainer));
+            this.state.speechPads.push(new SpeechPadInstance("Quantum Synthesis Complete", "Sync", vocContainer));
+        },
+
+        addCustomSampler(url, name) {
+            const container = $('sampler-pad-container');
+            this.state.customSamplers.push(new AudioPadInstance(url, name, container));
+        },
+
+        triggerNote(note, velocity = 30) {
+            if(this.state.isSilenced) return;
+            const normVel = Math.min(1.0, Math.max(0.1, velocity / 40));
+            
+            this.synth1.triggerAttackRelease(note, "8n", Tone.now(), normVel);
+            if(Math.random() > 0.5) {
+                this.synth2.triggerAttackRelease(note, "4n", Tone.now() + 0.05, normVel * 0.7);
+            }
+
+            if(this.state.holdMode) {
+                this.state.activeChords.add(note);
+                Array.from($$('.grid-cell')).forEach(c => {
+                    if(c.innerText === note) c.classList.add('active');
+                });
+            }
+        },
+
+        muteAll() {
+            this.state.isMuted = !this.state.isMuted;
+            this.masterVolume.volume.value = this.state.isMuted ? -Infinity : 0;
+            $('btn-mute').classList.toggle('active', this.state.isMuted);
+            $('btn-mute').innerText = this.state.isMuted ? "🔊 UNMUTE" : "🔇 MUTE";
+        },
+
+        silenceAll() {
+            this.state.isSilenced = !this.state.isSilenced;
+            if(this.state.isSilenced) {
+                this.synth1.releaseAll(); this.synth2.releaseAll();
+                if(this.thereminVol) this.thereminVol.volume.value = -Infinity;
+            }
+            $('btn-silence').classList.toggle('active', this.state.isSilenced);
+            $('btn-silence').innerText = this.state.isSilenced ? "⚠️ WARN ACTIVE" : "🚨 SILENCE";
+        },
+
+        resumeAll() {
+            Tone.context.resume();
+            this.state.isSilenced = false;
+            this.state.isMuted = false;
+            this.masterVolume.volume.value = 0;
+            $('btn-mute').classList.remove('active'); $('btn-mute').innerText = "🔇 MUTE";
+            $('btn-silence').classList.remove('active'); $('btn-silence').innerText = "🚨 SILENCE";
+            console.log("Audio pipeline hardware safely re-initialized.");
+        },
+
+        stopAll() {
+            this.synth1.releaseAll();
+            this.synth2.releaseAll();
+            this.state.customSamplers.forEach(p => p.stopPad());
+            this.state.activeChords.clear();
+            if(this.thereminVol) this.thereminVol.volume.value = -Infinity;
+            Array.from($ Alb = $$('.grid-cell')).forEach(c => c.classList.remove('active'));
+        },
+
+        initHardwareListeners() {
+            $('sel-mode').addEventListener('change', e => this.state.mode = parseInt(e.target.value));
+            $('sel-scale').addEventListener('change', e => { this.state.scaleKey = e.target.value; this.generateGridMatrixDOM(); });
+            $('sel-osc').addEventListener('change', e => { this.state.oscType = e.target.value; this.setSynthOscillators(e.target.value); });
+            $('rng-arp').addEventListener('input', e => this.state.cfg.arpRate = parseFloat(e.target.value));
+            
+            $('btn-mute').addEventListener('click', () => this.muteAll());
+            $('btn-silence').addEventListener('click', () => this.silenceAll());
+            
+            $('btn-load-folder').addEventListener('click', () => $('up-folder').click());
+            $('up-folder').addEventListener('change', e => this.handleFolderUpload(e.target.files));
+
+            $('btn-record').addEventListener('click', async () => {
+                if(this.state.isRecording) {
+                    this.state.isRecording = false; this.state.waitingForRec = false;
+                    const buf = await this.recorder.stop();
+                    this.addCustomSampler(URL.createObjectURL(buf), "Rec Capture");
+                    $('btn-record').innerText = "⏺ REC INPUT";
+                    $('btn-record').style.background = "#2c1a1a";
+                } else {
+                    if(!this.state.micActive) {
+                        try {
+                            await this.mic.open(); this.state.micActive = true;
+                        } catch(err) { alert("Microphone capture denied."); return; }
+                    }
+                    this.state.waitingForRec = true;
+                    $('btn-record').innerText = "⏳ WAITING THRESH";
+                    $('btn-record').style.background = "#2c221a";
+                }
+            });
+
+            // Fall through completely to the core script termination segments provided[cite: 4]
+            if($('btn-resume')) $('btn-resume').addEventListener('click', () => this.resumeAll());[cite: 4]
+            if($('btn-stopall')) $('btn-stopall').addEventListener('click', () => this.stopAll());[cite: 4]
+            if($('up-sample')) $('up-sample').addEventListener('change', e => {[cite: 4]
+                const file = e.target.files[0];[cite: 4]
+                if(file) this.addCustomSampler(URL.createObjectURL(file), file.name);[cite: 4]
+            });[cite: 4]
+
+            const btnHold = $('btn-hold');[cite: 4]
+            if(btnHold) {[cite: 4]
+                btnHold.addEventListener('click', () => {[cite: 4]
+                    this.state.holdMode = !this.state.holdMode;[cite: 4]
+                    btnHold.classList.toggle('active', this.state.holdMode);[cite: 4]
+                    btnHold.innerText = this.state.holdMode ? "⎄ HOLD: ON" : "⎄ HOLD: OFF";[cite: 4]
+                    if(!this.state.holdMode) { this.synth1.releaseAll(); this.synth2.releaseAll(); this.state.activeChords.clear(); }[cite: 4]
+                });[cite: 4]
+            }[cite: 4]
+
+            window.addEventListener('deviceorientation', e => {[cite: 4]
+                if(!this.state.sensorsActive) return;[cite: 4]
+                let rawX = e.beta || 0; let rawY = e.gamma || 0; let rawZ = e.alpha || 0;[cite: 4]
+                if(this.state.cfg.sensSwapXY) { let t = rawX; rawX = rawY; rawY = t; }[cite: 4]
+                if(this.state.cfg.sensInvertX) rawX *= -1; if(this.state.cfg.sensInvertY) rawY *= -1;[cite: 4]
+                this.state.rawSensors.x = rawX; this.state.rawSensors.y = rawY; this.state.rawSensors.z = rawZ;[cite: 4]
+            });[cite: 4]
+
+            window.addEventListener('devicemotion', e => {[cite: 4]
+                if(!this.state.sensorsActive) return;[cite: 4]
+                const acc = e.accelerationIncludingGravity;[cite: 4]
+                if(acc) {[cite: 4]
+                    const totalAcc = Math.hypot(acc.x || 0, acc.y || 0, acc.z || 0);[cite: 4]
+                    this.state.rawSensors.acc = totalAcc;[cite: 4]
+                    this.handleAccelerometerTriggers(totalAcc);[cite: 4]
+                }[cite: 4]
+            });[cite: 4]
+
+            const updatePointer = (clientX, clientY) => {[cite: 4]
+                this.state.lastInteraction = Date.now();[cite: 4]
+                let trackX = (clientX / window.innerWidth) * 2 - 1;[cite: 4]
+                let trackY = -(clientY / window.innerHeight) * 2 + 1;[cite: 4]
+                
+                if(this.state.cfg.ptrSwapXY) { let t = trackX; trackX = trackY; trackY = t; }[cite: 4]
+                if(this.state.cfg.ptrInvertX) trackX *= -1; if(this.state.cfg.ptrInvertY) trackY *= -1;[cite: 4]
+                if(this.state.cfg.ptrDisableX) trackX = this.state.pointer.x;[cite: 4]
+                if(this.state.cfg.ptrDisableY) trackY = this.state.pointer.y;[cite: 4]
+                
+                this.state.pointer.x += (trackX + this.state.cfg.ptrOffsetX - this.state.pointer.x) * this.state.cfg.ptrSmoothing;[cite: 4]
+                this.state.pointer.y += (trackY + this.state.cfg.ptrOffsetY - this.state.pointer.y) * this.state.cfg.ptrSmoothing;[cite: 4]
+                
+                this.raycaster.setFromCamera(this.state.pointer, this.cam);[cite: 4]
+                this.raycaster.ray.intersectPlane(this.planeZ0, this.state.pointerWorld);[cite: 4]
+                this.pointerObj.position.copy(this.state.pointerWorld);[cite: 4]
+                
+                const targetEl = document.elementFromPoint(clientX, clientY);[cite: 4]
+                this.state.isHoveringUI = !!(targetEl && (targetEl.closest('.gui-window') || targetEl.closest('#trash-bin') || targetEl.closest('.custom-sampler-btn') || targetEl.closest('.speech-pad-btn')));[cite: 4]
+            };[cite: 4]
+
+            window.addEventListener('pointerdown', e => {[cite: 4]
+                if([6,7].includes(this.state.mode) && !this.state.isHoveringUI) {[cite: 4]
+                    this.state.swipeActive = true;[cite: 4]
+                    this.state.lastSwipePos = { x: e.clientX, y: e.clientY };[cite: 4]
+                    this.state.lastSwipeTime = Date.now();[cite: 4]
+                }[cite: 4]
+                updatePointer(e.clientX, e.clientY);[cite: 4]
+            });[cite: 4]
+
+            window.addEventListener('pointermove', e => {[cite: 4]
+                updatePointer(e.clientX, e.clientY);[cite: 4]
+                if(this.state.swipeActive && [6,7].includes(this.state.mode) && !this.state.isHoveringUI) {[cite: 4]
+                    const dx = e.clientX - this.state.lastSwipePos.x;[cite: 4]
+                    const dy = e.clientY - this.state.lastSwipePos.y;[cite: 4]
+                    const dt = Date.now() - this.state.lastSwipeTime;[cite: 4]
+                    if(dt > 0) {[cite: 4]
+                        const speed = Math.hypot(dx, dy) / dt;[cite: 4]
+                        if(speed > 0.5) {[cite: 4]
+                            const cell = document.elementFromPoint(e.clientX, e.clientY);[cite: 4]
+                            if(cell && cell.classList.contains('grid-cell')) {[cite: 4]
+                                const force = Math.min(40, speed * this.state.cfg.mouseSwipeScale);[cite: 4]
+                                const n = cell.innerText;[cite: 4]
+                                this.triggerNote(n, force);[cite: 4]
+                            }[cite: 4]
+                        }[cite: 4]
+                    }[cite: 4]
+                    this.state.lastSwipePos = { x: e.clientX, y: e.clientY };[cite: 4]
+                    this.state.lastSwipeTime = Date.now();[cite: 4]
+                }[cite: 4]
+            });[cite: 4]
+
+            window.addEventListener('pointerup', () => this.state.swipeActive = false);[cite: 4]
+            window.addEventListener('pointercancel', () => this.state.swipeActive = false);[cite: 4]
+            window.addEventListener('resize', () => {[cite: 4]
+                this.cam.aspect = window.innerWidth / window.innerHeight; this.cam.updateProjectionMatrix();[cite: 4]
+                this.renderer.setSize(window.innerWidth, window.innerHeight);[cite: 4]
+                this.ssCam.aspect = window.innerWidth / window.innerHeight; this.ssCam.updateProjectionMatrix();[cite: 4]
+                this.ssRenderer.setSize(window.innerWidth, window.innerHeight);[cite: 4]
+            });[cite: 4]
+        },[cite: 4]
+
+        handleAccelerometerTriggers(totalAcc) {[cite: 4]
+            const isImpact = totalAcc > this.state.cfg.impactThresh;[cite: 4]
+            
+            // Mode 2 Impact triggers global cells
+            if(this.state.mode === 2 && isImpact && Date.now() - this.state.lastFakeHit > 200) {[cite: 4]
+                this.state.lastFakeHit = Date.now();[cite: 4]
+                const cells = Array.from($$('.grid-cell'));[cite: 4]
+                if(cells.length > 0 && this.state.activeCellIdx >= 0) {[cite: 4]
+                    const targetCell = cells[this.state.activeCellIdx % cells.length];[cite: 4]
+                    this.triggerNote(targetCell.innerText, totalAcc);[cite: 4]
+                }[cite: 4]
+            }[cite: 4]
+
+            // Pad Triggers
+            this.state.customSamplers.forEach(pad => {[cite: 4]
+                if(!pad.accelEnable) return;[cite: 4]
+                if(pad.accelImpactOnly && !isImpact) return;[cite: 4]
+                if(totalAcc >= pad.accelThresh) {[cite: 4]
+                    if(pad.accelMode === 'Start Only' || pad.accelMode === 'Retrigger') pad.firePad();[cite: 4]
+                    else if(pad.accelMode === 'Stop Only') pad.stopPad();[cite: 4]
+                    else if(pad.accelMode === 'Pause Only') pad.pausePad();[cite: 4]
+                    else if(pad.accelMode === 'Start/Stop') {[cite: 4]
+                        if(pad.player.state === 'started') pad.stopPad(); else pad.firePad();[cite: 4]
+                    }[cite: 4]
+                }[cite: 4]
+            });[cite: 4]
+
+            this.state.speechPads.forEach(pad => {[cite: 4]
+                if(!pad.accelEnable) return;[cite: 4]
+                if(pad.accelImpactOnly && !isImpact) return;[cite: 4]
+                if(totalAcc >= pad.accelThresh) pad.firePad();[cite: 4]
+            });[cite: 4]
+        },[cite: 4]
+
+        handleFolderUpload(files) {[cite: 4]
+            if(!files || files.length === 0) return;[cite: 4]
+            const list = $('asset-list'); if(list) list.innerHTML = '';[cite: 4]
+            this.state.assets = Array.from(files);[cite: 4]
+            
+            this.state.assets.forEach((f, idx) => {[cite: 4]
+                const row = document.createElement('div'); row.className = 'asset-item';[cite: 4]
+                row.innerHTML = `<span>${f.name.substring(0,22)}</span> <button data-idx="${idx}">➕ Pad</button>`;[cite: 4]
+                row.querySelector('button').onclick = () => this.addCustomSampler(URL.createObjectURL(f), f.name);[cite: 4]
+                if(list) list.appendChild(row);[cite: 4]
+            });[cite: 4]
+        },[cite: 4]
+
+        drawWaveforms() {[cite: 4]
+            const hudCanvas = $('master-waveform');[cite: 4]
+            if(hudCanvas) {[cite: 4]
+                const ctx = hudCanvas.getContext('2d');[cite: 4]
+                const w = hudCanvas.width = hudCanvas.clientWidth;[cite: 4]
+                const h = hudCanvas.height = hudCanvas.clientHeight;[cite: 4]
+                ctx.clearRect(0,0,w,h);[cite: 4]
+                ctx.strokeStyle = this.state.cfg.waveColor; ctx.lineWidth = 1.5; ctx.beginPath();[cite: 4]
+                const arr = this.analyser.getValue();[cite: 4]
+                for(let i=0; i<arr.length; i++) {[cite: 4]
+                    let x = (i / arr.length) * w; let y = ((arr[i] + 1) / 2) * h;[cite: 4]
+                    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);[cite: 4]
+                }[cite: 4]
+                ctx.stroke();[cite: 4]
+            }[cite: 4]
+
+            const visCanvas = $('vis-canvas');[cite: 4]
+            if(visCanvas && visCanvas.parentElement.style.display !== 'none') {[cite: 4]
+                const ctx = visCanvas.getContext('2d');[cite: 4]
+                const w = visCanvas.width = visCanvas.clientWidth;[cite: 4]
+                const h = visCanvas.height = visCanvas.clientHeight;[cite: 4]
+                ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(0,0,w,h);[cite: 4]
+                const arr = this.masterVis.getValue();[cite: 4]
+                ctx.strokeStyle = this.state.cfg.accentColor; ctx.lineWidth = 2; ctx.beginPath();[cite: 4]
+                for(let i=0; i<arr.length; i++) {[cite: 4]
+                    let x = (i / arr.length) * w; let y = ((arr[i] + 1) / 2) * h;[cite: 4]
+                    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);[cite: 4]
+                }[cite: 4]
+                ctx.stroke();[cite: 4]
+            }[cite: 4]
+        },[cite: 4]
+
+        updateDiagnostics() {[cite: 4]
+            if($('dbg-status')) $('dbg-status').innerText = this.state.isSilenced ? "SILENCED" : (this.state.isMuted ? "MUTED" : "ACTIVE");[cite: 4]
+            if($('dbg-ctx')) $('dbg-ctx').innerText = Tone.context.state;[cite: 4]
+            if($('dbg-poly')) $('dbg-poly').innerText = this.state.activeChords.size;[cite: 4]
+            if($('dbg-ptr')) $('dbg-ptr').innerText = `${this.state.pointer.x.toFixed(2)}, ${this.state.pointer.y.toFixed(2)}`;[cite: 4]
+            if($('dbg-gyro')) $('dbg-gyro').innerText = `${Math.trunc(this.state.rawSensors.x)}, ${Math.trunc(this.state.rawSensors.y)}, ${Math.trunc(this.state.rawSensors.z)}`;[cite: 4]
+            if($('dbg-acc')) $('dbg-acc').innerText = this.state.rawSensors.acc.toFixed(1);[cite: 4]
+            
+            let micVal = this.state.micActive ? this.micMeter.getValue() : -Infinity;[cite: 4]
+            if($('dbg-mic')) $('dbg-mic').innerText = micVal === -Infinity ? "OFF" : Math.trunc(micVal) + " dB";[cite: 4]
+            
+            if($('rd-pos')) $('rd-pos').innerText = `${this.state.pointer.x.toFixed(2)}, ${this.state.pointer.y.toFixed(2)}`;[cite: 4]
+            if($('rd-acc')) $('rd-acc').innerText = this.state.rawSensors.acc.toFixed(1);[cite: 4]
+        },[cite: 4]
+
+        loop() {[cite: 4]
+            requestAnimationFrame(() => this.loop());[cite: 4]
+            
+            // Screensaver engine trigger logic
+            const idleTime = Date.now() - this.state.lastInteraction;[cite: 4]
+            if(idleTime > 45000) {[cite: 4]
+                $('screensaver-layer').style.opacity = 1; this.particles.rotation.y += 0.002;[cite: 4]
+                this.ssRenderer.render(this.ssScene, this.ssCam);[cite: 4]
+            } else {[cite: 4]
+                $('screensaver-layer').style.opacity = 0;[cite: 4]
+            }[cite: 4]
+
+            // Pointer UI Auto-fade matching spec
+            this.pointerMaterial.opacity = this.state.isHoveringUI ? 0.0 : this.state.cfg.pointerOpac;[cite: 4]
+
+            // Theremin Mode Logic
+            if([1,3,7,8].includes(this.state.mode) && this.state.cfg.thOn && !this.state.isHoveringUI && !this.state.isSilenced) {[cite: 4]
+                this.thereminVol.volume.value = mapRange(this.state.pointer.y, -1, 1, this.state.cfg.thVolMin, this.state.cfg.thVolMax);[cite: 4]
+                this.theremin.frequency.value = mapRange(this.state.pointer.x, -1, 1, this.state.cfg.thBaseFreq, this.state.cfg.thMaxFreq);[cite: 4]
+            } else if(this.thereminVol) {[cite: 4]
+                this.thereminVol.volume.value = -Infinity;[cite: 4]
+            }[cite: 4]
+
+            // Arpeggiator & Track Mode matching
+            const gridCells = Array.from($$('.grid-cell'));[cite: 4]
+            let foundCellIdx = -1;[cite: 4]
+            
+            if(gridCells.length > 0) {[cite: 4]
+                const colWidth = window.innerWidth / this.state.cfg.gridCols;[cite: 4]
+                const rowHeight = window.innerHeight / this.state.cfg.gridRows;[cite: 4]
+                const pX = (this.state.pointer.x + 1) / 2 * window.innerWidth;[cite: 4]
+                const pY = (-this.state.pointer.y + 1) / 2 * window.innerHeight;[cite: 4]
+                const cCol = Math.floor(pX / colWidth); const cRow = Math.floor(pY / rowHeight);[cite: 4]
+                
+                if(cCol >= 0 && cCol < this.state.cfg.gridCols && cRow >= 0 && cRow < this.state.cfg.gridRows) {[cite: 4]
+                    foundCellIdx = cRow * this.state.cfg.gridCols + cCol;[cite: 4]
+                }[cite: 4]
+                
+                this.state.activeCellIdx = foundCellIdx;[cite: 4]
+                if($('rd-cell')) $('rd-cell').innerText = (foundCellIdx >= 0 && gridCells[foundCellIdx]) ? gridCells[foundCellIdx].innerText : "None";[cite: 4]
+
+                gridCells.forEach((cell, idx) => {[cite: 4]
+                    if(idx === foundCellIdx && !this.state.isHoveringUI && [2,3,4,5,8].includes(this.state.mode)) {[cite: 4]
+                        cell.classList.add('active');[cite: 4]
+                        
+                        // Hover Mode Fire
+                        if(this.state.mode === 4 && !this.state.isSilenced && Date.now() - this.state.lastArpTime > 300) {[cite: 4]
+                            this.state.lastArpTime = Date.now();[cite: 4]
+                            this.triggerNote(cell.innerText, 25);[cite: 4]
+                        }[cite: 4]
+                        // Arpeggiator Mode Fire
+                        if(this.state.mode === 5 && !this.state.isSilenced && Date.now() - this.state.lastArpTime > (this.state.cfg.arpRate * 1000)) {[cite: 4]
+                            this.state.lastArpTime = Date.now();[cite: 4]
+                            this.triggerNote(cell.innerText, 30);[cite: 4]
+                        }[cite: 4]
+                    } else if (!this.state.activeChords.has(cell.innerText)) {[cite: 4]
+                        cell.classList.remove('active');[cite: 4]
+                    }[cite: 4]
+                });[cite: 4]
+            }[cite: 4]
+
+            // Mode 8 (Theremin + Synth Hybrid tracking)
+            if(this.state.mode === 8 && foundCellIdx >= 0 && gridCells[foundCellIdx] && !this.state.isHoveringUI && !this.state.isSilenced) {[cite: 4]
+                if(Date.now() - this.state.lastArpTime > 250) {[cite: 4]
+                    this.state.lastArpTime = Date.now();[cite: 4]
+                    this.triggerNote(gridCells[foundCellIdx].innerText, 20);[cite: 4]
+                }[cite: 4]
+            }[cite: 4]
+
+            // Recording Threshold evaluation logic
+            if(this.state.waitingForRec && this.state.micActive) {[cite: 4]
+                if(this.micMeter.getValue() > this.state.cfg.recThreshold) {[cite: 4]
+                    this.state.waitingForRec = false; this.state.isRecording = true;[cite: 4]
+                    this.recorder.start();[cite: 4]
+                    if($('btn-record')) $('btn-record').innerText = "⏹ STOP REC";[cite: 4]
+                }[cite: 4]
+            }[cite: 4]
+
+            // Layout Matrix transforms
+            const playfield = $('grid-overlay');[cite: 4]
+            if(playfield) playfield.style.transform = this.state.cfg.perspective ? `rotateX(20deg) translateZ(-40px)` : `none`;[cite: 4]
+
+            this.state.customSamplers.forEach(pad => pad.updateVisuals());[cite: 4]
+            this.drawWaveforms();[cite: 4]
+            this.updateDiagnostics();[cite: 4]
+            this.renderer.render(this.scene, this.cam);[cite: 4]
+        }[cite: 4]
+    };
+
+    // Application Initialization Entry hooks
+    window.addEventListener('DOMContentLoaded', () => {[cite: 4]
+        window.GyrOS.loadSplash();[cite: 4]
+        const btn = $('btn-start'); if(btn) btn.addEventListener('click', () => window.GyrOS.init());[cite: 4]
+    });[cite: 4]
+    </script>
+</body>
+</html>
